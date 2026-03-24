@@ -45,6 +45,13 @@ campaignManager.on('campaign:stateChange', ({ campaign, from, to }) => {
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
+// Mount API routers from separate route files
+app.use('/api/v2/campaigns', require('./api/campaigns'));
+app.use('/api/cohorts', require('./api/cohorts'));
+app.use('/api/monitoring', require('./api/monitoring'));
+app.use('/api/analytics', require('./api/analytics'));
+app.use('/api/nudgeops', require('./api/nudgeops'));
+
 // Request logging
 app.use((req, _res, next) => {
   logger.info(`${req.method} ${req.path}`, { query: req.query });
