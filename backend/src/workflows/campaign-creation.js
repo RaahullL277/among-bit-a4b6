@@ -293,11 +293,12 @@ class CampaignCreationWorkflow extends EventEmitter {
   async _awaitApproval() {
     this._transition(STATES.AWAITING_APPROVAL);
     this._log('[HUMAN CHECKPOINT] Waiting for human approval...');
-    this.emit('awaitingApproval', this.campaignData.brief);
 
     this.approvalPromise = new Promise((resolve) => {
       this.approvalResolve = resolve;
     });
+
+    this.emit('awaitingApproval', this.campaignData.brief);
 
     const decision = await this.approvalPromise;
     this.approvalResolve = null;
