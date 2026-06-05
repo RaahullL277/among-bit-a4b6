@@ -322,6 +322,31 @@ export function registerTools(
     tool((ctx, a: any) => commerce.carts.checkoutCart(ctx, a.cartId, { provider: a.provider })),
   );
 
+  // --- Analytics ------------------------------------------------------------
+  const rangeSchema = {
+    storeId: z.string().optional(),
+    from: z.string().optional().describe('ISO date; defaults to 30 days ago'),
+    to: z.string().optional().describe('ISO date; defaults to now'),
+  };
+
+  server.registerTool(
+    'get_analytics_summary',
+    {
+      description: 'KPI summary: revenue, orders, AOV, new customers, cart conversion, over a date range.',
+      inputSchema: rangeSchema,
+    },
+    tool((ctx, a: any) => commerce.analytics.summary(ctx, a)),
+  );
+
+  server.registerTool(
+    'get_top_products',
+    {
+      description: 'Best-selling products by revenue/units over a date range.',
+      inputSchema: { ...rangeSchema, limit: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.analytics.topProducts(ctx, a)),
+  );
+
   // --- Stock ----------------------------------------------------------------
   server.registerTool(
     'get_stock_status',

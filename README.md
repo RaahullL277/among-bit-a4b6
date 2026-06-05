@@ -42,6 +42,9 @@ storefront/     Public buyer storefront (browse → cart → checkout) over the 
   sent via notifications (driven by `apps/worker`).
 - **Stock health 🔴🟠🟢** — a pluggable, ML-ready scorer (sales-velocity → days-of-cover) with
   per-store thresholds and low/out-of-stock alerts to owners.
+- **Analytics** — KPI summary (revenue/AOV/conversion), revenue time-series, the
+  cart→checkout→paid funnel, and top products over a date range, behind `/analytics/*` and the
+  merchant dashboard.
 
 ## Prerequisites
 

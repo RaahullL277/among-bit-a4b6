@@ -21,6 +21,15 @@ export class ApiError extends Error {
   }
 }
 
+// Build a query string from defined params only.
+function qs(params) {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') p.set(k, v);
+  }
+  return p.toString();
+}
+
 async function request(path, { method = 'GET', body, signal } = {}) {
   const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -87,6 +96,12 @@ export const api = {
   },
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
+  },
+  analytics: {
+    summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),
+    revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),
+    funnel: (storeId, from) => request(`/analytics/funnel?${qs({ storeId, from })}`),
+    topProducts: (storeId, from, limit) => request(`/analytics/top-products?${qs({ storeId, from, limit })}`),
   },
   stock: {
     status: (storeId) => request(`/stores/${storeId}/stock`),
