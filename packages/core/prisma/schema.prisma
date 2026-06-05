@@ -89,6 +89,13 @@ enum NotificationStatus {
 // Account / tenancy
 // ---------------------------------------------------------------------------
 
+// Roles for a user within a tenant, in descending order of privilege.
+enum Role {
+  OWNER
+  ADMIN
+  STAFF
+}
+
 model Tenant {
   id        String   @id @default(cuid())
   name      String
@@ -98,6 +105,79 @@ model Tenant {
   stores        Store[]
   apiKeys       ApiKey[]
   installations AppInstallation[]
+  memberships   Membership[]
+  invites       Invite[]
+}
+
+// Global user identity. A user can belong to multiple tenants via Membership.
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  sessions    Session[]
+}
+
+// A user's role within a specific tenant.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+// Pending invitation to join a tenant with a given role (passwordless).
+model Invite {
+  id        String    @id @default(cuid())
+  tenantId  String
+  email     String
+  role      Role      @default(STAFF)
+  tokenHash String    @unique
+  expiresAt DateTime
+  acceptedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+// Single-use passwordless login token, emailed as a magic link.
+model MagicLinkToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+// An authenticated browser session for the admin console (Bearer token).
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tenantId   String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ApiKey {

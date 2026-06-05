@@ -1,16 +1,17 @@
-// Thin REST client for the ACP API. The merchant API key is stored in
-// localStorage and sent as `x-api-key` on every request.
+// Thin REST client for the ACP API. The auth token (a user session token or an
+// API key) is stored in localStorage and sent as `Authorization: Bearer` on
+// every request — the API guard accepts either form.
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-const KEY_STORAGE = 'acp.apiKey';
+const TOKEN_STORAGE = 'acp.token';
 
-export function getApiKey() {
-  return localStorage.getItem(KEY_STORAGE) ?? '';
+export function getToken() {
+  return localStorage.getItem(TOKEN_STORAGE) ?? '';
 }
 
-export function setApiKey(key) {
-  if (key) localStorage.setItem(KEY_STORAGE, key);
-  else localStorage.removeItem(KEY_STORAGE);
+export function setToken(token) {
+  if (token) localStorage.setItem(TOKEN_STORAGE, token);
+  else localStorage.removeItem(TOKEN_STORAGE);
 }
 
 export class ApiError extends Error {
@@ -21,12 +22,13 @@ export class ApiError extends Error {
 }
 
 async function request(path, { method = 'GET', body, signal } = {}) {
+  const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     signal,
     headers: {
       'content-type': 'application/json',
-      'x-api-key': getApiKey(),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -41,8 +43,23 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
 // Resource helpers ---------------------------------------------------------
 export const api = {
-  // Auth probe — any authenticated GET works to validate a key.
-  validateKey: () => request('/stores'),
+  auth: {
+    requestLink: (email) => request('/auth/request-link', { method: 'POST', body: { email } }),
+    verify: (token) => request('/auth/verify', { method: 'POST', body: { token } }),
+    signup: (body) => request('/auth/signup', { method: 'POST', body }),
+    acceptInvite: (token, name) =>
+      request('/auth/accept-invite', { method: 'POST', body: { token, name } }),
+    me: () => request('/auth/me'),
+    logout: (token) => request('/auth/logout', { method: 'POST', body: { token } }),
+  },
+  members: {
+    list: () => request('/members'),
+    changeRole: (userId, role) => request(`/members/${userId}`, { method: 'PATCH', body: { role } }),
+    remove: (userId) => request(`/members/${userId}`, { method: 'DELETE' }),
+    listInvites: () => request('/invites'),
+    createInvite: (body) => request('/invites', { method: 'POST', body }),
+    revokeInvite: (id) => request(`/invites/${id}`, { method: 'DELETE' }),
+  },
 
   stores: {
     list: () => request('/stores'),

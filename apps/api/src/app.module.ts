@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ApiKeyGuard } from './auth/api-key.guard.js';
+import { AuthGuard } from './auth/auth.guard.js';
+import { AuthController } from './controllers/auth.controller.js';
+import { MembersController } from './controllers/members.controller.js';
 import { HealthController } from './controllers/health.controller.js';
 import { StoresController } from './controllers/stores.controller.js';
 import { ProductsController } from './controllers/products.controller.js';
@@ -16,6 +18,8 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
 @Module({
   controllers: [
     HealthController,
+    AuthController,
+    MembersController,
     StoresController,
     ProductsController,
     CustomersController,
@@ -28,8 +32,8 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     WebhooksController,
   ],
   providers: [
-    // API-key auth applies to every route except those marked @Public().
-    { provide: APP_GUARD, useClass: ApiKeyGuard },
+    // Auth + RBAC applies to every route except those marked @Public().
+    { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })
 export class AppModule {}

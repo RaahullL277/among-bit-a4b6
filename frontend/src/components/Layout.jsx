@@ -7,6 +7,7 @@ import {
   Users,
   Plug,
   Bell,
+  UserCog,
   Settings,
   LogOut,
   ShoppingBag,
@@ -14,15 +15,17 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useStores } from '../context/StoreContext';
 
+// `perm` (when set) hides the item unless the current actor holds it.
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/stores', label: 'Stores', icon: Store },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/integrations', label: 'Integrations', icon: Plug },
-  { to: '/notifications', label: 'Notifications', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/integrations', label: 'Integrations', icon: Plug, perm: 'integrations:write' },
+  { to: '/notifications', label: 'Notifications', icon: Bell, perm: 'notifications:write' },
+  { to: '/team', label: 'Team', icon: UserCog, perm: 'members:manage' },
+  { to: '/settings', label: 'Settings', icon: Settings, perm: 'apikeys:manage' },
 ];
 
 function StoreSwitcher() {
@@ -44,7 +47,8 @@ function StoreSwitcher() {
 }
 
 export default function Layout() {
-  const { signOut } = useAuth();
+  const { signOut, me, can } = useAuth();
+  const items = nav.filter((n) => !n.perm || can(n.perm));
 
   return (
     <div className="flex min-h-full">
@@ -56,7 +60,7 @@ export default function Layout() {
           <span className="font-semibold text-slate-900">Merchant</span>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {nav.map(({ to, label, icon: Icon }) => (
+          {items.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -70,12 +74,20 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <button
-          onClick={signOut}
-          className="m-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50"
-        >
-          <LogOut size={17} /> Sign out
-        </button>
+        <div className="border-t border-slate-100 p-3">
+          {me && (
+            <div className="mb-2 px-3">
+              <div className="truncate text-xs font-medium text-slate-700">{me.email ?? 'API key'}</div>
+              <div className="text-xs text-slate-400">{me.role}</div>
+            </div>
+          )}
+          <button
+            onClick={signOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50"
+          >
+            <LogOut size={17} /> Sign out
+          </button>
+        </div>
       </aside>
 
       <div className="flex flex-1 flex-col">

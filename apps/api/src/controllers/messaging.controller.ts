@@ -1,8 +1,10 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
 import { getCommerce, type TenantContext } from '@acp/core';
 import { Tenant } from '../common/tenant.decorator.js';
+import { Permissions } from '../common/permissions.decorator.js';
 
 @Controller('messaging')
+@Permissions('notifications:write')
 export class MessagingController {
   private readonly commerce = getCommerce();
 

@@ -276,6 +276,24 @@ export function registerTools(
     tool((ctx, a: any) => commerce.notifications.setPreference(ctx, a)),
   );
 
+  // --- Team / members -------------------------------------------------------
+  const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
+
+  server.registerTool(
+    'list_members',
+    { description: 'List the members (users + roles) of the workspace.', inputSchema: {} },
+    tool((ctx) => commerce.members.listMembers(ctx)),
+  );
+
+  server.registerTool(
+    'invite_user',
+    {
+      description: 'Invite a user to the workspace with a role. Returns an invite link token.',
+      inputSchema: { email: z.string(), role: roleEnum },
+    },
+    tool((ctx, a: any) => commerce.members.createInvite(ctx, a)),
+  );
+
   // --- API keys -------------------------------------------------------------
   server.registerTool(
     'create_api_key',

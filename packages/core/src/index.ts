@@ -7,6 +7,7 @@ export {
   NotFoundError,
   ValidationError,
   AuthError,
+  ForbiddenError,
 } from './context.js';
 
 export { generateApiKey, hashApiKey } from './crypto.js';
@@ -30,6 +31,17 @@ export {
   type NotifyInput,
   type DispatchResult,
 } from './services/notification.service.js';
+export { AuthService, type IssuedSession } from './services/auth.service.js';
+export { MemberService } from './services/member.service.js';
+export {
+  type Permission,
+  type Actor,
+  ROLE_PERMISSIONS,
+  ALL_PERMISSIONS,
+  permissionsForRole,
+  actorHasPermission,
+  requirePermission,
+} from './authz.js';
 
 // Adapters / providers
 export {
@@ -68,4 +80,6 @@ export type {
   NotificationChannel,
   NotificationEvent,
   RecipientType,
+  Role,
+  User,
 } from '@prisma/client';

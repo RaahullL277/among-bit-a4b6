@@ -11,6 +11,7 @@ import {
  */
 const STATUS_BY_ERROR: Record<string, number> = {
   AuthError: 401,
+  ForbiddenError: 403,
   ValidationError: 400,
   NotFoundError: 404,
 };

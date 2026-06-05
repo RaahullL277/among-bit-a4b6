@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { getCommerce, type TenantContext } from '@acp/core';
 import { Tenant } from '../common/tenant.decorator.js';
+import { Permissions } from '../common/permissions.decorator.js';
 
 @Controller('api-keys')
+@Permissions('apikeys:manage')
 export class ApiKeysController {
   private readonly commerce = getCommerce();
 

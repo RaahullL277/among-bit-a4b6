@@ -16,6 +16,13 @@ async function main() {
 
   const apiKey = await commerce.apiKeys.create(ctx, { name: 'seed-key', scopes: ['*'] });
 
+  // An owner user so the admin console's email login works in dev.
+  const ownerEmail = 'owner@demo.example';
+  const owner = await prisma.user.create({ data: { email: ownerEmail, name: 'Demo Owner' } });
+  await prisma.membership.create({
+    data: { userId: owner.id, tenantId: tenant.id, role: 'OWNER' },
+  });
+
   const store = await commerce.stores.create(ctx, {
     name: 'Chai & Co',
     slug: 'chai-and-co',
@@ -79,6 +86,7 @@ async function main() {
   writeFileSync(new URL('../../../.acp-seed.json', import.meta.url), JSON.stringify(output, null, 2));
 
   console.log('\n✅ Seed complete.\n');
+  console.log('  Owner login email (magic link):    ', ownerEmail);
   console.log('  API key (store this — shown once):', apiKey.raw);
   console.log('  Store id:                          ', store.id);
   console.log('  Sample variant id:                 ', masala.variants[0].id);

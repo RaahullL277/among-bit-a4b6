@@ -54,6 +54,19 @@ export function hashApiKey(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
+/**
+ * Opaque single-use/session tokens (magic links, invites, sessions). The raw
+ * value is returned once; only its SHA-256 hash is persisted and looked up by.
+ */
+export function generateToken(prefix: string): { raw: string; hash: string } {
+  const raw = `${prefix}_${randomBytes(24).toString('base64url')}`;
+  return { raw, hash: hashToken(raw) };
+}
+
+export function hashToken(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex');
+}
+
 // ---------------------------------------------------------------------------
 // Credential encryption (AES-256-GCM)
 // ---------------------------------------------------------------------------

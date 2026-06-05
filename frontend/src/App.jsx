@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StoreProvider } from './context/StoreContext';
-import ApiKeyGate from './components/ApiKeyGate';
+import LoginGate from './components/LoginGate';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Stores from './pages/Stores';
@@ -10,7 +10,9 @@ import Orders from './pages/Orders';
 import Customers from './pages/Customers';
 import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
+import Team from './pages/Team';
 import Settings from './pages/Settings';
+import { Spinner } from './components/ui';
 
 function AuthedApp() {
   return (
@@ -25,6 +27,7 @@ function AuthedApp() {
           <Route path="/customers" element={<Customers />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/team" element={<Team />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
@@ -34,8 +37,15 @@ function AuthedApp() {
 }
 
 function Root() {
-  const { isAuthed } = useAuth();
-  return isAuthed ? <AuthedApp /> : <ApiKeyGate />;
+  const { isAuthed, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <Spinner label="Loading…" />
+      </div>
+    );
+  }
+  return isAuthed ? <AuthedApp /> : <LoginGate />;
 }
 
 export default function App() {
