@@ -44,6 +44,7 @@ export {
 export { ShippingService, type CreateShipmentInput } from './services/shipping.service.js';
 export { PlatformAuthService, type PlatformSessionResult } from './services/platform-auth.service.js';
 export { PlatformService } from './services/platform.service.js';
+export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
 export {
   type PlatformPermission,
   type PlatformContext,

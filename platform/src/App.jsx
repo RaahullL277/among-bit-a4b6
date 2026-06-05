@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Shield, Building2, Users, ScrollText, LogOut } from 'lucide-react';
+import { Shield, LayoutDashboard, Building2, Users, ScrollText, LogOut } from 'lucide-react';
 import { AuthProvider, useAuth } from './auth';
 import { api, BASE_URL } from './api';
+import Overview from './pages/Overview';
 import Tenants from './pages/Tenants';
 import TenantDetail from './pages/TenantDetail';
 import Staff from './pages/Staff';
@@ -85,6 +86,7 @@ function Login() {
 }
 
 const nav = [
+  { to: '/overview', label: 'Overview', icon: LayoutDashboard },
   { to: '/tenants', label: 'Tenants', icon: Building2 },
   { to: '/staff', label: 'Staff', icon: Users, perm: 'platform:staff:manage' },
   { to: '/audit', label: 'Audit log', icon: ScrollText, perm: 'platform:audit:read' },
@@ -123,12 +125,13 @@ function Shell() {
       </aside>
       <main className="flex-1 overflow-auto bg-slate-950 p-8 text-slate-100">
         <Routes>
-          <Route path="/" element={<Navigate to="/tenants" replace />} />
+          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route path="/overview" element={<Overview />} />
           <Route path="/tenants" element={<Tenants />} />
           <Route path="/tenants/:id" element={<TenantDetail />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/audit" element={<Audit />} />
-          <Route path="*" element={<Navigate to="/tenants" replace />} />
+          <Route path="*" element={<Navigate to="/overview" replace />} />
         </Routes>
       </main>
     </div>

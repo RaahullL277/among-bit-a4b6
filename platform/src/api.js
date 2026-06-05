@@ -49,6 +49,11 @@ export const api = {
     remove: (id) => req(`/platform/staff/${id}`, { method: 'DELETE' }),
   },
   audit: (limit) => req(`/platform/audit?${qs({ limit })}`),
+  analytics: {
+    overview: (from) => req(`/platform/analytics/overview?${qs({ from })}`),
+    topMerchants: (from, limit) => req(`/platform/analytics/top-merchants?${qs({ from, limit })}`),
+    growth: (from, interval) => req(`/platform/analytics/growth?${qs({ from, interval })}`),
+  },
 };
 
 export { BASE_URL };

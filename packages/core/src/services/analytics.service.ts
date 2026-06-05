@@ -142,7 +142,7 @@ function round(n: number) {
   return Math.round(n * 1000) / 1000;
 }
 
-function bucketKey(date: Date, interval: Interval): string {
+export function bucketKey(date: Date, interval: Interval): string {
   const iso = date.toISOString();
   if (interval === 'month') return iso.slice(0, 7);
   if (interval === 'week') {
@@ -154,7 +154,7 @@ function bucketKey(date: Date, interval: Interval): string {
   return iso.slice(0, 10);
 }
 
-function bucketKeys(from: Date, to: Date, interval: Interval): string[] {
+export function bucketKeys(from: Date, to: Date, interval: Interval): string[] {
   const keys: string[] = [];
   const cursor = new Date(bucketKey(from, interval) + (interval === 'month' ? '-01' : '') + 'T00:00:00Z');
   let guard = 0;

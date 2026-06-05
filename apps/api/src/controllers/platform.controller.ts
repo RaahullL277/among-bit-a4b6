@@ -73,6 +73,25 @@ export class PlatformController {
     return this.commerce.platformAuth.removeStaff(id);
   }
 
+  // --- Platform analytics ---------------------------------------------------
+  @Get('analytics/overview')
+  @PlatformPermissions('platform:tenants:read')
+  overview(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.commerce.platformAnalytics.overview({ from, to });
+  }
+
+  @Get('analytics/top-merchants')
+  @PlatformPermissions('platform:tenants:read')
+  topMerchants(@Query('from') from?: string, @Query('to') to?: string, @Query('limit') limit?: string) {
+    return this.commerce.platformAnalytics.topMerchants({ from, to, limit: limit ? Number(limit) : undefined });
+  }
+
+  @Get('analytics/growth')
+  @PlatformPermissions('platform:tenants:read')
+  growth(@Query('from') from?: string, @Query('to') to?: string, @Query('interval') interval?: any) {
+    return this.commerce.platformAnalytics.growth({ from, to, interval });
+  }
+
   // --- Audit ----------------------------------------------------------------
   @Get('audit')
   @PlatformPermissions('platform:audit:read')
