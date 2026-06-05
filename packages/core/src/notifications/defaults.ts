@@ -55,6 +55,28 @@ export const DEFAULT_TEMPLATES: Record<NotificationEvent, ChannelTemplates> = {
       body: '{{productTitle}} is out of stock. Restock to keep selling.',
     },
   },
+  SHIPMENT_CREATED: {
+    EMAIL: {
+      subject: 'Your {{storeName}} order #{{orderNumber}} has shipped',
+      body: 'Good news! Order #{{orderNumber}} is on its way via {{courier}}. Track it: {{trackingUrl}} (AWB {{awb}})',
+    },
+    SMS: { body: '{{storeName}}: order #{{orderNumber}} shipped. Track {{trackingUrl}}' },
+    WHATSAPP: { body: '📦 Order #{{orderNumber}} shipped via {{courier}}. Track: {{trackingUrl}}' },
+  },
+  OUT_FOR_DELIVERY: {
+    EMAIL: {
+      subject: 'Order #{{orderNumber}} is out for delivery',
+      body: 'Your order #{{orderNumber}} is out for delivery today.',
+    },
+    WHATSAPP: { body: '🚚 Order #{{orderNumber}} is out for delivery today!' },
+  },
+  DELIVERED: {
+    EMAIL: {
+      subject: 'Order #{{orderNumber}} delivered',
+      body: 'Your order #{{orderNumber}} has been delivered. Enjoy!',
+    },
+    WHATSAPP: { body: '✅ Order #{{orderNumber}} delivered. Thanks for shopping with {{storeName}}!' },
+  },
 };
 
 type RecipientChannels = Partial<Record<RecipientType, NotificationChannel[]>>;
@@ -67,6 +89,9 @@ export const DEFAULT_PREFERENCES: Record<NotificationEvent, RecipientChannels> =
   ABANDONED_CART: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
   LOW_STOCK: { STORE_OWNER: ['EMAIL'] },
   OUT_OF_STOCK: { STORE_OWNER: ['EMAIL'] },
+  SHIPMENT_CREATED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
+  OUT_FOR_DELIVERY: { CUSTOMER: ['WHATSAPP'] },
+  DELIVERED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
 };
 
 /** Replace {{key}} tokens from `data`; unknown tokens become empty strings. */

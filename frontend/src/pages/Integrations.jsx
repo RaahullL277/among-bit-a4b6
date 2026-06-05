@@ -63,6 +63,16 @@ const PROVIDERS = [
       { key: 'senderId', label: 'Sender ID' },
     ],
   },
+  {
+    name: 'DELHIVERY',
+    label: 'Delhivery',
+    kind: 'Shipping',
+    fields: [
+      { key: 'token', label: 'API Token', secret: true },
+      { key: 'pickupName', label: 'Pickup Location' },
+      { key: 'webhookSecret', label: 'Webhook Secret', secret: true },
+    ],
+  },
 ];
 
 function ProviderCard({ def, configured, storeId, onSaved }) {

@@ -16,6 +16,7 @@ import { CartsController } from './controllers/carts.controller.js';
 import { StockController } from './controllers/stock.controller.js';
 import { StorefrontController } from './controllers/storefront.controller.js';
 import { AnalyticsController } from './controllers/analytics.controller.js';
+import { ShipmentsController } from './controllers/shipments.controller.js';
 import { ApiKeysController } from './controllers/api-keys.controller.js';
 import { WebhooksController } from './controllers/webhooks.controller.js';
 
@@ -36,6 +37,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     StockController,
     StorefrontController,
     AnalyticsController,
+    ShipmentsController,
     ApiKeysController,
     WebhooksController,
   ],

@@ -95,6 +95,11 @@ const statusColors = {
   SENT: 'bg-emerald-100 text-emerald-700',
   SKIPPED: 'bg-slate-200 text-slate-500',
   FAILED: 'bg-rose-100 text-rose-700',
+  MANIFESTED: 'bg-blue-100 text-blue-700',
+  IN_TRANSIT: 'bg-indigo-100 text-indigo-700',
+  OUT_FOR_DELIVERY: 'bg-amber-100 text-amber-700',
+  DELIVERED: 'bg-emerald-100 text-emerald-700',
+  RTO: 'bg-rose-100 text-rose-700',
 };
 
 export function Badge({ children }) {

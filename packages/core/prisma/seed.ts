@@ -58,6 +58,11 @@ async function main() {
     provider: 'MSG91',
     credentials: { authKey: 'stub_msg91', senderId: 'CHAICO' },
   });
+  await commerce.integrations.configure(ctx, {
+    storeId: store.id,
+    provider: 'DELHIVERY',
+    credentials: { token: 'stub_delhivery', pickupName: 'Chai Warehouse', webhookSecret: 'stub_shipping_secret' },
+  });
 
   const masala = await commerce.products.create(ctx, {
     title: 'Masala Chai (250g)',

@@ -45,6 +45,7 @@ enum PaymentStatus {
 enum IntegrationKind {
   PAYMENT
   MESSAGING
+  SHIPPING
 }
 
 // Concrete provider implementations available behind the adapter interfaces.
@@ -54,6 +55,19 @@ enum ProviderName {
   WHATSAPP
   RESEND
   MSG91
+  DELHIVERY
+}
+
+// Lifecycle of a shipment (Delhivery-style).
+enum ShipmentStatus {
+  PENDING            // created locally, no AWB yet
+  MANIFESTED         // AWB assigned / handed to courier
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RTO                // return to origin
+  CANCELLED
+  FAILED
 }
 
 // Delivery channels for customer/store-owner notifications.
@@ -71,6 +85,9 @@ enum NotificationEvent {
   ABANDONED_CART
   LOW_STOCK
   OUT_OF_STOCK
+  SHIPMENT_CREATED
+  OUT_FOR_DELIVERY
+  DELIVERED
 }
 
 // Who a notification is addressed to.
@@ -244,6 +261,7 @@ model Store {
   carts        Cart[]
   cartRecoveryPolicy CartRecoveryPolicy?
   stockPolicy  StockPolicy?
+  shipments    Shipment[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -337,6 +355,7 @@ model Order {
   cart     Cart?       @relation(fields: [cartId], references: [id], onDelete: SetNull)
   items    OrderItem[]
   payment  Payment?
+  shipment Shipment?
 
   @@unique([storeId, number])
   @@index([tenantId])
@@ -544,6 +563,52 @@ model CartItem {
 
   @@unique([cartId, variantId])
   @@index([cartId])
+}
+
+// ---------------------------------------------------------------------------
+// Shipping / logistics
+// ---------------------------------------------------------------------------
+
+model Shipment {
+  id          String         @id @default(cuid())
+  tenantId    String
+  storeId     String
+  orderId     String         @unique
+  provider    ProviderName
+  status      ShipmentStatus @default(PENDING)
+  awb         String?        // tracking / air-waybill number
+  courier     String?
+  trackingUrl String?
+  labelUrl    String?
+  codAmountMinor Int?
+  weightGrams Int?
+  toAddress   Json
+  fromAddress Json?
+  raw         Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  store  Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order  Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events ShipmentEvent[]
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([awb])
+}
+
+// Tracking checkpoints for a shipment (newest reflects current status).
+model ShipmentEvent {
+  id          String         @id @default(cuid())
+  shipmentId  String
+  status      ShipmentStatus
+  description String?
+  location    String?
+  occurredAt  DateTime       @default(now())
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
 }
 
 // Per-store stock-alert thresholds (drives the R/A/G scorer).

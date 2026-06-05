@@ -8,6 +8,7 @@ import {
 import { WhatsAppAdapter, type MessagingProvider } from './messaging.js';
 import { ResendAdapter, type EmailProvider } from './email.js';
 import { Msg91Adapter, type SmsProvider } from './sms.js';
+import { DelhiveryAdapter, type ShippingProvider } from './shipping.js';
 
 /**
  * Resolves a provider name + decrypted credentials into a concrete adapter.
@@ -61,12 +62,22 @@ export function getSmsProvider(provider: ProviderName, creds: ProviderCredential
   }
 }
 
+export function getShippingProvider(provider: ProviderName, creds: ProviderCredentials): ShippingProvider {
+  switch (provider) {
+    case 'DELHIVERY':
+      return new DelhiveryAdapter(creds);
+    default:
+      throw new Error(`No shipping adapter registered for provider: ${provider}`);
+  }
+}
+
 export const PROVIDER_KIND: Record<ProviderName, IntegrationKind> = {
   RAZORPAY: 'PAYMENT',
   GOKWIK: 'PAYMENT',
   WHATSAPP: 'MESSAGING',
   RESEND: 'MESSAGING',
   MSG91: 'MESSAGING',
+  DELHIVERY: 'SHIPPING',
 };
 
 /** Each notification channel is backed by exactly one provider (today). */

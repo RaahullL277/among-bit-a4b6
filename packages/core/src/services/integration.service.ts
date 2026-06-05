@@ -1,4 +1,4 @@
-import type { PrismaClient, ProviderName } from '@prisma/client';
+import type { IntegrationKind, PrismaClient, ProviderName } from '@prisma/client';
 import { decryptJson, encryptJson, type EncryptedBlob } from '../crypto.js';
 import { NotFoundError, type TenantContext } from '../context.js';
 import { PROVIDER_KIND } from '../adapters/registry.js';
@@ -70,11 +70,20 @@ export class IntegrationService {
 
   /** Internal: pick the active payment provider configured for a store. */
   async getActivePaymentProvider(ctx: TenantContext, storeId: string): Promise<ProviderName> {
+    return this.getActiveProvider(ctx, storeId, 'PAYMENT');
+  }
+
+  /** Internal: pick the active enabled provider of a given kind for a store. */
+  async getActiveProvider(
+    ctx: TenantContext,
+    storeId: string,
+    kind: IntegrationKind,
+  ): Promise<ProviderName> {
     const config = await this.prisma.integrationConfig.findFirst({
-      where: { tenantId: ctx.tenantId, storeId, kind: 'PAYMENT', enabled: true },
+      where: { tenantId: ctx.tenantId, storeId, kind, enabled: true },
       orderBy: { createdAt: 'asc' },
     });
-    if (!config) throw new NotFoundError('Enabled payment integration for store', storeId);
+    if (!config) throw new NotFoundError(`Enabled ${kind} integration for store`, storeId);
     return config.provider;
   }
 }

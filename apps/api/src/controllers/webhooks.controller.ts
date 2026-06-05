@@ -12,6 +12,22 @@ import { Public } from '../common/public.decorator.js';
 export class WebhooksController {
   private readonly commerce = getCommerce();
 
+  private raw(req: any): string {
+    return req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body ?? {});
+  }
+
+  /** Inbound shipping/tracking webhooks (declared first — more specific path). */
+  @Public()
+  @Post('shipping/:provider')
+  async handleShipping(
+    @Param('provider') provider: string,
+    @Headers('x-webhook-signature') signature: string | undefined,
+    @Req() req: any,
+  ) {
+    const providerName = provider.toUpperCase() as ProviderName;
+    return this.commerce.shipping.handleTrackingWebhook(providerName, this.raw(req), signature);
+  }
+
   @Public()
   @Post(':provider')
   async handle(
@@ -19,10 +35,7 @@ export class WebhooksController {
     @Headers('x-webhook-signature') signature: string | undefined,
     @Req() req: any,
   ) {
-    const rawBody: string = req.rawBody
-      ? req.rawBody.toString('utf8')
-      : JSON.stringify(req.body ?? {});
     const providerName = provider.toUpperCase() as ProviderName;
-    return this.commerce.payments.handleWebhook(providerName, rawBody, signature);
+    return this.commerce.payments.handleWebhook(providerName, this.raw(req), signature);
   }
 }

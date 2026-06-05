@@ -357,6 +357,45 @@ export function registerTools(
     tool((ctx, a: any) => commerce.stock.getStockStatus(ctx, a.storeId)),
   );
 
+  // --- Shipping -------------------------------------------------------------
+  server.registerTool(
+    'create_shipment',
+    {
+      description: 'Create a shipment for an order via the store\'s active courier (Delhivery).',
+      inputSchema: {
+        orderId: z.string(),
+        to: z
+          .object({
+            name: z.string().optional(),
+            phone: z.string().optional(),
+            line1: z.string().optional(),
+            line2: z.string().optional(),
+            city: z.string().optional(),
+            state: z.string().optional(),
+            pincode: z.string().optional(),
+            country: z.string().optional(),
+          })
+          .describe('Delivery address (line1 or pincode required)'),
+        weightGrams: z.number().int().positive().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.shipping.createShipment(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_shipments',
+    {
+      description: 'List shipments, optionally filtered by store and status.',
+      inputSchema: {
+        storeId: z.string().optional(),
+        status: z
+          .enum(['PENDING', 'MANIFESTED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RTO', 'CANCELLED', 'FAILED'])
+          .optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.shipping.listShipments(ctx, a)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

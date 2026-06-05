@@ -97,6 +97,12 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  shipments: {
+    list: (storeId, status) => request(`/shipments?${qs({ storeId, status })}`),
+    get: (id) => request(`/shipments/${id}`),
+    create: (body) => request('/shipments', { method: 'POST', body }),
+    cancel: (id) => request(`/shipments/${id}/cancel`, { method: 'POST' }),
+  },
   analytics: {
     summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),
     revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),

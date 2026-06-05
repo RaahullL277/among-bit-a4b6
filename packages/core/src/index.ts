@@ -41,6 +41,13 @@ export {
   type AnalyticsRange,
   type Interval,
 } from './services/analytics.service.js';
+export { ShippingService, type CreateShipmentInput } from './services/shipping.service.js';
+export {
+  type ShippingProvider,
+  type Address,
+  DelhiveryAdapter,
+} from './adapters/shipping.js';
+export { getShippingProvider } from './adapters/registry.js';
 export {
   type StockScorer,
   type StockSignal,
@@ -100,4 +107,6 @@ export type {
   Cart,
   CartStatus,
   StockStatus,
+  Shipment,
+  ShipmentStatus,
 } from '@prisma/client';

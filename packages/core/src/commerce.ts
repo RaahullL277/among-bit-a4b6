@@ -15,6 +15,7 @@ import { CartService } from './services/cart.service.js';
 import { StockService } from './services/stock.service.js';
 import { StorefrontService } from './services/storefront.service.js';
 import { AnalyticsService } from './services/analytics.service.js';
+import { ShippingService } from './services/shipping.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -38,6 +39,7 @@ export class Commerce {
   readonly stock: StockService;
   readonly storefront: StorefrontService;
   readonly analytics: AnalyticsService;
+  readonly shipping: ShippingService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -56,6 +58,7 @@ export class Commerce {
     this.stock = new StockService(prisma, this.notifications);
     this.storefront = new StorefrontService(prisma, this.products, this.carts);
     this.analytics = new AnalyticsService(prisma);
+    this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
   }
 }
 

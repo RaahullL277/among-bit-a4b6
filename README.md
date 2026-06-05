@@ -29,9 +29,10 @@ storefront/     Public buyer storefront (browse → cart → checkout) over the 
   hashed, full permissions for agents/partners) and **user sessions** (`ses_…`, passwordless
   magic-link login). Roles (OWNER/ADMIN/STAFF) gate every route via `@Permissions`.
 - **Adapters:** `PaymentProvider` (Razorpay, GoKwik), `MessagingProvider` (WhatsApp),
-  `EmailProvider` (Resend) and `SmsProvider` (MSG91) are resolved per-store from encrypted
-  `IntegrationConfig`. v1 ships deterministic **stubs** (no network) that keep the exact interface —
-  including HMAC webhook verification — so real providers drop in later with no call-site changes.
+  `EmailProvider` (Resend), `SmsProvider` (MSG91) and `ShippingProvider` (Delhivery) are resolved
+  per-store from encrypted `IntegrationConfig`. v1 ships deterministic **stubs** (no network) that
+  keep the exact interface — including HMAC webhook verification — so real providers drop in later
+  with no call-site changes.
 
 ### Capabilities beyond the core
 
@@ -45,6 +46,9 @@ storefront/     Public buyer storefront (browse → cart → checkout) over the 
 - **Analytics** — KPI summary (revenue/AOV/conversion), revenue time-series, the
   cart→checkout→paid funnel, and top products over a date range, behind `/analytics/*` and the
   merchant dashboard.
+- **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
+  tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
+  shipped / out-for-delivery / delivered milestones.
 
 ## Prerequisites
 
