@@ -19,6 +19,7 @@ import { ShippingService } from './services/shipping.service.js';
 import { PlatformAuthService } from './services/platform-auth.service.js';
 import { PlatformService } from './services/platform.service.js';
 import { PlatformAnalyticsService } from './services/platform-analytics.service.js';
+import { SupportAssistantService } from './services/support-assistant.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -46,6 +47,7 @@ export class Commerce {
   readonly platformAuth: PlatformAuthService;
   readonly platform: PlatformService;
   readonly platformAnalytics: PlatformAnalyticsService;
+  readonly supportAssistant: SupportAssistantService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -68,6 +70,7 @@ export class Commerce {
     this.platformAuth = new PlatformAuthService(prisma);
     this.platform = new PlatformService(prisma);
     this.platformAnalytics = new PlatformAnalyticsService(prisma);
+    this.supportAssistant = new SupportAssistantService(this.platform, this.platformAnalytics);
   }
 }
 

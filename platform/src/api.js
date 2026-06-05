@@ -51,6 +51,7 @@ export const api = {
     remove: (id) => req(`/platform/staff/${id}`, { method: 'DELETE' }),
   },
   audit: (limit) => req(`/platform/audit?${qs({ limit })}`),
+  assistant: (messages) => req('/platform/assistant/chat', { method: 'POST', body: { messages } }),
   analytics: {
     overview: (from) => req(`/platform/analytics/overview?${qs({ from })}`),
     topMerchants: (from, limit) => req(`/platform/analytics/top-merchants?${qs({ from, limit })}`),

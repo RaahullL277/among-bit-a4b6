@@ -20,6 +20,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0",
     "@prisma/client": "^6.1.0"
   },
   "devDependencies": {

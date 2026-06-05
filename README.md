@@ -53,7 +53,10 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
 - **Platform operator console** — a *separate* cross-tenant auth plane (platform staff with
   SUPER_ADMIN / SUPPORT / BILLING / READ_ONLY roles, own magic-link login) for the company running
   the platform: a tenant/store directory, **suspend/reactivate** (which blocks the merchant's API
-  keys, sessions, and storefront), and an action audit log. Distinct from per-merchant RBAC.
+  keys, sessions, and storefront), **platform-wide analytics** (GMV, top merchants, growth),
+  **plan/billing flags** (tier + store limit + feature flags, with the store limit enforced), an
+  action audit log, and a **support chatbot** that answers operator questions over platform data.
+  Distinct from per-merchant RBAC.
 
 ## Prerequisites
 

@@ -109,6 +109,13 @@ export class PlatformController {
     return this.commerce.platformAnalytics.growth({ from, to, interval });
   }
 
+  // --- Support assistant ----------------------------------------------------
+  @Post('assistant/chat')
+  @PlatformPermissions('platform:tenants:read')
+  assistant(@Body() body: { messages: any[] }) {
+    return this.commerce.supportAssistant.chat(body?.messages ?? []);
+  }
+
   // --- Audit ----------------------------------------------------------------
   @Get('audit')
   @PlatformPermissions('platform:audit:read')
