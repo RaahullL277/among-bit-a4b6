@@ -85,6 +85,14 @@ enum NotificationStatus {
   SKIPPED
 }
 
+// Lifecycle of a shopping cart.
+enum CartStatus {
+  ACTIVE     // shopper is adding items
+  ABANDONED  // idle past the threshold; recovery in progress
+  CONVERTED  // checked out and paid (never abandoned)
+  RECOVERED  // was abandoned, then converted
+}
+
 // ---------------------------------------------------------------------------
 // Account / tenancy
 // ---------------------------------------------------------------------------
@@ -226,6 +234,8 @@ model Store {
   integrations IntegrationConfig[]
   notifications Notification[]
   notificationPreferences NotificationPreference[]
+  carts        Cart[]
+  cartRecoveryPolicy CartRecoveryPolicy?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -304,6 +314,8 @@ model Order {
   storeId    String
   number     Int
   customerId String?
+  // Set when an order originates from a cart, so recovery can be attributed.
+  cartId     String?
   status     OrderStatus @default(PENDING)
   totalMinor Int
   currency   String      @default("INR")
@@ -312,12 +324,14 @@ model Order {
 
   store    Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customer Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cart     Cart?       @relation(fields: [cartId], references: [id], onDelete: SetNull)
   items    OrderItem[]
   payment  Payment?
 
   @@unique([storeId, number])
   @@index([tenantId])
   @@index([storeId])
+  @@index([cartId])
 }
 
 model OrderItem {
@@ -475,4 +489,66 @@ model Notification {
 
   @@index([tenantId])
   @@index([storeId])
+}
+
+// ---------------------------------------------------------------------------
+// Carts & abandoned-cart recovery
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id           String     @id @default(cuid())
+  tenantId     String
+  storeId      String
+  customerId   String?
+  // Contact for an anonymous shopper (used for recovery messages).
+  contactEmail String?
+  contactPhone String?
+  status       CartStatus @default(ACTIVE)
+  lastActivityAt DateTime @default(now())
+  abandonedAt  DateTime?
+  // How many recovery steps have already been sent for this cart.
+  recoveryStepsSent Int    @default(0)
+  lastRecoveryAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  store Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items CartItem[]
+  orders Order[]
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([status])
+}
+
+model CartItem {
+  id             String @id @default(cuid())
+  tenantId       String
+  cartId         String
+  variantId      String
+  title          String
+  quantity       Int    @default(1)
+  unitPriceMinor Int
+
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@index([cartId])
+}
+
+// Per-store abandoned-cart recovery configuration.
+model CartRecoveryPolicy {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  storeId            String   @unique
+  enabled            Boolean  @default(true)
+  // A cart idle for this many minutes becomes ABANDONED.
+  abandonAfterMinutes Int     @default(60)
+  // Delays (minutes after abandonment) at which each recovery message is sent.
+  stepDelaysMinutes  Int[]    @default([0, 1440, 4320])
+  updatedAt          DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

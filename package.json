@@ -18,6 +18,7 @@
     "seed": "pnpm --filter @acp/core seed",
     "api:dev": "pnpm --filter @acp/api dev",
     "mcp:dev": "pnpm --filter @acp/mcp dev",
+    "worker:dev": "pnpm --filter @acp/worker dev",
     "admin:dev": "pnpm --filter acp-admin dev",
     "admin:build": "pnpm --filter acp-admin build"
   },

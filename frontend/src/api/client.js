@@ -88,6 +88,15 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  carts: {
+    list: (storeId, status) =>
+      request(
+        `/carts?storeId=${encodeURIComponent(storeId)}${status ? `&status=${status}` : ''}`,
+      ),
+    getPolicy: (storeId) => request(`/cart-recovery-policy?storeId=${encodeURIComponent(storeId)}`),
+    setPolicy: (body) => request('/cart-recovery-policy', { method: 'PUT', body }),
+    runRecovery: () => request('/carts/run-recovery', { method: 'POST' }),
+  },
   notifications: {
     list: (storeId) => request(`/notifications?storeId=${encodeURIComponent(storeId)}`),
     listPreferences: (storeId) =>

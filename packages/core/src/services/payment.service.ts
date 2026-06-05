@@ -172,9 +172,25 @@ export class PaymentService {
     const orderStatus =
       status === 'CAPTURED' ? 'PAID' : status === 'REFUNDED' ? 'REFUNDED' : status === 'FAILED' ? 'CANCELLED' : undefined;
     if (orderStatus) {
-      await this.prisma.order.update({ where: { id: orderId }, data: { status: orderStatus } });
-      // Notify the customer their payment succeeded (best-effort).
+      const order = await this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: orderStatus },
+      });
       if (orderStatus === 'PAID') {
+        // Attribute a paid order back to its cart (recovered if it was abandoned).
+        if (order.cartId) {
+          const cart = await this.prisma.cart.findUnique({
+            where: { id: order.cartId },
+            select: { status: true },
+          });
+          if (cart && cart.status !== 'CONVERTED' && cart.status !== 'RECOVERED') {
+            await this.prisma.cart.update({
+              where: { id: order.cartId },
+              data: { status: cart.status === 'ABANDONED' ? 'RECOVERED' : 'CONVERTED' },
+            });
+          }
+        }
+        // Notify the customer their payment succeeded (best-effort).
         await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
       }
     }

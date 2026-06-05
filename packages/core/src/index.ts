@@ -33,6 +33,7 @@ export {
 } from './services/notification.service.js';
 export { AuthService, type IssuedSession } from './services/auth.service.js';
 export { MemberService } from './services/member.service.js';
+export { CartService, type CreateCartInput } from './services/cart.service.js';
 export {
   type Permission,
   type Actor,
@@ -82,4 +83,6 @@ export type {
   RecipientType,
   Role,
   User,
+  Cart,
+  CartStatus,
 } from '@prisma/client';

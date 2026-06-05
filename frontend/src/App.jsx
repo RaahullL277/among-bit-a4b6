@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Stores from './pages/Stores';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
+import Carts from './pages/Carts';
 import Customers from './pages/Customers';
 import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
@@ -24,6 +25,7 @@ function AuthedApp() {
           <Route path="/stores" element={<Stores />} />
           <Route path="/products" element={<Products />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/carts" element={<Carts />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />

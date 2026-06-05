@@ -89,6 +89,12 @@ const statusColors = {
   DRAFT: 'bg-slate-100 text-slate-600',
   ARCHIVED: 'bg-slate-200 text-slate-500',
   SUSPENDED: 'bg-rose-100 text-rose-700',
+  ABANDONED: 'bg-amber-100 text-amber-700',
+  CONVERTED: 'bg-blue-100 text-blue-700',
+  RECOVERED: 'bg-emerald-100 text-emerald-700',
+  SENT: 'bg-emerald-100 text-emerald-700',
+  SKIPPED: 'bg-slate-200 text-slate-500',
+  FAILED: 'bg-rose-100 text-rose-700',
 };
 
 export function Badge({ children }) {

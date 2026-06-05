@@ -16,9 +16,14 @@ async function main() {
 
   const apiKey = await commerce.apiKeys.create(ctx, { name: 'seed-key', scopes: ['*'] });
 
-  // An owner user so the admin console's email login works in dev.
+  // An owner user so the admin console's email login works in dev. Upserted so
+  // the seed can be re-run (the email is globally unique).
   const ownerEmail = 'owner@demo.example';
-  const owner = await prisma.user.create({ data: { email: ownerEmail, name: 'Demo Owner' } });
+  const owner = await prisma.user.upsert({
+    where: { email: ownerEmail },
+    create: { email: ownerEmail, name: 'Demo Owner' },
+    update: {},
+  });
   await prisma.membership.create({
     data: { userId: owner.id, tenantId: tenant.id, role: 'OWNER' },
   });

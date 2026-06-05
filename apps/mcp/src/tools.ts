@@ -276,6 +276,52 @@ export function registerTools(
     tool((ctx, a: any) => commerce.notifications.setPreference(ctx, a)),
   );
 
+  // --- Carts & recovery -----------------------------------------------------
+  server.registerTool(
+    'create_cart',
+    {
+      description: 'Create a shopping cart, optionally with items and a customer/contact.',
+      inputSchema: {
+        storeId: z.string(),
+        customerId: z.string().optional(),
+        contactEmail: z.string().optional(),
+        contactPhone: z.string().optional(),
+        items: z.array(z.object({ variantId: z.string(), quantity: z.number().int().positive() })).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.carts.createCart(ctx, a)),
+  );
+
+  server.registerTool(
+    'add_to_cart',
+    {
+      description: 'Add (or increment) a variant in a cart.',
+      inputSchema: { cartId: z.string(), variantId: z.string(), quantity: z.number().int().positive() },
+    },
+    tool((ctx, a: any) => commerce.carts.addItem(ctx, a.cartId, a)),
+  );
+
+  server.registerTool(
+    'list_carts',
+    {
+      description: 'List carts, optionally filtered by store and status.',
+      inputSchema: {
+        storeId: z.string().optional(),
+        status: z.enum(['ACTIVE', 'ABANDONED', 'CONVERTED', 'RECOVERED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.carts.listCarts(ctx, a)),
+  );
+
+  server.registerTool(
+    'checkout_cart',
+    {
+      description: 'Check out a cart, creating an order + payment linked to it.',
+      inputSchema: { cartId: z.string(), provider: z.enum(['RAZORPAY', 'GOKWIK']).optional() },
+    },
+    tool((ctx, a: any) => commerce.carts.checkoutCart(ctx, a.cartId, { provider: a.provider })),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 
