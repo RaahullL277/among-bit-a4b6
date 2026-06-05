@@ -18,6 +18,14 @@ async function bootstrap() {
   });
   app.useGlobalFilters(new CoreExceptionFilter());
 
+  // Allow the merchant admin UI (and other first-party clients) to call the API.
+  // CORS_ORIGIN can be a comma-separated allowlist; defaults to all origins in dev.
+  const origins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim());
+  app.enableCors({
+    origin: origins && origins.length ? origins : true,
+    allowedHeaders: ['content-type', 'x-api-key', 'authorization', 'x-webhook-signature'],
+  });
+
   const port = Number(process.env.API_PORT ?? 3000);
   await app.listen(port);
   // eslint-disable-next-line no-console

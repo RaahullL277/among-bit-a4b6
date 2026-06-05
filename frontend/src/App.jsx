@@ -1,24 +1,45 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { StoreProvider } from './context/StoreContext';
+import ApiKeyGate from './components/ApiKeyGate';
+import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import TaskManager from './pages/TaskManager';
-import CalendarSync from './pages/CalendarSync';
-import Collaboration from './pages/Collaboration';
-import Notifications from './pages/Notifications';
+import Stores from './pages/Stores';
+import Products from './pages/Products';
+import Orders from './pages/Orders';
+import Customers from './pages/Customers';
+import Integrations from './pages/Integrations';
+import Settings from './pages/Settings';
 
-function App() {
+function AuthedApp() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+    <StoreProvider>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/tasks" element={<TaskManager />} />
-        <Route path="/calendar" element={<CalendarSync />} />
-        <Route path="/collaboration" element={<Collaboration />} />
-        <Route path="/notifications" element={<Notifications />} />
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/stores" element={<Stores />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/integrations" element={<Integrations />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
       </Routes>
-    </div>
+    </StoreProvider>
   );
 }
 
-export default App;
+function Root() {
+  const { isAuthed } = useAuth();
+  return isAuthed ? <AuthedApp /> : <ApiKeyGate />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Root />
+    </AuthProvider>
+  );
+}

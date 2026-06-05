@@ -18,7 +18,7 @@ through the API are the same code path.
 packages/core   Prisma schema + domain services + provider adapters (the single source of truth)
 apps/api        NestJS REST API   ─┐
 apps/mcp        MCP server         ├─ thin transports, both call @acp/core
-frontend/       Existing React app (unrelated template; reserved for a future merchant admin UI)
+frontend/       Merchant admin console (React + Vite + Tailwind) over the REST API
 ```
 
 - **Multi-tenant:** every row carries a `tenantId`; the service layer scopes all queries by the
@@ -101,6 +101,23 @@ call `create_store` / `create_product`. Available tools include `create_store`, 
 The server also supports a Streamable-HTTP transport for remote/partner clients:
 `MCP_TRANSPORT=http pnpm --filter @acp/mcp start` (per-request `Authorization: Bearer <key>`).
 
+## Merchant admin console (`frontend/`)
+
+A React + Vite + Tailwind dashboard over the REST API. Sign in by pasting a merchant API key
+(stored in `localStorage`); it's validated against the API. Features: dashboard stats + orders
+chart, store/product/customer management, an order list with inline status updates, per-store
+integration setup (Razorpay / GoKwik / WhatsApp), and API-key management.
+
+```bash
+# The API must be running with CORS allowing the dev origin (enabled by default).
+pnpm api:dev                      # http://localhost:3000
+pnpm admin:dev                    # http://localhost:5173
+# Point the UI elsewhere with VITE_API_URL (see frontend/.env.example).
+```
+
+CORS origins are configurable on the API via `CORS_ORIGIN` (comma-separated; defaults to allow-all
+in dev).
+
 ## Tests
 
 ```bash
@@ -114,6 +131,6 @@ multi-tenant isolation, the REST checkout→webhook→PAID flow, and an MCP tool
 
 ## Roadmap (beyond Milestone 1)
 
-Merchant-admin UI (repurpose `frontend/`) · buyer storefront + cart · real Razorpay/GoKwik/WhatsApp
-credentials · partner app marketplace runtime & billing · shipping/logistics · analytics. Each
-builds on the single `@acp/core` service layer established here.
+Buyer storefront + cart · real Razorpay/GoKwik/WhatsApp credentials · partner app marketplace
+runtime & billing · shipping/logistics · richer analytics · merchant auth (email/password/SSO)
+in front of API keys. Each builds on the single `@acp/core` service layer established here.

@@ -17,7 +17,9 @@
     "prisma:migrate": "pnpm --filter @acp/core prisma:migrate",
     "seed": "pnpm --filter @acp/core seed",
     "api:dev": "pnpm --filter @acp/api dev",
-    "mcp:dev": "pnpm --filter @acp/mcp dev"
+    "mcp:dev": "pnpm --filter @acp/mcp dev",
+    "admin:dev": "pnpm --filter acp-admin dev",
+    "admin:build": "pnpm --filter acp-admin build"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
