@@ -14,6 +14,7 @@ import { MessagingController } from './controllers/messaging.controller.js';
 import { NotificationsController } from './controllers/notifications.controller.js';
 import { CartsController } from './controllers/carts.controller.js';
 import { StockController } from './controllers/stock.controller.js';
+import { StorefrontController } from './controllers/storefront.controller.js';
 import { ApiKeysController } from './controllers/api-keys.controller.js';
 import { WebhooksController } from './controllers/webhooks.controller.js';
 
@@ -32,6 +33,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     NotificationsController,
     CartsController,
     StockController,
+    StorefrontController,
     ApiKeysController,
     WebhooksController,
   ],

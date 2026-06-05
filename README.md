@@ -20,6 +20,7 @@ apps/api        NestJS REST API   ─┐
 apps/mcp        MCP server         ├─ thin transports, both call @acp/core
 apps/worker     Background jobs (abandoned-cart recovery, stock recompute/alerts)
 frontend/       Merchant admin console (React + Vite + Tailwind) over the REST API
+storefront/     Public buyer storefront (browse → cart → checkout) over the public API
 ```
 
 - **Multi-tenant:** every row carries a `tenantId`; the service layer scopes all queries by the
@@ -74,7 +75,15 @@ pnpm mcp:dev
 
 # 5c. Run the background worker (cart recovery + stock alerts)
 pnpm worker:dev
+
+# 5d. Run the buyer storefront (public; set its store via VITE_STORE_ID or ?store=<id>)
+pnpm store:dev        # http://localhost:5174
 ```
+
+The **storefront** is unauthenticated and store-scoped: a public API surface (`/storefront/*`,
+keyed by store id and opaque cart id) exposes only the active catalog, carts, and checkout, while
+every admin route still requires a key or session. Checkout runs through the active payment
+provider (the Razorpay **stub** today) and produces a pending order.
 
 ## REST API — example flow
 

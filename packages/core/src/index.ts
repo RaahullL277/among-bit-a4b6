@@ -35,6 +35,7 @@ export { AuthService, type IssuedSession } from './services/auth.service.js';
 export { MemberService } from './services/member.service.js';
 export { CartService, type CreateCartInput } from './services/cart.service.js';
 export { StockService, type VariantStock } from './services/stock.service.js';
+export { StorefrontService } from './services/storefront.service.js';
 export {
   type StockScorer,
   type StockSignal,
