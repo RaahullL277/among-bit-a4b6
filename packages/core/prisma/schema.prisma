@@ -52,6 +52,37 @@ enum ProviderName {
   RAZORPAY
   GOKWIK
   WHATSAPP
+  RESEND
+  MSG91
+}
+
+// Delivery channels for customer/store-owner notifications.
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+// Business events that can trigger a notification.
+enum NotificationEvent {
+  ORDER_PLACED
+  ORDER_PAID
+  ORDER_STATUS_CHANGED
+  ABANDONED_CART
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+// Who a notification is addressed to.
+enum RecipientType {
+  CUSTOMER
+  STORE_OWNER
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  SKIPPED
 }
 
 // ---------------------------------------------------------------------------
@@ -100,15 +131,21 @@ model Store {
   currency  String      @default("INR")
   country   String      @default("IN")
   status    StoreStatus @default(ACTIVE)
+  // Where store-owner notifications (stock alerts, new orders) are sent.
+  // Phase 2 will derive these from user memberships; explicit for now.
+  ownerEmail String?
+  ownerPhone String?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   products     Product[]
   collections  Collection[]
   customers    Customer[]
   orders       Order[]
   integrations IntegrationConfig[]
+  notifications Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -298,4 +335,64 @@ model AppInstallation {
 
   @@unique([tenantId, appId])
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (email / SMS / WhatsApp to customers and store owners)
+// ---------------------------------------------------------------------------
+
+// Per-store override of the message body for an (event, channel). When absent,
+// a built-in default template (in code) is used, so seeding is optional.
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  tenantId  String
+  storeId   String
+  event     NotificationEvent
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([storeId, event, channel])
+  @@index([tenantId])
+}
+
+// Which channels fire for an (event, recipient) in a store. When absent, a
+// built-in default preference (in code) decides.
+model NotificationPreference {
+  id            String                @id @default(cuid())
+  tenantId      String
+  storeId       String
+  event         NotificationEvent
+  recipientType RecipientType
+  channels      NotificationChannel[] @default([])
+  enabled       Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, event, recipientType])
+  @@index([tenantId])
+}
+
+// Audit log of every notification dispatch attempt.
+model Notification {
+  id            String              @id @default(cuid())
+  tenantId      String
+  storeId       String
+  event         NotificationEvent
+  channel       NotificationChannel
+  recipientType RecipientType
+  to            String
+  status        NotificationStatus
+  providerRef   String?
+  error         String?
+  createdAt     DateTime            @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([storeId])
 }

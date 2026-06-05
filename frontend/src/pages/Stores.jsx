@@ -18,7 +18,7 @@ import {
 export default function Stores() {
   const { stores, loading, refreshStores } = useStores();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', currency: 'INR' });
+  const [form, setForm] = useState({ name: '', slug: '', currency: 'INR', ownerEmail: '', ownerPhone: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -31,9 +31,11 @@ export default function Stores() {
         name: form.name,
         slug: form.slug || undefined,
         currency: form.currency,
+        ownerEmail: form.ownerEmail || undefined,
+        ownerPhone: form.ownerPhone || undefined,
       });
       setOpen(false);
-      setForm({ name: '', slug: '', currency: 'INR' });
+      setForm({ name: '', slug: '', currency: 'INR', ownerEmail: '', ownerPhone: '' });
       await refreshStores();
     } catch (err) {
       setError(err.message);
@@ -102,6 +104,23 @@ export default function Stores() {
               <option value="USD">USD</option>
             </Select>
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Owner email" hint="For store-owner alerts.">
+              <Input
+                type="email"
+                value={form.ownerEmail}
+                onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })}
+                placeholder="owner@store.com"
+              />
+            </Field>
+            <Field label="Owner phone">
+              <Input
+                value={form.ownerPhone}
+                onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })}
+                placeholder="+9198…"
+              />
+            </Field>
+          </div>
           <ErrorBanner message={error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>

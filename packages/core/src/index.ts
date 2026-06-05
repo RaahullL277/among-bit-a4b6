@@ -25,6 +25,11 @@ export { OrderService } from './services/order.service.js';
 export { IntegrationService } from './services/integration.service.js';
 export { PaymentService, type CheckoutInput } from './services/payment.service.js';
 export { MessagingService } from './services/messaging.service.js';
+export {
+  NotificationService,
+  type NotifyInput,
+  type DispatchResult,
+} from './services/notification.service.js';
 
 // Adapters / providers
 export {
@@ -34,7 +39,21 @@ export {
   GoKwikAdapter,
 } from './adapters/payment.js';
 export { type MessagingProvider, WhatsAppAdapter } from './adapters/messaging.js';
-export { getPaymentProvider, getMessagingProvider, PROVIDER_KIND } from './adapters/registry.js';
+export { type EmailProvider, ResendAdapter } from './adapters/email.js';
+export { type SmsProvider, Msg91Adapter } from './adapters/sms.js';
+export {
+  getPaymentProvider,
+  getMessagingProvider,
+  getEmailProvider,
+  getSmsProvider,
+  PROVIDER_KIND,
+  CHANNEL_PROVIDER,
+} from './adapters/registry.js';
+export {
+  DEFAULT_TEMPLATES,
+  DEFAULT_PREFERENCES,
+  renderTemplate,
+} from './notifications/defaults.js';
 
 // Prisma-generated enums/types re-exported for transport layers.
 export type {
@@ -46,4 +65,7 @@ export type {
   OrderStatus,
   ProviderName,
   IntegrationKind,
+  NotificationChannel,
+  NotificationEvent,
+  RecipientType,
 } from '@prisma/client';

@@ -1,4 +1,4 @@
-import type { IntegrationKind, ProviderName } from '@prisma/client';
+import type { IntegrationKind, NotificationChannel, ProviderName } from '@prisma/client';
 import {
   GoKwikAdapter,
   RazorpayAdapter,
@@ -6,6 +6,8 @@ import {
   type ProviderCredentials,
 } from './payment.js';
 import { WhatsAppAdapter, type MessagingProvider } from './messaging.js';
+import { ResendAdapter, type EmailProvider } from './email.js';
+import { Msg91Adapter, type SmsProvider } from './sms.js';
 
 /**
  * Resolves a provider name + decrypted credentials into a concrete adapter.
@@ -38,8 +40,38 @@ export function getMessagingProvider(
   }
 }
 
+export function getEmailProvider(
+  provider: ProviderName,
+  creds: ProviderCredentials,
+): EmailProvider {
+  switch (provider) {
+    case 'RESEND':
+      return new ResendAdapter(creds);
+    default:
+      throw new Error(`No email adapter registered for provider: ${provider}`);
+  }
+}
+
+export function getSmsProvider(provider: ProviderName, creds: ProviderCredentials): SmsProvider {
+  switch (provider) {
+    case 'MSG91':
+      return new Msg91Adapter(creds);
+    default:
+      throw new Error(`No SMS adapter registered for provider: ${provider}`);
+  }
+}
+
 export const PROVIDER_KIND: Record<ProviderName, IntegrationKind> = {
   RAZORPAY: 'PAYMENT',
   GOKWIK: 'PAYMENT',
   WHATSAPP: 'MESSAGING',
+  RESEND: 'MESSAGING',
+  MSG91: 'MESSAGING',
+};
+
+/** Each notification channel is backed by exactly one provider (today). */
+export const CHANNEL_PROVIDER: Record<NotificationChannel, ProviderName> = {
+  EMAIL: 'RESEND',
+  SMS: 'MSG91',
+  WHATSAPP: 'WHATSAPP',
 };

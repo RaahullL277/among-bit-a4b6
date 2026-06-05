@@ -45,6 +45,24 @@ const PROVIDERS = [
       { key: 'token', label: 'Access Token', secret: true },
     ],
   },
+  {
+    name: 'RESEND',
+    label: 'Email (Resend)',
+    kind: 'Notifications',
+    fields: [
+      { key: 'apiKey', label: 'API Key', secret: true },
+      { key: 'fromAddress', label: 'From Address' },
+    ],
+  },
+  {
+    name: 'MSG91',
+    label: 'SMS (MSG91)',
+    kind: 'Notifications',
+    fields: [
+      { key: 'authKey', label: 'Auth Key', secret: true },
+      { key: 'senderId', label: 'Sender ID' },
+    ],
+  },
 ];
 
 function ProviderCard({ def, configured, storeId, onSaved }) {

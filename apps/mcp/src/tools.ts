@@ -50,6 +50,8 @@ export function registerTools(
         slug: z.string().optional(),
         currency: z.string().optional().describe('ISO currency, defaults to INR'),
         country: z.string().optional().describe('ISO country, defaults to IN'),
+        ownerEmail: z.string().optional().describe('Where store-owner alerts are sent'),
+        ownerPhone: z.string().optional(),
       },
     },
     tool((ctx, a: any) => commerce.stores.create(ctx, a)),
@@ -195,6 +197,83 @@ export function registerTools(
       inputSchema: { storeId: z.string(), to: z.string(), body: z.string() },
     },
     tool((ctx, a: any) => commerce.messaging.send(ctx, a)),
+  );
+
+  server.registerTool(
+    'configure_email',
+    {
+      description: 'Configure the email (Resend) provider credentials for a store.',
+      inputSchema: {
+        storeId: z.string(),
+        credentials: z.record(z.any()).describe('e.g. { apiKey, fromAddress }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.integrations.configure(ctx, { ...a, provider: 'RESEND' })),
+  );
+
+  server.registerTool(
+    'configure_sms',
+    {
+      description: 'Configure the SMS (MSG91) provider credentials for a store.',
+      inputSchema: {
+        storeId: z.string(),
+        credentials: z.record(z.any()).describe('e.g. { authKey, senderId }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.integrations.configure(ctx, { ...a, provider: 'MSG91' })),
+  );
+
+  // --- Notifications --------------------------------------------------------
+  const eventEnum = z.enum([
+    'ORDER_PLACED',
+    'ORDER_PAID',
+    'ORDER_STATUS_CHANGED',
+    'ABANDONED_CART',
+    'LOW_STOCK',
+    'OUT_OF_STOCK',
+  ]);
+  const channelEnum = z.enum(['EMAIL', 'SMS', 'WHATSAPP']);
+  const recipientEnum = z.enum(['CUSTOMER', 'STORE_OWNER']);
+
+  server.registerTool(
+    'send_notification',
+    {
+      description:
+        'Dispatch a notification for an event across the store\'s configured channels (email/SMS/WhatsApp) to customers and/or the store owner.',
+      inputSchema: {
+        storeId: z.string(),
+        event: eventEnum,
+        data: z.record(z.any()).describe('Template variables, e.g. { customerEmail, orderNumber }'),
+        recipientType: recipientEnum.optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.notifications.notify(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_notification_preferences',
+    {
+      description: 'List effective notification channel preferences for a store.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.notifications.listPreferences(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_notification_preference',
+    {
+      description: 'Set which channels fire for an (event, recipient) in a store.',
+      inputSchema: {
+        storeId: z.string(),
+        event: eventEnum,
+        recipientType: recipientEnum,
+        channels: z.array(channelEnum),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.notifications.setPreference(ctx, a)),
   );
 
   // --- API keys -------------------------------------------------------------

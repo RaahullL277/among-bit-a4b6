@@ -71,6 +71,12 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  notifications: {
+    list: (storeId) => request(`/notifications?storeId=${encodeURIComponent(storeId)}`),
+    listPreferences: (storeId) =>
+      request(`/notification-preferences?storeId=${encodeURIComponent(storeId)}`),
+    setPreference: (body) => request('/notification-preferences', { method: 'PUT', body }),
+  },
   apiKeys: {
     list: () => request('/api-keys'),
     create: (body) => request('/api-keys', { method: 'POST', body }),

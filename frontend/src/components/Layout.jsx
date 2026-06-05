@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Users,
   Plug,
+  Bell,
   Settings,
   LogOut,
   ShoppingBag,
@@ -20,6 +21,7 @@ const nav = [
   { to: '/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/integrations', label: 'Integrations', icon: Plug },
+  { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

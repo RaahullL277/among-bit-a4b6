@@ -7,12 +7,16 @@ export interface CreateStoreInput {
   domain?: string;
   currency?: string;
   country?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
 }
 
 export interface UpdateStoreInput {
   name?: string;
   domain?: string;
   status?: 'ACTIVE' | 'SUSPENDED';
+  ownerEmail?: string;
+  ownerPhone?: string;
 }
 
 function slugify(value: string): string {
@@ -44,6 +48,8 @@ export class StoreService {
         domain: input.domain,
         currency: input.currency ?? 'INR',
         country: input.country ?? 'IN',
+        ownerEmail: input.ownerEmail,
+        ownerPhone: input.ownerPhone,
       },
     });
   }
@@ -67,7 +73,13 @@ export class StoreService {
     await this.get(ctx, id); // tenant-scoped existence check
     return this.prisma.store.update({
       where: { id },
-      data: { name: input.name, domain: input.domain, status: input.status },
+      data: {
+        name: input.name,
+        domain: input.domain,
+        status: input.status,
+        ownerEmail: input.ownerEmail,
+        ownerPhone: input.ownerPhone,
+      },
     });
   }
 }

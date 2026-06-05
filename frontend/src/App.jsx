@@ -9,6 +9,7 @@ import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Customers from './pages/Customers';
 import Integrations from './pages/Integrations';
+import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 
 function AuthedApp() {
@@ -23,6 +24,7 @@ function AuthedApp() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/integrations" element={<Integrations />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

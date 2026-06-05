@@ -21,6 +21,8 @@ async function main() {
     slug: 'chai-and-co',
     currency: 'INR',
     country: 'IN',
+    ownerEmail: 'owner@chai.example',
+    ownerPhone: '+919800000000',
   });
 
   await commerce.integrations.configure(ctx, {
@@ -32,6 +34,17 @@ async function main() {
     storeId: store.id,
     provider: 'WHATSAPP',
     credentials: { phoneNumberId: 'stub_phone', token: 'stub_token' },
+  });
+  // Notification channels (stubbed) so order events deliver in dev.
+  await commerce.integrations.configure(ctx, {
+    storeId: store.id,
+    provider: 'RESEND',
+    credentials: { apiKey: 'stub_resend', fromAddress: 'orders@chai.example' },
+  });
+  await commerce.integrations.configure(ctx, {
+    storeId: store.id,
+    provider: 'MSG91',
+    credentials: { authKey: 'stub_msg91', senderId: 'CHAICO' },
   });
 
   const masala = await commerce.products.create(ctx, {

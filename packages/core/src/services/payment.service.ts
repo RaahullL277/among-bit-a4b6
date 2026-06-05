@@ -2,6 +2,7 @@ import type { PrismaClient, ProviderName } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { getPaymentProvider } from '../adapters/registry.js';
 import type { IntegrationService } from './integration.service.js';
+import type { NotificationService } from './notification.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -19,6 +20,7 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly integrations: IntegrationService,
+    private readonly notifications?: NotificationService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -105,6 +107,9 @@ export class PaymentService {
       data: { providerRef: result.providerRef },
     });
 
+    // Best-effort order-placed notification; never block checkout.
+    await this.notifications?.notifyOrderEvent(ctx, order.id, 'ORDER_PLACED').catch(() => undefined);
+
     return {
       order: { ...order, payment: { ...order.payment!, providerRef: result.providerRef } },
       checkout: result.checkout,
@@ -140,7 +145,7 @@ export class PaymentService {
       eventType = event.eventType;
 
       if (signatureValid && event.status) {
-        await this.applyPaymentStatus(payment.id, payment.orderId, event.status);
+        await this.applyPaymentStatus(ctx, payment.id, payment.orderId, event.status);
       }
     }
 
@@ -158,6 +163,7 @@ export class PaymentService {
   }
 
   private async applyPaymentStatus(
+    ctx: TenantContext,
     paymentId: string,
     orderId: string,
     status: 'AUTHORIZED' | 'CAPTURED' | 'FAILED' | 'REFUNDED',
@@ -167,6 +173,10 @@ export class PaymentService {
       status === 'CAPTURED' ? 'PAID' : status === 'REFUNDED' ? 'REFUNDED' : status === 'FAILED' ? 'CANCELLED' : undefined;
     if (orderStatus) {
       await this.prisma.order.update({ where: { id: orderId }, data: { status: orderStatus } });
+      // Notify the customer their payment succeeded (best-effort).
+      if (orderStatus === 'PAID') {
+        await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
+      }
     }
   }
 }

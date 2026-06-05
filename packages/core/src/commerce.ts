@@ -8,6 +8,7 @@ import { OrderService } from './services/order.service.js';
 import { IntegrationService } from './services/integration.service.js';
 import { PaymentService } from './services/payment.service.js';
 import { MessagingService } from './services/messaging.service.js';
+import { NotificationService } from './services/notification.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -22,6 +23,7 @@ export class Commerce {
   readonly customers: CustomerService;
   readonly orders: OrderService;
   readonly integrations: IntegrationService;
+  readonly notifications: NotificationService;
   readonly payments: PaymentService;
   readonly messaging: MessagingService;
 
@@ -31,9 +33,10 @@ export class Commerce {
     this.stores = new StoreService(prisma);
     this.products = new ProductService(prisma);
     this.customers = new CustomerService(prisma);
-    this.orders = new OrderService(prisma);
     this.integrations = new IntegrationService(prisma);
-    this.payments = new PaymentService(prisma, this.integrations);
+    this.notifications = new NotificationService(prisma, this.integrations);
+    this.orders = new OrderService(prisma, this.notifications);
+    this.payments = new PaymentService(prisma, this.integrations, this.notifications);
     this.messaging = new MessagingService(prisma, this.integrations);
   }
 }

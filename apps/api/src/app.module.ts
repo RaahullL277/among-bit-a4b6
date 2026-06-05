@@ -9,6 +9,7 @@ import { OrdersController } from './controllers/orders.controller.js';
 import { PaymentsController } from './controllers/payments.controller.js';
 import { IntegrationsController } from './controllers/integrations.controller.js';
 import { MessagingController } from './controllers/messaging.controller.js';
+import { NotificationsController } from './controllers/notifications.controller.js';
 import { ApiKeysController } from './controllers/api-keys.controller.js';
 import { WebhooksController } from './controllers/webhooks.controller.js';
 
@@ -22,6 +23,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     PaymentsController,
     IntegrationsController,
     MessagingController,
+    NotificationsController,
     ApiKeysController,
     WebhooksController,
   ],
