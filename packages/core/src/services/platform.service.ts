@@ -1,6 +1,7 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { PlanTier, Prisma, PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../context.js';
 import type { PlatformContext } from '../platform/authz.js';
+import { effectivePlan } from '../platform/plans.js';
 
 /**
  * Cross-tenant operator back-office: tenant/store directory and suspension.
@@ -90,6 +91,35 @@ export class PlatformService {
       tenantId: store.tenantId,
     });
     return { id: updated.id, status: updated.status };
+  }
+
+  // --- Plans / billing flags ------------------------------------------------
+
+  async getPlan(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, include: { plan: true } });
+    if (!tenant) throw new NotFoundError('Tenant', tenantId);
+    return effectivePlan(tenant.plan);
+  }
+
+  async setPlan(
+    ctx: PlatformContext,
+    tenantId: string,
+    input: { tier: PlanTier; storeLimit?: number | null; features?: string[] },
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundError('Tenant', tenantId);
+    const data = {
+      tier: input.tier,
+      storeLimit: input.storeLimit ?? null,
+      features: input.features ?? [],
+    };
+    const row = await this.prisma.tenantPlan.upsert({
+      where: { tenantId },
+      create: { tenantId, ...data },
+      update: data,
+    });
+    await this.audit(ctx, 'plan.update', 'tenant', tenantId, { name: tenant.name, tier: input.tier });
+    return effectivePlan(row);
   }
 
   // --- Audit ----------------------------------------------------------------

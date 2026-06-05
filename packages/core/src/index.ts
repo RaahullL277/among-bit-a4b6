@@ -45,6 +45,7 @@ export { ShippingService, type CreateShipmentInput } from './services/shipping.s
 export { PlatformAuthService, type PlatformSessionResult } from './services/platform-auth.service.js';
 export { PlatformService } from './services/platform.service.js';
 export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
+export { effectivePlan, TIER_DEFAULTS, type EffectivePlan } from './platform/plans.js';
 export {
   type PlatformPermission,
   type PlatformContext,
@@ -122,4 +123,5 @@ export type {
   ShipmentStatus,
   PlatformRole,
   TenantStatus,
+  PlanTier,
 } from '@prisma/client';

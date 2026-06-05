@@ -1,5 +1,6 @@
 import type { PrismaClient, Store } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
+import { effectivePlan } from '../platform/plans.js';
 
 export interface CreateStoreInput {
   name: string;
@@ -39,6 +40,21 @@ export class StoreService {
       where: { tenantId_slug: { tenantId: ctx.tenantId, slug } },
     });
     if (existing) throw new ValidationError(`A store with slug "${slug}" already exists.`);
+
+    // Enforce the store limit only for tenants with an explicitly assigned plan
+    // (tenants without a plan row are unlimited).
+    const planRow = await this.prisma.tenantPlan.findUnique({ where: { tenantId: ctx.tenantId } });
+    if (planRow) {
+      const plan = effectivePlan(planRow);
+      if (plan.storeLimit != null) {
+        const count = await this.prisma.store.count({ where: { tenantId: ctx.tenantId } });
+        if (count >= plan.storeLimit) {
+          throw new ValidationError(
+            `Your ${plan.tier} plan allows up to ${plan.storeLimit} store(s). Upgrade to add more.`,
+          );
+        }
+      }
+    }
 
     return this.prisma.store.create({
       data: {

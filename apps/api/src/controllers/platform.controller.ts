@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { getCommerce, type PlatformContext, type PlatformRole } from '@acp/core';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { getCommerce, type PlanTier, type PlatformContext, type PlatformRole } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
 import { PlatformAuthGuard } from '../auth/platform-auth.guard.js';
 import { Platform, PlatformPermissions } from '../common/platform.decorator.js';
@@ -46,6 +46,23 @@ export class PlatformController {
   @PlatformPermissions('platform:tenants:write')
   reactivateStore(@Platform() p: PlatformContext, @Param('id') id: string) {
     return this.commerce.platform.setStoreStatus(p, id, 'ACTIVE');
+  }
+
+  // --- Plans / billing flags ------------------------------------------------
+  @Get('tenants/:id/plan')
+  @PlatformPermissions('platform:tenants:read')
+  getPlan(@Param('id') id: string) {
+    return this.commerce.platform.getPlan(id);
+  }
+
+  @Put('tenants/:id/plan')
+  @PlatformPermissions('platform:billing:manage')
+  setPlan(
+    @Platform() p: PlatformContext,
+    @Param('id') id: string,
+    @Body() body: { tier: PlanTier; storeLimit?: number | null; features?: string[] },
+  ) {
+    return this.commerce.platform.setPlan(p, id, body);
   }
 
   // --- Platform staff -------------------------------------------------------

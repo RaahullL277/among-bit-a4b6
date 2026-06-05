@@ -142,6 +142,12 @@ enum PlatformRole {
   READ_ONLY
 }
 
+enum PlanTier {
+  FREE
+  GROWTH
+  ENTERPRISE
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -154,6 +160,21 @@ model Tenant {
   installations AppInstallation[]
   memberships   Membership[]
   invites       Invite[]
+  plan          TenantPlan?
+}
+
+// Plan tier + feature flags/limits for a tenant, set by platform billing staff.
+// (Billing integration itself is out of scope — these are the operator flags.)
+model TenantPlan {
+  id         String   @id @default(cuid())
+  tenantId   String   @unique
+  tier       PlanTier @default(FREE)
+  // null = unlimited; otherwise the max number of stores allowed.
+  storeLimit Int?
+  features   String[] @default([])
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Global user identity. A user can belong to multiple tenants via Membership.

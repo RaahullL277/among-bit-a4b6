@@ -37,6 +37,8 @@ export const api = {
     get: (id) => req(`/platform/tenants/${id}`),
     suspend: (id) => req(`/platform/tenants/${id}/suspend`, { method: 'POST' }),
     reactivate: (id) => req(`/platform/tenants/${id}/reactivate`, { method: 'POST' }),
+    getPlan: (id) => req(`/platform/tenants/${id}/plan`),
+    setPlan: (id, body) => req(`/platform/tenants/${id}/plan`, { method: 'PUT', body }),
   },
   stores: {
     suspend: (id) => req(`/platform/stores/${id}/suspend`, { method: 'POST' }),

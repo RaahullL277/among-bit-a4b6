@@ -5,15 +5,22 @@ import { ForbiddenError } from '../context.js';
 export type PlatformPermission =
   | 'platform:tenants:read'
   | 'platform:tenants:write'
+  | 'platform:billing:manage'
   | 'platform:staff:manage'
   | 'platform:audit:read';
 
 const READ: PlatformPermission[] = ['platform:tenants:read', 'platform:audit:read'];
 
 export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
-  SUPER_ADMIN: ['platform:tenants:read', 'platform:tenants:write', 'platform:staff:manage', 'platform:audit:read'],
+  SUPER_ADMIN: [
+    'platform:tenants:read',
+    'platform:tenants:write',
+    'platform:billing:manage',
+    'platform:staff:manage',
+    'platform:audit:read',
+  ],
   SUPPORT: ['platform:tenants:read', 'platform:tenants:write', 'platform:audit:read'],
-  BILLING: [...READ],
+  BILLING: [...READ, 'platform:billing:manage'],
   READ_ONLY: ['platform:tenants:read'],
 };
 
