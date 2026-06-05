@@ -18,16 +18,21 @@ async function tick() {
   if (running) return; // avoid overlapping runs
   running = true;
   try {
-    const result = await commerce.carts.runRecoveryJobs();
-    if (result.abandoned || result.messagesSent) {
+    const recovery = await commerce.carts.runRecoveryJobs();
+    if (recovery.abandoned || recovery.messagesSent) {
       // eslint-disable-next-line no-console
       console.log(
-        `[worker] cart recovery: ${result.abandoned} abandoned, ${result.messagesSent} messages sent`,
+        `[worker] cart recovery: ${recovery.abandoned} abandoned, ${recovery.messagesSent} messages sent`,
       );
+    }
+    const stock = await commerce.stock.recomputeAndAlert();
+    if (stock.alerts) {
+      // eslint-disable-next-line no-console
+      console.log(`[worker] stock: ${stock.scanned} scanned, ${stock.alerts} alerts sent`);
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('[worker] recovery job failed:', err);
+    console.error('[worker] job failed:', err);
   } finally {
     running = false;
   }

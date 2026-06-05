@@ -88,6 +88,12 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  stock: {
+    status: (storeId) => request(`/stores/${storeId}/stock`),
+    getPolicy: (storeId) => request(`/stock-policy?storeId=${encodeURIComponent(storeId)}`),
+    setPolicy: (body) => request('/stock-policy', { method: 'PUT', body }),
+    recompute: () => request('/stock/recompute', { method: 'POST' }),
+  },
   carts: {
     list: (storeId, status) =>
       request(

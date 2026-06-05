@@ -322,6 +322,16 @@ export function registerTools(
     tool((ctx, a: any) => commerce.carts.checkoutCart(ctx, a.cartId, { provider: a.provider })),
   );
 
+  // --- Stock ----------------------------------------------------------------
+  server.registerTool(
+    'get_stock_status',
+    {
+      description: 'Get red/amber/green stock health (days-of-cover) for every variant in a store.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.stock.getStockStatus(ctx, a.storeId)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

@@ -93,6 +93,13 @@ enum CartStatus {
   RECOVERED  // was abandoned, then converted
 }
 
+// Traffic-light stock health for a variant.
+enum StockStatus {
+  GREEN  // healthy cover
+  AMBER  // running low
+  RED    // critical / out of stock
+}
+
 // ---------------------------------------------------------------------------
 // Account / tenancy
 // ---------------------------------------------------------------------------
@@ -236,6 +243,7 @@ model Store {
   notificationPreferences NotificationPreference[]
   carts        Cart[]
   cartRecoveryPolicy CartRecoveryPolicy?
+  stockPolicy  StockPolicy?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -269,6 +277,8 @@ model ProductVariant {
   currency  String  @default("INR")
   inventory Int     @default(0)
   options   Json?
+  // Last computed stock health, used to detect transitions for alerting.
+  lastStockStatus StockStatus?
 
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
@@ -534,6 +544,26 @@ model CartItem {
 
   @@unique([cartId, variantId])
   @@index([cartId])
+}
+
+// Per-store stock-alert thresholds (drives the R/A/G scorer).
+model StockPolicy {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  storeId            String   @unique
+  enabled            Boolean  @default(true)
+  // Days-of-cover boundaries: >= greenDays is GREEN, >= amberDays is AMBER.
+  greenDays          Int      @default(14)
+  amberDays          Int      @default(5)
+  // Inventory at or below this is always RED (manual reorder point).
+  reorderPoint       Int      @default(0)
+  // Trailing window (days) used to compute sales velocity.
+  velocityWindowDays Int      @default(30)
+  updatedAt          DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // Per-store abandoned-cart recovery configuration.

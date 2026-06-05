@@ -18,16 +18,29 @@ through the API are the same code path.
 packages/core   Prisma schema + domain services + provider adapters (the single source of truth)
 apps/api        NestJS REST API   ─┐
 apps/mcp        MCP server         ├─ thin transports, both call @acp/core
+apps/worker     Background jobs (abandoned-cart recovery, stock recompute/alerts)
 frontend/       Merchant admin console (React + Vite + Tailwind) over the REST API
 ```
 
 - **Multi-tenant:** every row carries a `tenantId`; the service layer scopes all queries by the
-  authenticating API key's tenant. Cross-tenant access is covered by an isolation test.
-- **Auth:** API keys (SHA-256 hashed at rest) scope a tenant and authenticate **both** REST and MCP.
-- **Adapters:** `PaymentProvider` (Razorpay, GoKwik) and `MessagingProvider` (WhatsApp) are
-  resolved per-store from encrypted `IntegrationConfig`. v1 ships deterministic **stubs** (no
-  network) that keep the exact interface — including HMAC webhook verification — so real providers
-  drop in later with no call-site changes.
+  authenticating tenant. Cross-tenant access is covered by an isolation test.
+- **Auth & RBAC:** two credential types resolve to one `TenantContext` — **API keys** (`sk_…`,
+  hashed, full permissions for agents/partners) and **user sessions** (`ses_…`, passwordless
+  magic-link login). Roles (OWNER/ADMIN/STAFF) gate every route via `@Permissions`.
+- **Adapters:** `PaymentProvider` (Razorpay, GoKwik), `MessagingProvider` (WhatsApp),
+  `EmailProvider` (Resend) and `SmsProvider` (MSG91) are resolved per-store from encrypted
+  `IntegrationConfig`. v1 ships deterministic **stubs** (no network) that keep the exact interface —
+  including HMAC webhook verification — so real providers drop in later with no call-site changes.
+
+### Capabilities beyond the core
+
+- **Notifications** — multi-channel (email/SMS/WhatsApp) to customers and store owners, with
+  per-event channel preferences and a delivery audit log; wired to order events.
+- **Users, roles & invites** — passwordless login, team management, and RBAC across REST + MCP.
+- **Abandoned-cart recovery** — carts, checkout-from-cart, and a configurable recovery sequence
+  sent via notifications (driven by `apps/worker`).
+- **Stock health 🔴🟠🟢** — a pluggable, ML-ready scorer (sales-velocity → days-of-cover) with
+  per-store thresholds and low/out-of-stock alerts to owners.
 
 ## Prerequisites
 
@@ -58,6 +71,9 @@ pnpm api:dev          # http://localhost:3000
 
 # 5b. Run the MCP server (stdio for Claude Code, or HTTP)
 pnpm mcp:dev
+
+# 5c. Run the background worker (cart recovery + stock alerts)
+pnpm worker:dev
 ```
 
 ## REST API — example flow
@@ -129,8 +145,9 @@ pnpm test
 Coverage: credential encryption + API-key hashing, adapter stubs (incl. webhook HMAC),
 multi-tenant isolation, the REST checkout→webhook→PAID flow, and an MCP tool smoke test.
 
-## Roadmap (beyond Milestone 1)
+## Roadmap
 
-Buyer storefront + cart · real Razorpay/GoKwik/WhatsApp credentials · partner app marketplace
-runtime & billing · shipping/logistics · richer analytics · merchant auth (email/password/SSO)
-in front of API keys. Each builds on the single `@acp/core` service layer established here.
+Buyer storefront UI · real Razorpay/GoKwik/WhatsApp/Resend/MSG91 credentials · Google SSO ·
+tenant-level email delivery for auth links · ML demand-forecasting scorer (drop-in for the
+heuristic) · partner app marketplace runtime & billing · shipping/logistics · richer analytics.
+Each builds on the single `@acp/core` service layer established here.

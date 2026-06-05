@@ -102,6 +102,18 @@ export function Badge({ children }) {
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>{children}</span>;
 }
 
+const STOCK_DOT = { GREEN: 'bg-emerald-500', AMBER: 'bg-amber-500', RED: 'bg-rose-500' };
+
+export function StockDot({ status, label }) {
+  if (!status) return <span className="text-slate-300">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`inline-block h-2.5 w-2.5 rounded-full ${STOCK_DOT[status] ?? 'bg-slate-300'}`} />
+      {label && <span className="text-xs text-slate-500">{label}</span>}
+    </span>
+  );
+}
+
 export function Spinner({ label = 'Loading…' }) {
   return (
     <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">

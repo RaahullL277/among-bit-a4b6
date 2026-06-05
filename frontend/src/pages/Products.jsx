@@ -17,6 +17,7 @@ import {
   Badge,
   EmptyState,
   formatMoney,
+  StockDot,
 } from '../components/ui';
 
 const emptyForm = { title: '', description: '', status: 'ACTIVE', price: '', sku: '', inventory: '' };
@@ -32,6 +33,12 @@ export default function Products() {
     () => (selectedId ? api.products.list(selectedId) : Promise.resolve([])),
     [selectedId],
   );
+  // Stock health per variant, shown as an R/A/G dot next to each product.
+  const { data: stock } = useAsync(
+    () => (selectedId ? api.stock.status(selectedId) : Promise.resolve([])),
+    [selectedId],
+  );
+  const stockByVariant = new Map((stock ?? []).map((s) => [s.variantId, s.status]));
 
   async function create(e) {
     e.preventDefault();
@@ -103,6 +110,7 @@ export default function Products() {
                 <th className="px-5 py-3 font-medium">Price</th>
                 <th className="px-5 py-3 font-medium">SKU</th>
                 <th className="px-5 py-3 font-medium">Inventory</th>
+                <th className="px-5 py-3 font-medium">Stock</th>
               </tr>
             </thead>
             <tbody>
@@ -120,6 +128,9 @@ export default function Products() {
                     <td className="px-5 py-3 text-slate-700">{v ? formatMoney(v.priceMinor, v.currency) : '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v?.sku ?? '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v?.inventory ?? 0}</td>
+                    <td className="px-5 py-3">
+                      <StockDot status={v ? stockByVariant.get(v.id) : null} />
+                    </td>
                   </tr>
                 );
               })}

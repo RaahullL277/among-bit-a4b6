@@ -34,6 +34,14 @@ export {
 export { AuthService, type IssuedSession } from './services/auth.service.js';
 export { MemberService } from './services/member.service.js';
 export { CartService, type CreateCartInput } from './services/cart.service.js';
+export { StockService, type VariantStock } from './services/stock.service.js';
+export {
+  type StockScorer,
+  type StockSignal,
+  type StockScore,
+  HeuristicStockScorer,
+  defaultStockScorer,
+} from './stock/scorer.js';
 export {
   type Permission,
   type Actor,
@@ -85,4 +93,5 @@ export type {
   User,
   Cart,
   CartStatus,
+  StockStatus,
 } from '@prisma/client';
