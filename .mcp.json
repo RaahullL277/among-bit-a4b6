@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "acp-commerce": {
+      "command": "node",
+      "args": ["apps/mcp/dist/index.js"],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "ACP_API_KEY": "${ACP_API_KEY}"
+      }
+    }
+  }
+}

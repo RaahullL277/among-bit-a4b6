@@ -1,0 +1,209 @@
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { getCommerce, type TenantContext } from '@acp/core';
+
+/**
+ * Registers every commerce tool on an MCP server. Each tool is a thin wrapper
+ * over the same @acp/core service layer the REST API uses — so an agent and a
+ * dashboard drive identical behavior. `getContext` resolves the TenantContext
+ * for the authenticated caller (from the API key).
+ */
+export function registerTools(
+  server: McpServer,
+  getContext: () => Promise<TenantContext>,
+) {
+  const commerce = getCommerce();
+
+  const ok = (data: unknown) => ({
+    content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
+  });
+
+  // Wraps a handler with context resolution + uniform error reporting.
+  const tool =
+    <A>(handler: (ctx: TenantContext, args: A) => Promise<unknown>) =>
+    async (args: A) => {
+      try {
+        const ctx = await getContext();
+        return ok(await handler(ctx, args));
+      } catch (err) {
+        return {
+          isError: true,
+          content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }],
+        };
+      }
+    };
+
+  const variantShape = z.object({
+    title: z.string().optional(),
+    sku: z.string().optional(),
+    priceMinor: z.number().int().nonnegative().describe('Price in the smallest currency unit (paise for INR)'),
+    inventory: z.number().int().optional(),
+  });
+
+  // --- Stores ---------------------------------------------------------------
+  server.registerTool(
+    'create_store',
+    {
+      description: 'Create a new storefront for the authenticated merchant (multi-tenant).',
+      inputSchema: {
+        name: z.string(),
+        slug: z.string().optional(),
+        currency: z.string().optional().describe('ISO currency, defaults to INR'),
+        country: z.string().optional().describe('ISO country, defaults to IN'),
+      },
+    },
+    tool((ctx, a: any) => commerce.stores.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_stores',
+    { description: 'List all stores owned by the authenticated merchant.', inputSchema: {} },
+    tool((ctx) => commerce.stores.list(ctx)),
+  );
+
+  server.registerTool(
+    'get_store',
+    { description: 'Fetch a single store by id.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.stores.get(ctx, a.storeId)),
+  );
+
+  // --- Products -------------------------------------------------------------
+  server.registerTool(
+    'create_product',
+    {
+      description: 'Add a product (with one or more variants) to a store.',
+      inputSchema: {
+        storeId: z.string(),
+        title: z.string(),
+        description: z.string().optional(),
+        status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
+        variants: z.array(variantShape).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.products.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'update_product',
+    {
+      description: 'Update a product\'s title, description, or status.',
+      inputSchema: {
+        productId: z.string(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.products.update(ctx, a.productId, a)),
+  );
+
+  server.registerTool(
+    'list_products',
+    { description: 'List products in a store.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.products.list(ctx, a.storeId)),
+  );
+
+  // --- Customers ------------------------------------------------------------
+  server.registerTool(
+    'create_customer',
+    {
+      description: 'Create a customer record for a store.',
+      inputSchema: {
+        storeId: z.string(),
+        name: z.string().optional(),
+        email: z.string().optional(),
+        phone: z.string().optional().describe('E.164 phone, used for WhatsApp automation'),
+      },
+    },
+    tool((ctx, a: any) => commerce.customers.create(ctx, a)),
+  );
+
+  // --- Orders ---------------------------------------------------------------
+  server.registerTool(
+    'list_orders',
+    { description: 'List orders, optionally filtered by store.', inputSchema: { storeId: z.string().optional() } },
+    tool((ctx, a: any) => commerce.orders.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'get_order',
+    { description: 'Fetch a single order with items and payment.', inputSchema: { orderId: z.string() } },
+    tool((ctx, a: any) => commerce.orders.get(ctx, a.orderId)),
+  );
+
+  server.registerTool(
+    'update_order_status',
+    {
+      description: 'Update an order\'s fulfillment status.',
+      inputSchema: {
+        orderId: z.string(),
+        status: z.enum(['PENDING', 'PAID', 'FULFILLED', 'CANCELLED', 'REFUNDED']),
+      },
+    },
+    tool((ctx, a: any) => commerce.orders.updateStatus(ctx, a.orderId, a.status)),
+  );
+
+  // --- Checkout -------------------------------------------------------------
+  server.registerTool(
+    'checkout',
+    {
+      description: 'Create an order and initiate payment via the store\'s active payment provider.',
+      inputSchema: {
+        storeId: z.string(),
+        items: z.array(z.object({ variantId: z.string(), quantity: z.number().int().positive() })),
+        customerId: z.string().optional(),
+        provider: z.enum(['RAZORPAY', 'GOKWIK']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.payments.checkout(ctx, a)),
+  );
+
+  // --- Integrations ---------------------------------------------------------
+  server.registerTool(
+    'configure_payment_provider',
+    {
+      description: 'Configure Razorpay or GoKwik credentials for a store (encrypted at rest).',
+      inputSchema: {
+        storeId: z.string(),
+        provider: z.enum(['RAZORPAY', 'GOKWIK']),
+        credentials: z.record(z.any()).describe('Provider keys, e.g. { keyId, keySecret, webhookSecret }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.integrations.configure(ctx, a)),
+  );
+
+  server.registerTool(
+    'configure_whatsapp',
+    {
+      description: 'Configure WhatsApp messaging credentials for a store.',
+      inputSchema: {
+        storeId: z.string(),
+        credentials: z.record(z.any()).describe('e.g. { phoneNumberId, token }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) =>
+      commerce.integrations.configure(ctx, { ...a, provider: 'WHATSAPP' }),
+    ),
+  );
+
+  server.registerTool(
+    'send_whatsapp_message',
+    {
+      description: 'Send a WhatsApp message to a customer from a store.',
+      inputSchema: { storeId: z.string(), to: z.string(), body: z.string() },
+    },
+    tool((ctx, a: any) => commerce.messaging.send(ctx, a)),
+  );
+
+  // --- API keys -------------------------------------------------------------
+  server.registerTool(
+    'create_api_key',
+    {
+      description: 'Create a new API key for the merchant. The raw secret is returned once.',
+      inputSchema: { name: z.string(), scopes: z.array(z.string()).optional() },
+    },
+    tool((ctx, a: any) => commerce.apiKeys.create(ctx, a)),
+  );
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.turbo/
+# Prisma generated client
+packages/core/src/generated/
+# Seed output (contains a raw API key)
+.acp-seed.json
