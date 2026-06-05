@@ -17,8 +17,13 @@ export class StorefrontService {
   ) {}
 
   private async ctxForStore(storeId: string): Promise<{ ctx: TenantContext; store: any }> {
-    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
-    if (!store || store.status !== 'ACTIVE') throw new NotFoundError('Store', storeId);
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      include: { tenant: { select: { status: true } } },
+    });
+    if (!store || store.status !== 'ACTIVE' || store.tenant.status === 'SUSPENDED') {
+      throw new NotFoundError('Store', storeId);
+    }
     return { ctx: { tenantId: store.tenantId }, store };
   }
 

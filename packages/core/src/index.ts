@@ -42,6 +42,16 @@ export {
   type Interval,
 } from './services/analytics.service.js';
 export { ShippingService, type CreateShipmentInput } from './services/shipping.service.js';
+export { PlatformAuthService, type PlatformSessionResult } from './services/platform-auth.service.js';
+export { PlatformService } from './services/platform.service.js';
+export {
+  type PlatformPermission,
+  type PlatformContext,
+  PLATFORM_ROLE_PERMISSIONS,
+  platformPermissionsForRole,
+  platformHasPermission,
+  requirePlatformPermission,
+} from './platform/authz.js';
 export {
   type ShippingProvider,
   type Address,
@@ -109,4 +119,6 @@ export type {
   StockStatus,
   Shipment,
   ShipmentStatus,
+  PlatformRole,
+  TenantStatus,
 } from '@prisma/client';

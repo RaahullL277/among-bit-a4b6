@@ -21,6 +21,7 @@ apps/mcp        MCP server         ├─ thin transports, both call @acp/core
 apps/worker     Background jobs (abandoned-cart recovery, stock recompute/alerts)
 frontend/       Merchant admin console (React + Vite + Tailwind) over the REST API
 storefront/     Public buyer storefront (browse → cart → checkout) over the public API
+platform/       Platform-operator console (cross-tenant back-office) over /platform/*
 ```
 
 - **Multi-tenant:** every row carries a `tenantId`; the service layer scopes all queries by the
@@ -49,6 +50,10 @@ storefront/     Public buyer storefront (browse → cart → checkout) over the 
 - **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
   tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
   shipped / out-for-delivery / delivered milestones.
+- **Platform operator console** — a *separate* cross-tenant auth plane (platform staff with
+  SUPER_ADMIN / SUPPORT / BILLING / READ_ONLY roles, own magic-link login) for the company running
+  the platform: a tenant/store directory, **suspend/reactivate** (which blocks the merchant's API
+  keys, sessions, and storefront), and an action audit log. Distinct from per-merchant RBAC.
 
 ## Prerequisites
 
@@ -85,6 +90,9 @@ pnpm worker:dev
 
 # 5d. Run the buyer storefront (public; set its store via VITE_STORE_ID or ?store=<id>)
 pnpm store:dev        # http://localhost:5174
+
+# 5e. Run the platform-operator console (sign in as the seeded platform admin)
+pnpm platform:dev     # http://localhost:5175
 ```
 
 The **storefront** is unauthenticated and store-scoped: a public API surface (`/storefront/*`,

@@ -128,11 +128,26 @@ enum Role {
   STAFF
 }
 
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// Roles for staff of the platform operator (the SaaS company), distinct from
+// per-tenant merchant roles.
+enum PlatformRole {
+  SUPER_ADMIN
+  SUPPORT
+  BILLING
+  READ_ONLY
+}
+
 model Tenant {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   stores        Store[]
   apiKeys       ApiKey[]
@@ -646,4 +661,57 @@ model CartRecoveryPolicy {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Platform operator back-office (cross-tenant; distinct from merchant RBAC)
+// ---------------------------------------------------------------------------
+
+model PlatformUser {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  name      String?
+  role      PlatformRole @default(READ_ONLY)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  sessions PlatformSession[]
+}
+
+model PlatformSession {
+  id             String   @id @default(cuid())
+  platformUserId String
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  lastUsedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  user PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId])
+}
+
+model PlatformMagicLinkToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+// Audit trail of platform-staff actions (suspensions, staff changes, etc.).
+model PlatformAuditLog {
+  id             String   @id @default(cuid())
+  platformUserId String?
+  actorEmail     String
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
 }

@@ -85,6 +85,14 @@ async function main() {
     phone: '+919800000000',
   });
 
+  // A platform super-admin so the operator console's login works in dev.
+  const platformEmail = 'admin@platform.example';
+  await prisma.platformUser.upsert({
+    where: { email: platformEmail },
+    create: { email: platformEmail, name: 'Platform Admin', role: 'SUPER_ADMIN' },
+    update: { role: 'SUPER_ADMIN' },
+  });
+
   const output = {
     tenantId: tenant.id,
     apiKey: apiKey.raw,
@@ -97,6 +105,7 @@ async function main() {
 
   console.log('\n✅ Seed complete.\n');
   console.log('  Owner login email (magic link):    ', ownerEmail);
+  console.log('  Platform admin login email:        ', platformEmail);
   console.log('  API key (store this — shown once):', apiKey.raw);
   console.log('  Store id:                          ', store.id);
   console.log('  Sample variant id:                 ', masala.variants[0].id);

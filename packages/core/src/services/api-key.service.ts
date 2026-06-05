@@ -24,8 +24,10 @@ export class ApiKeyService {
     if (!rawKey) throw new AuthError();
     const key = await this.prisma.apiKey.findUnique({
       where: { keyHash: hashApiKey(rawKey) },
+      include: { tenant: { select: { status: true } } },
     });
     if (!key || key.revokedAt) throw new AuthError();
+    if (key.tenant.status === 'SUSPENDED') throw new AuthError('This workspace has been suspended.');
 
     // Best-effort last-used tracking; never blocks auth.
     void this.prisma.apiKey

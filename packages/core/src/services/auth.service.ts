@@ -123,8 +123,10 @@ export class AuthService {
 
     const membership = await this.prisma.membership.findUnique({
       where: { userId_tenantId: { userId: session.userId, tenantId: session.tenantId } },
+      include: { tenant: { select: { status: true } } },
     });
     if (!membership) throw new AuthError('Your access to this workspace was removed.');
+    if (membership.tenant.status === 'SUSPENDED') throw new AuthError('This workspace has been suspended.');
 
     void this.prisma.session
       .update({ where: { id: session.id }, data: { lastUsedAt: new Date() } })

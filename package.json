@@ -22,7 +22,9 @@
     "admin:dev": "pnpm --filter acp-admin dev",
     "admin:build": "pnpm --filter acp-admin build",
     "store:dev": "pnpm --filter acp-storefront dev",
-    "store:build": "pnpm --filter acp-storefront build"
+    "store:build": "pnpm --filter acp-storefront build",
+    "platform:dev": "pnpm --filter acp-platform dev",
+    "platform:build": "pnpm --filter acp-platform build"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
