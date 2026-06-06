@@ -118,7 +118,7 @@ export class Commerce {
     this.platform = new PlatformService(prisma);
     this.platformAnalytics = new PlatformAnalyticsService(prisma);
     this.supportAssistant = new SupportAssistantService(this.platform, this.platformAnalytics);
-    this.customerSupport = new CustomerSupportService(prisma);
+    this.customerSupport = new CustomerSupportService(prisma, this.notifications);
     this.reviews = new ReviewService(prisma);
     this.pages = new PageService(prisma);
     this.returns = new ReturnService(prisma, this.payments, this.notifications, this.stock);

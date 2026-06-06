@@ -135,8 +135,15 @@ export class ShopabilityService {
     const { enabled, channels } = await this.configForStore(storeId);
     const channel = this.resolveChannel(channelInput);
     if (!enabled) return { ok: false, reason: 'shopability_disabled', channel };
-    if (channel && !channels.has(channel)) return { ok: false, reason: `channel_disabled_${channel.toLowerCase()}`, channel };
-    return { ok: true, channel };
+    if (channel) {
+      if (!channels.has(channel)) return { ok: false, reason: `channel_disabled_${channel.toLowerCase()}`, channel };
+      return { ok: true, channel };
+    }
+    // An unidentified agent is allowed only when the store is open to ALL assistants;
+    // if the merchant disabled any channel, the agent must identify itself so the
+    // per-assistant toggle can be enforced (closes the null-channel bypass).
+    if (channels.size < AGENT_CHANNELS.length) return { ok: false, reason: 'channel_required', channel: null };
+    return { ok: true, channel: null };
   }
 
   /** Throws 403 when not shoppable — the enforcement point for agent purchase. */
@@ -157,15 +164,16 @@ export class ShopabilityService {
    */
   async manifest(storeId: string, channelInput?: string | null) {
     const { store, enabled, channels, note } = await this.configForStore(storeId);
-    const channel = this.resolveChannel(channelInput);
-    const shoppable = enabled && (!channel || channels.has(channel));
+    const gate = await this.isShoppable(storeId, channelInput);
+    const channel = gate.channel;
+    const shoppable = gate.ok;
     const base = `/agent/${storeId}`;
     return {
       protocol: 'acp-agent-commerce/1',
       store: { id: store.id, name: store.name, currency: store.currency, country: store.country, url: this.storeBase(store) },
       shoppable,
       requestedChannel: channel,
-      reason: shoppable ? undefined : !enabled ? 'shopability_disabled' : `channel_disabled_${channel?.toLowerCase()}`,
+      reason: gate.reason,
       enabledChannels: AGENT_CHANNELS.filter((c) => enabled && channels.has(c)).map((c) => ({ channel: c, label: CHANNEL_META[c].label })),
       agentNote: note,
       capabilities: shoppable ? ['browse', 'cart', 'checkout'] : [],

@@ -97,6 +97,7 @@ enum NotificationEvent {
   RETURN_APPROVED
   RETURN_REJECTED
   RETURN_REFUNDED
+  SUPPORT_ESCALATED
 }
 
 // Lifecycle of a return / RMA.

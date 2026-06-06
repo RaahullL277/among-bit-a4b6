@@ -77,6 +77,10 @@ describe.skipIf(!hasDb)('customer support chatbot (stub)', () => {
     const escalated = await commerce.customerSupport.listConversations(ctx, { storeId, status: 'ESCALATED' });
     expect(escalated.find((c) => c.id === res.conversationId)).toBeTruthy();
 
+    // The store owner is notified the conversation needs a human.
+    const notes = await commerce.notifications.listNotifications(ctx, storeId);
+    expect(notes.some((n) => n.event === 'SUPPORT_ESCALATED' && n.recipientType === 'STORE_OWNER')).toBe(true);
+
     // Agent reply re-opens; resolve closes.
     const replied = await commerce.customerSupport.reply(ctx, res.conversationId, 'Hi, I can help with that refund.');
     expect(replied.status).toBe('OPEN');

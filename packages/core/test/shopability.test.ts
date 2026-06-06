@@ -62,6 +62,13 @@ describe.skipIf(!hasDb)('shopability (AI-assistant commerce)', () => {
     const claude = await commerce.shopability.manifest(storeId, 'claude');
     expect(claude.shoppable).toBe(true);
     await expect(commerce.shopability.feed(storeId, 'claude')).resolves.toBeTruthy();
+
+    // An UNIDENTIFIED agent (no channel) is now blocked too — it can't sidestep
+    // the per-assistant toggle by omitting its channel (CHATGPT is disabled).
+    const anon = await commerce.shopability.manifest(storeId, null);
+    expect(anon.shoppable).toBe(false);
+    expect(anon.reason).toBe('channel_required');
+    await expect(commerce.shopability.feed(storeId, null)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('master switch disables all assistants', async () => {

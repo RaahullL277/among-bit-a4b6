@@ -2,6 +2,7 @@ import type { PrismaClient, SupportConversationStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { getAssistant } from '../assistant/registry.js';
 import type { AssistantReply, ChatMessage, ToolSpec } from '../assistant/types.js';
+import type { NotificationService } from './notification.service.js';
 
 const DEFAULT_CONFIG = { enabled: true, displayName: 'Assistant', greeting: null as string | null, persona: null as string | null };
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
@@ -24,7 +25,10 @@ function money(minor: number | undefined, currency = 'INR'): string {
  * otherwise) so it works without live LLM access.
  */
 export class CustomerSupportService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly notifications?: NotificationService,
+  ) {}
 
   private async getStore(ctx: TenantContext, storeId: string) {
     const store = await this.prisma.store.findFirst({ where: { id: storeId, tenantId: ctx.tenantId } });
@@ -255,6 +259,23 @@ export class CustomerSupportService {
         ...(escalated ? { status: 'ESCALATED', escalationReason: (escalated as any).reason, contactEmail: (escalated as any).email ?? conversation.contactEmail } : {}),
       },
     });
+
+    // Alert the store owner the first time a conversation escalates (best-effort).
+    if (escalated && conversation.status !== 'ESCALATED') {
+      const reason = (escalated as any).reason as string | undefined;
+      await this.notifications
+        ?.notify({ tenantId: store.tenantId }, {
+          storeId: store.id,
+          event: 'SUPPORT_ESCALATED',
+          recipientType: 'STORE_OWNER',
+          data: {
+            reasonSuffix: reason ? ` — "${reason}"` : '',
+            contactEmail: (escalated as any).email ?? conversation.contactEmail ?? 'unknown',
+            conversationId: conversation.id,
+          },
+        })
+        .catch(() => undefined);
+    }
 
     return {
       conversationId: conversation.id,
