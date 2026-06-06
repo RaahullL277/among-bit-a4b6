@@ -2,29 +2,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { CheckoutSettingsService } from './checkout-settings.service.js';
 import { resolveStateCode, stateCodeFromGstin, stateName } from '../tax/india-states.js';
-
-/**
- * Distribute `total` across `weights` so the parts are proportional to the
- * weights AND sum back to exactly `total` (largest-remainder method). Used to
- * split an order's discount and GST across its lines without rounding drift.
- */
-function allocate(total: number, weights: number[]): number[] {
-  const sum = weights.reduce((s, w) => s + w, 0);
-  if (sum <= 0 || total === 0) return weights.map(() => 0);
-  const exact = weights.map((w) => (total * w) / sum);
-  const floors = exact.map((x) => Math.floor(x));
-  let remainder = total - floors.reduce((s, f) => s + f, 0);
-  // Hand the leftover units to the lines with the largest fractional parts.
-  const order = exact
-    .map((x, i) => ({ i, frac: x - Math.floor(x) }))
-    .sort((a, b) => b.frac - a.frac);
-  const out = [...floors];
-  for (let k = 0; k < order.length && remainder > 0; k++) {
-    out[order[k].i] += 1;
-    remainder -= 1;
-  }
-  return out;
-}
+import { allocate } from '../tax/allocate.js';
 
 interface PlaceOfSupply {
   name?: string;

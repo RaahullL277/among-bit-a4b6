@@ -33,7 +33,7 @@ A B2B buyer's GSTIN (captured at checkout in the shipping address) is recorded o
 - In the admin, **Invoicing** lists every invoice with a "View / print" link (a printable HTML tax invoice). Buyers can download their own from the storefront Track page.
 
 ## 5. Credit notes on refunds (item 3)
-When a return is refunded (or a buyer cancels a paid order), a **credit note** is auto-raised reversing the proportional tax, with its own number series. List them with `list_credit_notes`.
+Returns refund the **tax-inclusive** amount the buyer paid — each returned line's share of discount + GST, plus shipping on a full-order return — so a full return credits the exact order total. When the refund goes through (return refund or buyer cancellation), a **credit note** is auto-raised reversing the proportional GST (the full GST on a full refund), with its own number series. List them with `list_credit_notes`.
 
 ## 6. Sales register & P&L (item 4)
 - `sales_register` (`storeId`, `from`, `to`) — every invoice + credit note with taxable value and CGST/SGST/IGST, plus totals. Pass `csv:true` for a Tally/Zoho-Books-shaped CSV export.

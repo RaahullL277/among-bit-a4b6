@@ -4,6 +4,7 @@ import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { StockService } from './stock.service.js';
 import type { InvoiceService } from './invoice.service.js';
+import { allocate } from '../tax/allocate.js';
 
 export interface ReturnItemInput {
   orderItemId: string;
@@ -167,7 +168,9 @@ export class ReturnService {
       }
       return { orderItemId: item.id, quantity: qty, unitPriceMinor: item.unitPriceMinor };
     });
-    const refundMinor = lines.reduce((s, l) => s + l.unitPriceMinor * l.quantity, 0);
+    // Refund the tax-inclusive amount the buyer actually paid for the returned
+    // lines (their share of discount + GST), plus shipping on a full-order return.
+    const refundMinor = this.taxInclusiveRefund(order, lines);
 
     const created = await this.prisma.$transaction(async (tx) => {
       const last = await tx.return.aggregate({ where: { storeId: order.storeId }, _max: { number: true } });
@@ -207,6 +210,41 @@ export class ReturnService {
     }
 
     return created;
+  }
+
+  /**
+   * The tax-inclusive amount the buyer paid for the returned lines: each line's
+   * post-discount value plus its proportional GST (so a full return credits the
+   * exact order total, GST and all). Works for both tax-exclusive and tax-
+   * inclusive pricing by allocating the actually-paid amount (ex-shipping) across
+   * the order's lines. Shipping is added only when the whole order is returned.
+   */
+  private taxInclusiveRefund(
+    order: { items: { id: string; unitPriceMinor: number; quantity: number }[]; subtotalMinor: number; discountMinor: number; totalMinor: number; shippingMinor: number },
+    lines: { orderItemId: string; quantity: number }[],
+  ): number {
+    const items = order.items;
+    const gross = items.map((i) => i.unitPriceMinor * i.quantity);
+    const discountAlloc = allocate(order.discountMinor, gross);
+    const net = gross.map((g, idx) => g - discountAlloc[idx]);
+    // Distribute the amount actually charged (ex-shipping) across the lines —
+    // this equals net (tax-inclusive prices) or net + GST (tax added on top).
+    const paidExShipping = order.totalMinor - order.shippingMinor;
+    const linePaid = allocate(paidExShipping, net);
+    const byId = new Map(items.map((it, idx) => [it.id, { paid: linePaid[idx], qty: it.quantity }]));
+
+    let refund = 0;
+    for (const l of lines) {
+      const p = byId.get(l.orderItemId);
+      if (!p) continue;
+      refund += p.qty > 0 ? Math.round((p.paid * l.quantity) / p.qty) : 0;
+    }
+    // Full-order return (every line at full quantity) also refunds shipping.
+    const isFullOrder =
+      lines.length === items.length &&
+      items.every((it) => lines.find((l) => l.orderItemId === it.id)?.quantity === it.quantity);
+    if (isFullOrder) refund += order.shippingMinor;
+    return refund;
   }
 
   // --- Buyer self-cancellation ----------------------------------------------

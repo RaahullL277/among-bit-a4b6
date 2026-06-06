@@ -136,17 +136,36 @@ describe.skipIf(!hasDb)('GST invoicing & accounting', () => {
   it('raises a credit note that reverses the proportional tax on a refund', async () => {
     const order = await capturedOrder({ state: 'Karnataka', email: 'cn@example.com' });
     const ret = await commerce.returns.request(ctx, { orderId: order.id });
+    // A full-order return refunds the tax-inclusive total the buyer paid (₹2360).
+    expect(ret.refundMinor).toBe(236000);
     await commerce.returns.approve(ctx, ret.id);
-    const refunded = await commerce.returns.refund(ctx, ret.id); // refunds the ₹2000 item value
+    const refunded = await commerce.returns.refund(ctx, ret.id);
+    expect(refunded.refundMinor).toBe(236000);
     const cn = await prisma.creditNote.findFirst({ where: { orderId: order.id } });
     expect(cn).toBeTruthy();
     expect(cn!.creditNoteNo).toMatch(/^CN-\d{4}$/);
-    // The credit note's total equals the refunded amount and reverses the tax in it.
-    expect(cn!.totalMinor).toBe(refunded.refundMinor);
-    expect(cn!.taxMinor).toBeGreaterThan(0);
+    // The credit note reverses the FULL invoiced tax on a full refund.
+    expect(cn!.totalMinor).toBe(236000);
+    expect(cn!.taxMinor).toBe(36000);
+    expect(cn!.taxableMinor).toBe(200000);
     expect(cn!.intraState).toBe(true);
     expect(cn!.cgstMinor + cn!.sgstMinor).toBe(cn!.taxMinor);
     expect(cn!.taxableMinor + cn!.taxMinor + cn!.shippingMinor).toBe(cn!.totalMinor);
+  });
+
+  it('refunds proportional tax on a partial-quantity return', async () => {
+    // Order: 2 units @ ₹1000 + 18% GST = ₹2360. Return 1 unit → half, with tax.
+    const order = await capturedOrder({ state: 'Karnataka', email: 'partial@example.com', qty: 2 });
+    const items = await prisma.orderItem.findMany({ where: { orderId: order.id } });
+    const ret = await commerce.returns.request(ctx, { orderId: order.id, items: [{ orderItemId: items[0].id, quantity: 1 }] });
+    // Half of ₹2360 = ₹1180 (₹1000 taxable + ₹180 GST).
+    expect(ret.refundMinor).toBe(118000);
+    await commerce.returns.approve(ctx, ret.id);
+    await commerce.returns.refund(ctx, ret.id);
+    const cn = await prisma.creditNote.findFirst({ where: { returnId: ret.id } });
+    expect(cn!.totalMinor).toBe(118000);
+    expect(cn!.taxMinor).toBe(18000);
+    expect(cn!.cgstMinor + cn!.sgstMinor).toBe(18000);
   });
 
   it('produces a sales register and a P&L-lite summary', async () => {
