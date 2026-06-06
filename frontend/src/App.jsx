@@ -14,6 +14,7 @@ import Customers from './pages/Customers';
 import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
 import Support from './pages/Support';
+import Reviews from './pages/Reviews';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 import { Spinner } from './components/ui';
@@ -35,6 +36,7 @@ function AuthedApp() {
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/reviews" element={<Reviews />} />
           <Route path="/team" element={<Team />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

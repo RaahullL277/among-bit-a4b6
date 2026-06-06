@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { getCommerce } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
 
@@ -55,5 +55,21 @@ export class StorefrontController {
   @Post(':storeId/support/chat')
   supportChat(@Param('storeId') storeId: string, @Body() body: any) {
     return this.commerce.customerSupport.chat({ storeId, ...(body ?? {}) });
+  }
+
+  // --- Reviews (public) -----------------------------------------------------
+  @Get(':storeId/products/:productId/reviews')
+  productReviews(@Param('storeId') storeId: string, @Param('productId') productId: string): Promise<any> {
+    return this.commerce.reviews.listForProduct(storeId, productId);
+  }
+
+  @Post(':storeId/products/:productId/reviews')
+  submitReview(@Param('storeId') storeId: string, @Param('productId') productId: string, @Body() body: any) {
+    return this.commerce.reviews.submit({ storeId, productId, ...(body ?? {}) });
+  }
+
+  @Get(':storeId/reviews/summary')
+  reviewSummaries(@Param('storeId') storeId: string, @Query('productIds') productIds?: string) {
+    return this.commerce.reviews.summariesForStore(storeId, productIds ? productIds.split(',').filter(Boolean) : undefined);
   }
 }

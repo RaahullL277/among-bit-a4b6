@@ -77,6 +77,13 @@ export const DEFAULT_TEMPLATES: Record<NotificationEvent, ChannelTemplates> = {
     },
     WHATSAPP: { body: '✅ Order #{{orderNumber}} delivered. Thanks for shopping with {{storeName}}!' },
   },
+  REVIEW_REQUEST: {
+    EMAIL: {
+      subject: 'How was your {{storeName}} order?',
+      body: 'Hi {{customerName}}, we hope you love order #{{orderNumber}}! Would you leave a quick review? {{reviewUrl}}',
+    },
+    WHATSAPP: { body: 'Hi {{customerName}}! How was order #{{orderNumber}}? Leave a review: {{reviewUrl}}' },
+  },
 };
 
 type RecipientChannels = Partial<Record<RecipientType, NotificationChannel[]>>;
@@ -92,6 +99,7 @@ export const DEFAULT_PREFERENCES: Record<NotificationEvent, RecipientChannels> =
   SHIPMENT_CREATED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
   OUT_FOR_DELIVERY: { CUSTOMER: ['WHATSAPP'] },
   DELIVERED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
+  REVIEW_REQUEST: { CUSTOMER: ['EMAIL'] },
 };
 
 /** Replace {{key}} tokens from `data`; unknown tokens become empty strings. */

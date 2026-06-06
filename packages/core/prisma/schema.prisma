@@ -92,6 +92,14 @@ enum NotificationEvent {
   SHIPMENT_CREATED
   OUT_FOR_DELIVERY
   DELIVERED
+  REVIEW_REQUEST
+}
+
+// Moderation state of a product review.
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // Who a notification is addressed to.
@@ -318,6 +326,7 @@ model Store {
   shipments    Shipment[]
   supportConversations SupportConversation[]
   supportBotConfig SupportBotConfig?
+  reviews      Review[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -335,6 +344,7 @@ model Product {
 
   store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   variants ProductVariant[]
+  reviews  Review[]
 
   @@index([tenantId])
   @@index([storeId])
@@ -811,4 +821,35 @@ model SupportMessage {
   conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+}
+
+// ---------------------------------------------------------------------------
+// Product reviews
+// ---------------------------------------------------------------------------
+
+model Review {
+  id           String       @id @default(cuid())
+  tenantId     String
+  storeId      String
+  productId    String
+  customerId   String?
+  authorName   String
+  authorEmail  String?
+  rating       Int          // 1..5
+  title        String?
+  body         String?
+  status       ReviewStatus @default(PENDING)
+  // True when tied to a real paid order for this product by this customer.
+  verified     Boolean      @default(false)
+  merchantReply String?
+  repliedAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([productId, status])
 }

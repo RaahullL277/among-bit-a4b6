@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
+import Reviews from '../Reviews';
 
 export default function Product() {
   const { id } = useParams();
@@ -63,6 +64,7 @@ export default function Product() {
           </button>
         </div>
       </div>
+      <Reviews productId={product.id} />
     </div>
   );
 }

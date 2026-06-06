@@ -156,7 +156,29 @@ export class ShippingService {
       await this.prisma.order.update({ where: { id: shipment.orderId }, data: { status: 'FULFILLED' } });
     }
     await this.notifyMilestone({ tenantId: shipment.tenantId }, shipment).catch(() => undefined);
+    if (status === 'DELIVERED') {
+      await this.requestReview({ tenantId: shipment.tenantId }, shipment.storeId, shipment.orderId).catch(() => undefined);
+    }
     return shipment;
+  }
+
+  /** Ask the customer to review their delivered order (judge.me-style). */
+  private async requestReview(ctx: TenantContext, storeId: string, orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { customer: true } });
+    if (!order?.customer?.email) return;
+    const base = process.env.STOREFRONT_URL ?? process.env.APP_URL ?? 'http://localhost:5174';
+    await this.notifications.notify(ctx, {
+      storeId,
+      event: 'REVIEW_REQUEST',
+      recipientType: 'CUSTOMER',
+      data: {
+        orderNumber: order.number,
+        customerName: order.customer.name ?? 'there',
+        customerEmail: order.customer.email,
+        customerPhone: order.customer.phone ?? undefined,
+        reviewUrl: `${base}/?store=${storeId}`,
+      },
+    });
   }
 
   /** Notify the customer when a shipment hits a customer-facing milestone. */

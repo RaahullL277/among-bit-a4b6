@@ -97,6 +97,12 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  reviews: {
+    list: (storeId, status, productId) => request(`/reviews?${qs({ storeId, status, productId })}`),
+    counts: (storeId) => request(`/reviews/counts?${qs({ storeId })}`),
+    moderate: (id, status) => request(`/reviews/${id}/moderate`, { method: 'POST', body: { status } }),
+    reply: (id, body) => request(`/reviews/${id}/reply`, { method: 'POST', body: { body } }),
+  },
   marketing: {
     providers: (storeId) => request(`/marketing/providers?${qs({ storeId })}`),
     sync: (storeId) => request(`/marketing/sync?${qs({ storeId })}`, { method: 'POST' }),

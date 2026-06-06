@@ -55,6 +55,12 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   Brevo (Sendinblue)** (stubbed), configured per store. Customers auto-sync on creation and a paid
   order tracks a "Placed Order" event; `/marketing/sync` re-syncs all customers. Real REST
   implementations slot in behind the same interface.
+- **Customer reviews** — product star-ratings & written reviews (judge.me-style). Shoppers submit
+  from the storefront; a review is **verified** when it matches a paid order for that product/email.
+  Merchants moderate (approve/reject), post a public reply, and see per-status counts in a **Reviews**
+  admin page. Approved reviews surface on product pages and as star summaries on listings; a
+  `REVIEW_REQUEST` notification fires automatically on delivery. Public `/storefront/:id/.../reviews`
+  + `/reviews/summary`; merchant `/reviews/*`.
 - **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
   tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
   shipped / out-for-delivery / delivered milestones.

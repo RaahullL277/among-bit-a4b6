@@ -419,6 +419,29 @@ export function registerTools(
     tool((ctx, a: any) => commerce.shipping.listShipments(ctx, a)),
   );
 
+  // --- Reviews --------------------------------------------------------------
+  server.registerTool(
+    'list_reviews',
+    {
+      description: 'List product reviews, optionally filtered by store, status, or product.',
+      inputSchema: {
+        storeId: z.string().optional(),
+        status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+        productId: z.string().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.reviews.list(ctx, a)),
+  );
+
+  server.registerTool(
+    'moderate_review',
+    {
+      description: 'Approve or reject a product review.',
+      inputSchema: { reviewId: z.string(), status: z.enum(['APPROVED', 'REJECTED']) },
+    },
+    tool((ctx, a: any) => commerce.reviews.moderate(ctx, a.reviewId, a.status)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

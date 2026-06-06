@@ -34,6 +34,10 @@ export const api = {
   checkout: (cid) => req(`/storefront/carts/${cid}/checkout`, { method: 'POST' }),
   supportConfig: (id) => req(`/storefront/${id}/support/config`),
   supportChat: (id, body) => req(`/storefront/${id}/support/chat`, { method: 'POST', body }),
+  productReviews: (id, pid) => req(`/storefront/${id}/products/${pid}/reviews`),
+  submitReview: (id, pid, body) => req(`/storefront/${id}/products/${pid}/reviews`, { method: 'POST', body }),
+  reviewSummaries: (id, productIds) =>
+    req(`/storefront/${id}/reviews/summary${productIds ? `?productIds=${productIds.join(',')}` : ''}`),
 };
 
 export function money(minor, currency = 'INR') {

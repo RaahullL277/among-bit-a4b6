@@ -47,6 +47,7 @@ export { PlatformService } from './services/platform.service.js';
 export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
 export { SupportAssistantService } from './services/support-assistant.service.js';
 export { CustomerSupportService } from './services/customer-support.service.js';
+export { ReviewService, type SubmitReviewInput } from './services/review.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,
@@ -137,4 +138,5 @@ export type {
   PlanTier,
   SupportConversationStatus,
   SupportSender,
+  ReviewStatus,
 } from '@prisma/client';

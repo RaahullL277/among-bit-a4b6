@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
+import Stars from '../Stars';
 
 export default function Home() {
   const { addToCart } = useCart();
   const [products, setProducts] = useState(null);
+  const [ratings, setRatings] = useState({});
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.products(STORE_ID).then(setProducts).catch((e) => setError(e.message));
+    api.products(STORE_ID).then((list) => {
+      setProducts(list);
+      api.reviewSummaries(STORE_ID, list.map((p) => p.id)).then(setRatings).catch(() => undefined);
+    }).catch((e) => setError(e.message));
   }, []);
 
   if (error) return <p className="text-rose-600">{error}</p>;
@@ -25,6 +30,12 @@ export default function Home() {
             <Link to={`/product/${p.id}`} className="flex-1">
               <div className="mb-3 flex h-32 items-center justify-center rounded-xl bg-stone-100 text-3xl">🛍️</div>
               <div className="font-medium text-stone-900">{p.title}</div>
+              {ratings[p.id]?.count > 0 && (
+                <div className="mt-1 flex items-center gap-1">
+                  <Stars value={ratings[p.id].average} size={13} />
+                  <span className="text-xs text-stone-400">({ratings[p.id].count})</span>
+                </div>
+              )}
               {p.description && <div className="mt-1 line-clamp-2 text-sm text-stone-500">{p.description}</div>}
             </Link>
             <div className="mt-4 flex items-center justify-between">
