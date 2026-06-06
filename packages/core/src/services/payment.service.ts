@@ -38,10 +38,12 @@ export class PaymentService {
     });
     if (!store) throw new NotFoundError('Store', input.storeId);
 
-    // Resolve variants (tenant-scoped) and compute the order total.
+    // Resolve variants — scoped to the tenant AND the order's store so a
+    // multi-store tenant can't check out store B's variants through store A
+    // (which would corrupt store-level totals and use the wrong integration).
     const variantIds = input.items.map((i) => i.variantId);
     const variants = await this.prisma.productVariant.findMany({
-      where: { id: { in: variantIds }, tenantId: ctx.tenantId },
+      where: { id: { in: variantIds }, tenantId: ctx.tenantId, product: { storeId: store.id } },
     });
     const variantById = new Map(variants.map((v) => [v.id, v]));
 

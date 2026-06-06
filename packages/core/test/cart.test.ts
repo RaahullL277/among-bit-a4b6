@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { Commerce } from '../src/commerce.js';
@@ -12,6 +12,14 @@ describe.skipIf(!hasDb)('carts & recovery', () => {
   let ctx: TenantContext;
   let storeId: string;
   let variantId: string;
+
+  // Drive the stub Razorpay capture webhook so the order becomes PAID (which is
+  // what converts the cart — checkout alone leaves it ACTIVE/ABANDONED).
+  async function capture(order: { payment: { providerRef: string | null } }) {
+    const body = JSON.stringify({ providerRef: order.payment.providerRef, status: 'CAPTURED' });
+    const sig = createHmac('sha256', 's').update(body).digest('hex');
+    await commerce.payments.handleWebhook('RAZORPAY', body, sig);
+  }
 
   beforeAll(async () => {
     process.env.CORE_ENCRYPTION_KEY ??= randomBytes(32).toString('base64');
@@ -53,8 +61,11 @@ describe.skipIf(!hasDb)('carts & recovery', () => {
 
     const { order } = await commerce.carts.checkoutCart(ctx, cart.id);
     expect(order.cartId).toBe(cart.id);
-    const after = await commerce.carts.getCart(ctx, cart.id);
-    expect(after.status).toBe('CONVERTED');
+    // The order is still PENDING, so the cart stays ACTIVE (recoverable) — it is
+    // only converted once payment is captured.
+    expect((await commerce.carts.getCart(ctx, cart.id)).status).toBe('ACTIVE');
+    await capture(order);
+    expect((await commerce.carts.getCart(ctx, cart.id)).status).toBe('CONVERTED');
   });
 
   it('abandons an idle cart and sends a recovery message', async () => {
@@ -96,8 +107,26 @@ describe.skipIf(!hasDb)('carts & recovery', () => {
     });
 
     const { order } = await commerce.carts.checkoutCart(ctx, cart.id);
-    expect((await commerce.carts.getCart(ctx, cart.id)).status).toBe('RECOVERED');
     expect(order.cartId).toBe(cart.id);
+    // Still abandoned until the payment is captured...
+    expect((await commerce.carts.getCart(ctx, cart.id)).status).toBe('ABANDONED');
+    await capture(order);
+    expect((await commerce.carts.getCart(ctx, cart.id)).status).toBe('RECOVERED');
+  });
+
+  it('rejects checking out a variant that belongs to a different store', async () => {
+    // A second store in the same tenant with its own product/variant.
+    const storeB = await commerce.stores.create(ctx, { name: 'Store B' });
+    const productB = await commerce.products.create(ctx, {
+      storeId: storeB.id,
+      title: 'B item',
+      variants: [{ priceMinor: 5000 }],
+    });
+    // Checking out via store A with store B's variant must fail (not silently
+    // charge through store A's integration with B's catalog).
+    await expect(
+      commerce.payments.checkout(ctx, { storeId, items: [{ variantId: productB.variants[0].id, quantity: 1 }] }),
+    ).rejects.toThrow();
   });
 
   it('respects a disabled recovery policy', async () => {

@@ -173,10 +173,10 @@ export class CartService {
     });
 
     await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });
-    await this.prisma.cart.update({
-      where: { id: cartId },
-      data: { status: cart.status === 'ABANDONED' ? 'RECOVERED' : 'CONVERTED' },
-    });
+    // The cart is intentionally NOT marked CONVERTED/RECOVERED here: the order is
+    // only PENDING. If the shopper abandons the hosted checkout before paying, the
+    // cart must stay ACTIVE/ABANDONED so recovery can still reach them. The cart is
+    // converted when payment is captured (PaymentService.applyPaymentStatus).
     // Reflect the link on the returned order (the DB update happened after it was built).
     return { ...result, order: { ...result.order, cartId } };
   }

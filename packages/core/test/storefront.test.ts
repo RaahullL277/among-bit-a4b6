@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { Commerce } from '../src/commerce.js';
@@ -61,6 +61,13 @@ describe.skipIf(!hasDb)('storefront (public)', () => {
     expect(order.cartId).toBe(cart.id);
     expect(String((checkout as any).hostedCheckoutUrl)).toContain('http');
 
+    // The order is only PENDING after checkout, so the cart stays ACTIVE
+    // (still recoverable if the shopper abandons the hosted checkout). It is
+    // converted once payment is captured.
+    expect((await commerce.storefront.getCart(cart.id)).status).toBe('ACTIVE');
+    const body = JSON.stringify({ providerRef: order.payment.providerRef, status: 'CAPTURED' });
+    const sig = createHmac('sha256', 's').update(body).digest('hex');
+    await commerce.payments.handleWebhook('RAZORPAY', body, sig);
     expect((await commerce.storefront.getCart(cart.id)).status).toBe('CONVERTED');
   });
 
