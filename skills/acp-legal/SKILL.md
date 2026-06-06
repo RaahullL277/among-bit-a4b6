@@ -23,9 +23,10 @@ The templates pull from:
 - `set_legal_policy` — replace the title/body with your own wording and/or set `status` (`DRAFT`/`PUBLISHED`). Editing the body bumps the version.
 - `publish_legal_policy` — flip a policy `PUBLISHED`/`DRAFT` (controls footer visibility).
 
-## Require acceptance at checkout (consent trail)
-- Turn on `set_checkout_settings` → `requireLegalAcceptance: true` to make buyers tick "I agree to the Terms & Privacy" before they can place an order (the storefront shows the checkbox linking to the published policies).
-- Each acceptance is recorded with the **exact policy versions in force**, the order, and the buyer email — view it with `list_legal_acceptances` (an auditable DPDP/consumer-protection trail). Editing a policy bumps its version, so future acceptances reference the new revision.
+## Acceptance at checkout (implicit consent trail)
+- Acceptance is **implicit**: placing an order agrees to the store's published policies — there is **no blocking checkbox**. The storefront shows a passive "By placing your order you agree to …" line linking the published policies.
+- Each order automatically records an acceptance with the **exact policy versions in force**, the order, and the buyer email — view it with `list_legal_acceptances` (an auditable DPDP/consumer-protection trail). Editing a policy bumps its version, so future acceptances reference the new revision.
+- The **only** opt-in checkbox at checkout is for **marketing** (optional, off by default) — see the `acp-marketing` / `acp-crm` flows. Buyers who don't opt in (or who unsubscribe) receive only order/delivery/return notices.
 
 ## Tips
 - These are **starting templates, not legal advice** — every generated doc carries that disclaimer; advise the merchant to review with counsel.

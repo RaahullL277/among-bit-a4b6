@@ -141,7 +141,7 @@ export class CartService {
   async checkoutCart(
     ctx: TenantContext,
     cartId: string,
-    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; acceptedLegal?: boolean; acceptanceIp?: string } = {},
+    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string } = {},
   ) {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
@@ -172,7 +172,7 @@ export class CartService {
       discountMinor: discountMinor || undefined,
       email: opts.email ?? cart.contactEmail ?? undefined,
       shippingAddress: opts.shippingAddress,
-      acceptedLegal: opts.acceptedLegal,
+      marketingOptIn: opts.marketingOptIn,
       acceptanceIp: opts.acceptanceIp,
     });
 
@@ -281,6 +281,9 @@ export class CartService {
     if (cart.customerId) {
       const customer = await this.prisma.customer.findUnique({ where: { id: cart.customerId } });
       if (customer) {
+        // Abandoned-cart recovery is promotional: never message a customer who
+        // has explicitly opted out (they get only order/delivery/return notices).
+        if (customer.unsubscribedAt) return false;
         name = customer.name ?? name;
         email = email ?? customer.email ?? undefined;
         phone = phone ?? customer.phone ?? undefined;

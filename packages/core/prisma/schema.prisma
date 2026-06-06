@@ -1022,8 +1022,6 @@ model CheckoutSettings {
   // Order subtotal (after discount) at/above which shipping is free; null = never.
   freeShippingOverMinor Int?
   requireAddress        Boolean  @default(true)
-  // When true, the buyer must accept the published legal policies to check out.
-  requireLegalAcceptance Boolean @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

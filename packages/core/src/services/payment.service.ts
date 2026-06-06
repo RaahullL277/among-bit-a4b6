@@ -21,9 +21,9 @@ export interface CheckoutInput {
   /** Buyer contact + delivery address captured at checkout. */
   email?: string;
   shippingAddress?: Record<string, unknown>;
-  /** The buyer accepted the store's published legal policies (consent trail). */
-  acceptedLegal?: boolean;
-  /** Buyer IP for the acceptance record (optional). */
+  /** The buyer opted in to marketing messages (optional, off by default). */
+  marketingOptIn?: boolean;
+  /** Buyer IP, recorded on the implicit legal-acceptance consent trail (optional). */
   acceptanceIp?: string;
 }
 
@@ -52,12 +52,6 @@ export class PaymentService {
       select: { id: true, currency: true },
     });
     if (!store) throw new NotFoundError('Store', input.storeId);
-
-    // Gate on legal-policy acceptance when the store requires it.
-    const settings = await this.checkoutSettings?.resolve(store.id);
-    if (settings?.requireLegalAcceptance && !input.acceptedLegal) {
-      throw new ValidationError('Please accept the store policies (terms & privacy) to place your order.');
-    }
 
     // Resolve variants — scoped to the tenant AND the order's store so a
     // multi-store tenant can't check out store B's variants through store A
@@ -163,10 +157,17 @@ export class PaymentService {
       data: { providerRef: result.providerRef },
     });
 
-    // Record the buyer's legal-policy acceptance (consent trail), best-effort.
-    if (input.acceptedLegal) {
-      await this.legal
-        ?.recordAcceptance(store.id, { orderId: order.id, email: input.email, ip: input.acceptanceIp, tenantId: ctx.tenantId })
+    // Legal acceptance is implicit: placing the order agrees to the store's
+    // published policies. Record the consent trail (versions in force), best-effort.
+    await this.legal
+      ?.recordAcceptance(store.id, { orderId: order.id, email: input.email, ip: input.acceptanceIp, tenantId: ctx.tenantId })
+      .catch(() => undefined);
+
+    // Optional marketing opt-in (off by default): grant consent only when the
+    // buyer ticked the box and we have a customer to attach it to.
+    if (input.marketingOptIn && order.customerId) {
+      await this.prisma.customer
+        .update({ where: { id: order.customerId }, data: { marketingConsent: true, marketingConsentAt: new Date(), unsubscribedAt: null } })
         .catch(() => undefined);
     }
 

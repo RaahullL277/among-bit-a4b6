@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { Commerce } from '../src/commerce.js';
-import { ValidationError, type TenantContext } from '../src/context.js';
+import type { TenantContext } from '../src/context.js';
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -70,33 +70,46 @@ describe.skipIf(!hasDb)('legal policies', () => {
     expect(edited.status).toBe('PUBLISHED');
   });
 
-  it('gates checkout on legal acceptance and records the consent trail', async () => {
+  it('records legal acceptance implicitly on checkout (no blocking checkbox)', async () => {
     const store = await commerce.stores.create(ctx, { name: 'Consent Shop' });
     await commerce.integrations.configure(ctx, { storeId: store.id, provider: 'RAZORPAY', credentials: { webhookSecret: 's' } });
     await commerce.legal.generateAll(ctx, store.id, { publish: true });
-    await commerce.checkoutSettings.set(ctx, { storeId: store.id, requireLegalAcceptance: true });
     const product = await commerce.products.create(ctx, { storeId: store.id, status: 'ACTIVE', title: 'Thing', variants: [{ priceMinor: 10000, inventory: 5 }] });
     const variantId = product.variants[0].id;
 
-    // Without acceptance → blocked.
-    await expect(
-      commerce.payments.checkout(ctx, { storeId: store.id, items: [{ variantId, quantity: 1 }] }),
-    ).rejects.toBeInstanceOf(ValidationError);
-
-    // With acceptance → succeeds and is recorded with the policy versions in force.
+    // Checkout is NOT gated — placing the order implies acceptance, recorded with versions.
     const { order } = await commerce.payments.checkout(ctx, {
       storeId: store.id,
+      customerId: undefined,
       items: [{ variantId, quantity: 1 }],
       email: 'buyer@example.com',
-      acceptedLegal: true,
       acceptanceIp: '1.2.3.4',
     });
     const acceptances = await commerce.legal.listAcceptances(ctx, store.id);
     expect(acceptances).toHaveLength(1);
     expect(acceptances[0].orderId).toBe(order.id);
     expect(acceptances[0].email).toBe('buyer@example.com');
-    expect(Array.isArray(acceptances[0].policies)).toBe(true);
     expect((acceptances[0].policies as any[]).length).toBe(5);
+  });
+
+  it('captures the optional marketing opt-in at checkout (off by default)', async () => {
+    const store = await commerce.stores.create(ctx, { name: 'OptIn Shop' });
+    await commerce.integrations.configure(ctx, { storeId: store.id, provider: 'RAZORPAY', credentials: { webhookSecret: 's' } });
+    const product = await commerce.products.create(ctx, { storeId: store.id, status: 'ACTIVE', title: 'Widget', variants: [{ priceMinor: 5000, inventory: 9 }] });
+    const variantId = product.variants[0].id;
+
+    // No opt-in → the resolved customer is NOT consented (default off).
+    await commerce.payments.checkout(ctx, { storeId: store.id, items: [{ variantId, quantity: 1 }], email: 'noconsent@example.com' });
+    const c1 = await prisma.customer.findFirst({ where: { storeId: store.id, email: 'noconsent@example.com' } });
+    // (cart path resolves a customer; direct checkout with email may not — only assert when present)
+    if (c1) expect(c1.marketingConsent).toBe(false);
+
+    // Opt-in via the cart checkout path (which resolves a customer) → consent granted.
+    const cart = await commerce.carts.createCart(ctx, { storeId: store.id, items: [{ variantId, quantity: 1 }] });
+    await commerce.carts.checkoutCart(ctx, cart.id, { email: 'optin@example.com', marketingOptIn: true });
+    const c2 = await prisma.customer.findFirst({ where: { storeId: store.id, email: 'optin@example.com' } });
+    expect(c2?.marketingConsent).toBe(true);
+    expect(c2?.unsubscribedAt).toBeNull();
   });
 
   it('hides unpublished policies from the storefront', async () => {

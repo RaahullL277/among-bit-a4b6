@@ -22,6 +22,11 @@ Each row includes orders, lifetime spend, last order, and tags.
 ## Tag & note
 `update_customer` with `customerId` and any of `name`, `email`, `phone`, `tags` (array; de-duplicated), `notes`. Use tags for ad-hoc segments (e.g. `vip`, `wholesale`) and notes for context.
 
+## Marketing consent
+- Consent is **explicit opt-in**, off by default. Buyers opt in via an optional checkbox at checkout (or you set it with `set_customer_consent`). `marketingConsent` + `marketingConsentAt` track it; unsubscribing sets `unsubscribedAt` and overrides consent.
+- **Promotional** messages (engagement campaigns, ESP sync) go **only** to opted-in customers; abandoned-cart recovery is suppressed for anyone who has explicitly unsubscribed.
+- **Transactional** notices — order status, shipping/delivery, returns/refunds — always send regardless of consent.
+
 ## Tips
 - Segments are heuristic (RFM-style) defaults; use them to target outreach — e.g. send a win-back WhatsApp to `LAPSED` customers (see **acp-notifications**), or grant loyalty points to `VIP`s (see **acp-loyalty**).
 - For campaigns/flows, push customers to the connected ESP with `sync_marketing` (see **acp-marketing**).

@@ -16,7 +16,7 @@ return policy (`LegalService`, `legal/templates.ts`). Surfaces: REST `/legal`,
 MCP (`generate_legal_policies`, `get_legal_policy`, `set_legal_policy`,
 `publish_legal_policy`, `list_legal_policies`), admin **Legal** page, storefront
 footer links + `/legal/:type` policy pages, `acp-legal` skill, tests.
-- [x] (Follow-up) Buyer-acceptance capture at checkout — `LegalAcceptance` model + `requireLegalAcceptance` checkout gate; records the policy versions in force per order/email; storefront checkbox; `list_legal_acceptances`.
+- [x] (Follow-up) Buyer-acceptance capture at checkout — `LegalAcceptance` model records the policy versions in force per order/email. Acceptance is **implicit** (placing the order agrees to the published policies; passive notice, no blocking checkbox); `list_legal_acceptances` exposes the trail. The only checkout checkbox is the **optional marketing opt-in** (off by default) → sets `marketingConsent`. Promotional sends go only to opted-in; opted-out get order/delivery/return notices only (abandoned-cart recovery suppressed for unsubscribers).
 
 ### 2. eKYC / merchant verification & payouts — ❌ not built (P0 for real go-live)
 Entirely absent — no `kyc` / `aadhaar` / `bankAccount` / `payout` / `ifsc` /

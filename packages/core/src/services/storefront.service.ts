@@ -233,7 +233,7 @@ export class StorefrontService {
    */
   async checkout(
     cartId: string,
-    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; acceptedLegal?: boolean; acceptanceIp?: string } = {},
+    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string } = {},
   ) {
     const { ctx, storeId } = await this.ctxForCart(cartId);
     const settings = await this.checkoutSettings?.resolve(storeId);
@@ -242,9 +242,6 @@ export class StorefrontService {
       if (!(a as any).line1 && !(a as any).pincode) {
         throw new ValidationError('A delivery address (at least a street line or pincode) is required to check out.');
       }
-    }
-    if (settings?.requireLegalAcceptance && !opts.acceptedLegal) {
-      throw new ValidationError('Please accept the store policies (terms & privacy) to place your order.');
     }
     return this.carts.checkoutCart(ctx, cartId, opts);
   }

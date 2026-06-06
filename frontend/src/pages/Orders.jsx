@@ -135,7 +135,6 @@ function CheckoutSettings({ storeId }) {
         flatShippingMinor: Math.round((Number(p.flatShippingRupees ?? p.flatShippingMinor / 100) || 0) * 100),
         freeShippingOverMinor: p.freeShippingOverRupees ? Math.round(Number(p.freeShippingOverRupees) * 100) : (p.freeShippingOverMinor ?? null),
         requireAddress: !!p.requireAddress,
-        requireLegalAcceptance: !!p.requireLegalAcceptance,
       });
       setForm(null); setSaved(true); reload();
     } finally { setBusy(false); }
@@ -171,9 +170,6 @@ function CheckoutSettings({ storeId }) {
           </Field>
           <Field label="Require delivery address?" hint="On for physical goods">
             <Toggle on={p.requireAddress} onClick={() => set('requireAddress', !p.requireAddress)} />
-          </Field>
-          <Field label="Require policy acceptance?" hint="Buyer must accept terms & privacy">
-            <Toggle on={p.requireLegalAcceptance} onClick={() => set('requireLegalAcceptance', !p.requireLegalAcceptance)} />
           </Field>
           <div className="md:col-span-3 flex items-center gap-3">
             <Button onClick={save} loading={busy} disabled={!form}>Save</Button>

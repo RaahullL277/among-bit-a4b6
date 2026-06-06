@@ -17,7 +17,7 @@ export default function Cart() {
   const [quote, setQuote] = useState(null);
   const [address, setAddress] = useState(() => JSON.parse(localStorage.getItem('shopper.address') || 'null') || emptyAddress);
   const [policies, setPolicies] = useState([]);
-  const [agree, setAgree] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false); // optional, off by default
 
   useEffect(() => {
     if (cartId) api.checkoutQuote(cartId).then(setQuote).catch(() => setQuote(null));
@@ -56,7 +56,7 @@ export default function Cart() {
       const redeemPoints = redeem && rewards?.pointsBalance >= (rewards?.minRedeemPoints ?? 0) ? rewards.pointsBalance : undefined;
       const hasAddress = address.line1 || address.pincode;
       if (hasAddress) localStorage.setItem('shopper.address', JSON.stringify(address));
-      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, acceptedLegal: agree || undefined });
+      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined });
       clear();
       navigate('/confirmation', { state: res });
     } catch (e) {
@@ -132,19 +132,23 @@ export default function Cart() {
         )}
       </div>
 
+      {/* Optional marketing opt-in — off by default. */}
+      <label className="mt-4 flex items-start gap-2 text-sm text-stone-600">
+        <input type="checkbox" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} className="mt-0.5" />
+        <span>Email me offers, news and updates (optional — you can unsubscribe anytime).</span>
+      </label>
+
+      {/* Implicit legal acceptance: placing the order agrees to the policies. */}
       {policies.length > 0 && (
-        <label className="mt-4 flex items-start gap-2 text-sm text-stone-600">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5" />
-          <span>
-            I agree to the{' '}
-            {policies.map((p, i) => (
-              <span key={p.type}>
-                {i > 0 && (i === policies.length - 1 ? ' and ' : ', ')}
-                <Link to={`/legal/${p.slug}`} className="text-stone-900 underline">{p.title}</Link>
-              </span>
-            ))}.
-          </span>
-        </label>
+        <p className="mt-2 text-xs text-stone-400">
+          By placing your order you agree to our{' '}
+          {policies.map((p, i) => (
+            <span key={p.type}>
+              {i > 0 && (i === policies.length - 1 ? ' and ' : ', ')}
+              <Link to={`/legal/${p.slug}`} className="underline hover:text-stone-600">{p.title}</Link>
+            </span>
+          ))}.
+        </p>
       )}
 
       {error && <p className="mt-3 text-rose-600">{error}</p>}

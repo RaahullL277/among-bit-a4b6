@@ -1161,7 +1161,6 @@ export function registerTools(server: McpServer, session: Session) {
         flatShippingMinor: z.number().int().nonnegative().optional(),
         freeShippingOverMinor: z.number().int().nonnegative().nullable().optional(),
         requireAddress: z.boolean().optional(),
-        requireLegalAcceptance: z.boolean().optional().describe('Require the buyer to accept published legal policies at checkout'),
       },
     },
     tool((ctx, a: any) => commerce.checkoutSettings.set(ctx, a)),
