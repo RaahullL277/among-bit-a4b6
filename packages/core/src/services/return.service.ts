@@ -249,8 +249,8 @@ export class ReturnService {
     const ctx: TenantContext = { tenantId: order.tenantId };
     let refunded = false;
     const wasPaid = order.status === 'PAID';
-    if (wasPaid && order.payment?.status === 'CAPTURED') {
-      await this.payments.refund(ctx, order.id); // full refund
+    if (wasPaid && (order.payment?.status === 'CAPTURED' || order.payment?.status === 'PARTIALLY_REFUNDED')) {
+      await this.payments.refund(ctx, order.id); // refund the remaining balance
       refunded = true;
     }
     // Refund may have set the order to REFUNDED; mark it cancelled (the buyer's intent).

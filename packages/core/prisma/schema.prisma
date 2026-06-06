@@ -38,6 +38,7 @@ enum PaymentStatus {
   AUTHORIZED
   CAPTURED
   FAILED
+  PARTIALLY_REFUNDED
   REFUNDED
 }
 
@@ -700,6 +701,8 @@ model Payment {
   providerRef String?
   status      PaymentStatus @default(PENDING)
   amountMinor Int
+  // Cumulative amount refunded so far (caps total refunds at the order value).
+  refundedMinor Int         @default(0)
   currency    String        @default("INR")
   raw         Json?
   createdAt   DateTime      @default(now())

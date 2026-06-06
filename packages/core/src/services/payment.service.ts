@@ -152,27 +152,32 @@ export class PaymentService {
     });
     if (!order) throw new NotFoundError('Order', orderId);
     if (!order.payment) throw new ValidationError('This order has no payment to refund.');
-    if (order.payment.status !== 'CAPTURED') {
+    if (!['CAPTURED', 'PARTIALLY_REFUNDED'].includes(order.payment.status)) {
       throw new ValidationError('Only a captured (paid) order can be refunded.');
     }
-    const amount = amountMinor ?? order.totalMinor;
-    if (amount <= 0 || amount > order.totalMinor) {
-      throw new ValidationError('Refund amount must be between 1 and the order total.');
+    // Cap total refunds at the order value across multiple partial refunds.
+    const alreadyRefunded = order.payment.refundedMinor;
+    const remaining = order.totalMinor - alreadyRefunded;
+    if (remaining <= 0) throw new ValidationError('This order has already been fully refunded.');
+    const amount = amountMinor ?? remaining;
+    if (amount <= 0 || amount > remaining) {
+      throw new ValidationError(`Refund amount must be between 1 and the remaining ${remaining} (already refunded ${alreadyRefunded}).`);
     }
 
     const creds = await this.integrations.getCredentials(ctx, order.storeId, order.payment.provider);
     const adapter = getPaymentProvider(order.payment.provider, creds);
     const result = await adapter.refund(order.payment.providerRef ?? order.id, amount);
 
-    const fullRefund = amount >= order.totalMinor;
+    const newRefunded = alreadyRefunded + amount;
+    const fullRefund = newRefunded >= order.totalMinor;
     await this.prisma.payment.update({
       where: { orderId: order.id },
-      data: { status: fullRefund ? 'REFUNDED' : order.payment.status },
+      data: { refundedMinor: newRefunded, status: fullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },
     });
     if (fullRefund) {
       await this.prisma.order.update({ where: { id: order.id }, data: { status: 'REFUNDED' } });
     }
-    return { refundRef: result.refundRef, amountMinor: amount, full: fullRefund };
+    return { refundRef: result.refundRef, amountMinor: amount, full: fullRefund, refundedMinor: newRefunded };
   }
 
   /**
