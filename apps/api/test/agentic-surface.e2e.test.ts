@@ -94,4 +94,20 @@ describe.skipIf(!hasDb)('agentic surface (e2e)', () => {
     const cart = await request(http).post(`/agent/${storeId}/carts`).send({}).expect(403); // store is off now
     expect(cart.body).toBeDefined();
   });
+
+  it('audit: the mutations above were recorded to the merchant trail', async () => {
+    // The interceptor writes are fire-and-forget; poll briefly for them.
+    let logs: any[] = [];
+    for (let i = 0; i < 10; i++) {
+      logs = (await request(http).get('/audit?limit=200').set('x-api-key', apiKey).expect(200)).body;
+      if (logs.length) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(logs.length).toBeGreaterThan(0);
+    // API-key actor; shopability toggles were recorded.
+    expect(logs.every((l: any) => l.actorKind === 'apiKey')).toBe(true);
+    expect(logs.some((l: any) => l.resource === 'shopability')).toBe(true);
+    // Reads (GET) are not audited.
+    expect(logs.every((l: any) => l.method !== 'GET')).toBe(true);
+  });
 });

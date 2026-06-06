@@ -307,6 +307,7 @@ model Tenant {
   invites       Invite[]
   plan          TenantPlan?
   partnerClient PartnerClient?
+  auditLogs     AuditLog[]
 }
 
 // Plan tier + feature flags/limits for a tenant, set by platform billing staff.
@@ -685,6 +686,28 @@ model App {
   createdAt   DateTime @default(now())
 
   installations AppInstallation[]
+}
+
+// Merchant-side audit trail: who (owner / staff / API key / partner) changed what
+// within a tenant. Distinct from PlatformAuditLog (operator actions). Especially
+// important now that partners can edit client stores under delegated access.
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorKind  String // user | apiKey | partner
+  actorId    String? // userId / partnerId (null for an API key)
+  action     String // e.g. "product.update", "shopability.update"
+  method     String
+  path       String
+  resource   String? // route base, e.g. "products"
+  resourceId String? // the :id route param, when present
+  statusCode Int
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
 }
 
 model AppInstallation {

@@ -1201,6 +1201,21 @@ export function registerTools(server: McpServer, session: Session) {
     }),
   );
 
+  // --- Audit trail ----------------------------------------------------------
+  server.registerTool(
+    'list_audit_log',
+    {
+      description: 'Merchant audit trail: who changed what in this account (owner/staff/API key, or a partner under delegated access). Filter by action, actorKind, or resource.',
+      inputSchema: {
+        limit: z.number().int().positive().optional(),
+        action: z.string().optional(),
+        actorKind: z.enum(['user', 'apiKey', 'partner']).optional(),
+        resource: z.string().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.audit.list(ctx, a)),
+  );
+
   // --- Pricing intelligence -------------------------------------------------
   server.registerTool(
     'analyze_pricing',

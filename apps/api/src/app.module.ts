@@ -1,7 +1,9 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard.js';
 import { RateLimitMiddleware } from './common/rate-limit.middleware.js';
+import { AuditInterceptor } from './common/audit.interceptor.js';
+import { AuditController } from './controllers/audit.controller.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { MembersController } from './controllers/members.controller.js';
 import { HealthController } from './controllers/health.controller.js';
@@ -67,6 +69,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     EngagementController,
     ShopabilityController,
     AgentController,
+    AuditController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,
@@ -83,6 +86,8 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
   providers: [
     // Auth + RBAC applies to every route except those marked @Public().
     { provide: APP_GUARD, useClass: AuthGuard },
+    // Records tenant-scoped mutations to the merchant audit trail.
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule implements NestModule {

@@ -25,6 +25,7 @@ import {
   TrendingDown,
   Activity,
   UserCog,
+  ScrollText,
   Settings,
   LogOut,
   ShoppingBag,
@@ -59,6 +60,7 @@ const nav = [
   { to: '/notifications', label: 'Notifications', icon: Bell, perm: 'notifications:write' },
   { to: '/support', label: 'Support', icon: MessageSquare },
   { to: '/team', label: 'Team', icon: UserCog, perm: 'members:manage' },
+  { to: '/audit', label: 'Audit log', icon: ScrollText, perm: 'members:manage' },
   { to: '/settings', label: 'Settings', icon: Settings, perm: 'apikeys:manage' },
 ];
 

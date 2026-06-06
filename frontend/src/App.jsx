@@ -29,6 +29,7 @@ import Images from './pages/Images';
 import Marketing from './pages/Marketing';
 import Pricing from './pages/Pricing';
 import Team from './pages/Team';
+import Audit from './pages/Audit';
 import Settings from './pages/Settings';
 import { Spinner } from './components/ui';
 
@@ -64,6 +65,7 @@ function AuthedApp() {
           <Route path="/marketing" element={<Marketing />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/audit" element={<Audit />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

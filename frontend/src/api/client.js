@@ -253,6 +253,9 @@ export const api = {
       request(`/notification-preferences?storeId=${encodeURIComponent(storeId)}`),
     setPreference: (body) => request('/notification-preferences', { method: 'PUT', body }),
   },
+  audit: {
+    list: (params) => request(`/audit?${qs(params ?? {})}`),
+  },
   apiKeys: {
     list: () => request('/api-keys'),
     create: (body) => request('/api-keys', { method: 'POST', body }),

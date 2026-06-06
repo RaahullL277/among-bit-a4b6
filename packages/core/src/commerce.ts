@@ -38,6 +38,7 @@ import { TemplateService } from './services/template.service.js';
 import { CohortService } from './services/cohort.service.js';
 import { EngagementService } from './services/engagement.service.js';
 import { ShopabilityService } from './services/shopability.service.js';
+import { AuditService } from './services/audit.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -84,6 +85,7 @@ export class Commerce {
   readonly cohorts: CohortService;
   readonly engagement: EngagementService;
   readonly shopability: ShopabilityService;
+  readonly audit: AuditService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -126,6 +128,7 @@ export class Commerce {
     this.cohorts = new CohortService(prisma);
     this.engagement = new EngagementService(prisma, this.integrations, this.cohorts);
     this.shopability = new ShopabilityService(prisma, this.storefront);
+    this.audit = new AuditService(prisma);
   }
 }
 
