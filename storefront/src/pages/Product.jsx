@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, money, STORE_ID } from '../api';
+import { api, applySeo, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
 import Reviews from '../Reviews';
 import FrequentlyBoughtTogether from '../FrequentlyBoughtTogether';
@@ -25,6 +25,7 @@ export default function Product() {
 
   useEffect(() => {
     api.product(STORE_ID, id).then(setProduct).catch((e) => setError(e.message));
+    api.productSeo(STORE_ID, id).then(applySeo).catch(() => undefined);
     api.subscriptionSettings(STORE_ID)
       .then((s) => {
         setSubSettings(s);

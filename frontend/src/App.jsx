@@ -20,6 +20,7 @@ import Bundles from './pages/Bundles';
 import Loyalty from './pages/Loyalty';
 import Subscriptions from './pages/Subscriptions';
 import Design from './pages/Design';
+import Seo from './pages/Seo';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 import { Spinner } from './components/ui';
@@ -47,6 +48,7 @@ function AuthedApp() {
           <Route path="/loyalty" element={<Loyalty />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/design" element={<Design />} />
+          <Route path="/seo" element={<Seo />} />
           <Route path="/team" element={<Team />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -22,6 +22,8 @@ export interface UpdateProductInput {
   title?: string;
   description?: string;
   status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 const productInclude = { variants: true } as const;
@@ -89,7 +91,13 @@ export class ProductService {
     await this.get(ctx, id);
     return this.prisma.product.update({
       where: { id },
-      data: { title: input.title, description: input.description, status: input.status },
+      data: {
+        title: input.title,
+        description: input.description,
+        status: input.status,
+        metaTitle: input.metaTitle,
+        metaDescription: input.metaDescription,
+      },
       include: productInclude,
     });
   }

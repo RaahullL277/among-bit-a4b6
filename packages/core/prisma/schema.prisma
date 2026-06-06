@@ -392,6 +392,8 @@ model Store {
   loyaltyProgram LoyaltyProgram?
   subscriptions Subscription[]
   subscriptionSettings SubscriptionSettings?
+  seoSettings  SeoSettings?
+  images       ImageAsset[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -404,12 +406,16 @@ model Product {
   title       String
   description String?
   status      ProductStatus @default(DRAFT)
+  // SEO overrides (fall back to store templates/title when unset).
+  metaTitle       String?
+  metaDescription String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   variants ProductVariant[]
   reviews  Review[]
+  images   ImageAsset[]
 
   @@index([tenantId])
   @@index([storeId])
@@ -1176,4 +1182,48 @@ model Subscription {
   @@index([storeId, status])
   @@index([status, nextBillingAt])
   @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// SEO & image optimization (Plug-in-SEO / TinyIMG-style)
+// ---------------------------------------------------------------------------
+
+// Per-store SEO defaults that drive meta tags, sitemap, and robots.
+model SeoSettings {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  storeId            String   @unique
+  // Title template; {title} and {storeName} are substituted.
+  titleTemplate      String   @default("{title} | {storeName}")
+  defaultDescription String?
+  // When false, robots.txt disallows crawling and pages are marked noindex.
+  indexable          Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// A managed image asset. Optimization records the byte savings (compression is
+// simulated here; a real image pipeline slots in behind the same fields).
+model ImageAsset {
+  id             String   @id @default(cuid())
+  tenantId       String
+  storeId        String
+  productId      String?
+  url            String
+  alt            String?
+  originalBytes  Int
+  optimizedBytes Int?
+  optimized      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([productId])
 }

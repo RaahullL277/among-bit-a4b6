@@ -162,6 +162,20 @@ export const api = {
     setStatus: (id, status) => request(`/subscriptions/${id}/status`, { method: 'POST', body: { status } }),
     runBilling: () => request('/subscriptions/run-billing', { method: 'POST' }),
   },
+  seo: {
+    getSettings: (storeId) => request(`/seo/settings?${qs({ storeId })}`),
+    setSettings: (body) => request('/seo/settings', { method: 'PUT', body }),
+    audit: (storeId) => request(`/seo/audit?${qs({ storeId })}`),
+  },
+  images: {
+    list: (storeId, productId) => request(`/images?${qs({ storeId, productId })}`),
+    savings: (storeId) => request(`/images/savings?${qs({ storeId })}`),
+    create: (body) => request('/images', { method: 'POST', body }),
+    optimize: (id) => request(`/images/${id}/optimize`, { method: 'POST' }),
+    optimizeAll: (storeId) => request('/images/optimize-all', { method: 'POST', body: { storeId } }),
+    setAlt: (id, body) => request(`/images/${id}/alt`, { method: 'POST', body }),
+    remove: (id) => request(`/images/${id}`, { method: 'DELETE' }),
+  },
   analytics: {
     summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),
     revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),

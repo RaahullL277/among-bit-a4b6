@@ -659,6 +659,25 @@ export function registerTools(
     tool((ctx, a: any) => commerce.subscriptions.setStatus(ctx, a.subscriptionId, a.status)),
   );
 
+  // --- SEO & images ---------------------------------------------------------
+  server.registerTool(
+    'seo_audit',
+    {
+      description: 'Run an SEO + performance audit of a store: a health score and a list of on-page issues.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.seo.audit(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'optimize_images',
+    {
+      description: 'Compress all not-yet-optimized images in a store and report the bytes saved.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.images.optimizeAll(ctx, a.storeId)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

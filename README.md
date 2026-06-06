@@ -70,6 +70,14 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   toggle bundles from a **Bundles** admin page (with co-purchase suggestions). Public
   `/storefront/:id/products/:pid/bundles` + `/frequently-bought-together`; merchant `/bundles/*`;
   MCP `list_bundles` / `create_bundle`.
+- **SEO & page speed** — an SEO audit engine (Plug-in-SEO style) scores the live catalog + pages and
+  lists on-page issues (missing/over-long meta, missing alt text, no images), renders per-product
+  **meta tags + Product JSON-LD** (price/availability/aggregate rating) and applies them on the
+  storefront, and serves **sitemap.xml** + **robots.txt**. Paired with **image optimization**
+  (TinyIMG style): a per-store image registry with one-click/bulk **compression** (recorded byte
+  savings), **alt-text generation**, and a savings + page-speed score. Products gain SEO meta
+  overrides. Public `/storefront/:id/sitemap.xml` + `/robots.txt` + `/products/:pid/seo`; merchant
+  `/seo/*` + `/images/*`; MCP `seo_audit` / `optimize_images`.
 - **Subscriptions** — "subscribe & save" recurring orders (Recharge/LoyaltyLion-style). Shoppers
   subscribe to a product at a chosen cadence (weekly → quarterly) from the product page at a merchant-
   set discount; the **background worker generates a discounted order on each due date** and advances

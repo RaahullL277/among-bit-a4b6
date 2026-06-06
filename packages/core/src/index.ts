@@ -72,6 +72,8 @@ export {
   type CreateSubscriptionInput,
   type SubscriptionSettingsInput,
 } from './services/subscription.service.js';
+export { SeoService, type SeoSettingsInput } from './services/seo.service.js';
+export { ImageService, type CreateImageInput } from './services/image.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,

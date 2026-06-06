@@ -51,7 +51,38 @@ export const api = {
   mySubscriptions: (id, email) => req(`/storefront/${id}/subscriptions?email=${encodeURIComponent(email)}`),
   manageSubscription: (id, subId, body) =>
     req(`/storefront/${id}/subscriptions/${subId}/manage`, { method: 'POST', body }),
+  productSeo: (id, pid) => req(`/storefront/${id}/products/${pid}/seo`),
 };
+
+// Apply SEO meta to the document head (title, description, canonical, JSON-LD).
+export function applySeo(seo) {
+  if (!seo) return;
+  if (seo.title) document.title = seo.title;
+  const setMeta = (name, content, attr = 'name') => {
+    if (!content) return;
+    let el = document.head.querySelector(`meta[${attr}="${name}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(attr, name);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  };
+  setMeta('description', seo.description);
+  setMeta('og:title', seo.title, 'property');
+  setMeta('og:description', seo.description, 'property');
+  if (seo.indexable === false) setMeta('robots', 'noindex');
+  if (seo.jsonLd) {
+    let s = document.getElementById('ld-product');
+    if (!s) {
+      s = document.createElement('script');
+      s.type = 'application/ld+json';
+      s.id = 'ld-product';
+      document.head.appendChild(s);
+    }
+    s.textContent = JSON.stringify(seo.jsonLd);
+  }
+}
 
 export function money(minor, currency = 'INR') {
   try {

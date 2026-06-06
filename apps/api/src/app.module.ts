@@ -24,6 +24,7 @@ import { PagesController } from './controllers/pages.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
 import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { SubscriptionsController } from './controllers/subscriptions.controller.js';
+import { SeoController } from './controllers/seo.controller.js';
 import { ShipmentsController } from './controllers/shipments.controller.js';
 import { PlatformAuthController } from './controllers/platform-auth.controller.js';
 import { PlatformController } from './controllers/platform.controller.js';
@@ -55,6 +56,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,
+    SeoController,
     ShipmentsController,
     PlatformAuthController,
     PlatformController,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Query } from '@nestjs/common';
 import { getCommerce } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
 
@@ -114,6 +114,24 @@ export class StorefrontController {
   @Get(':storeId/loyalty')
   loyalty(@Param('storeId') storeId: string, @Query('email') email: string): Promise<any> {
     return this.commerce.storefront.loyaltyBalance(storeId, email);
+  }
+
+  // --- SEO (public) ---------------------------------------------------------
+  @Get(':storeId/sitemap.xml')
+  @Header('content-type', 'application/xml')
+  async sitemap(@Param('storeId') storeId: string): Promise<string> {
+    return (await this.commerce.seo.sitemap(storeId)) ?? '';
+  }
+
+  @Get(':storeId/robots.txt')
+  @Header('content-type', 'text/plain')
+  robots(@Param('storeId') storeId: string): Promise<string> {
+    return this.commerce.seo.robots(storeId);
+  }
+
+  @Get(':storeId/products/:productId/seo')
+  productSeo(@Param('storeId') storeId: string, @Param('productId') productId: string): Promise<any> {
+    return this.commerce.seo.productMeta(storeId, productId);
   }
 
   // --- Subscriptions (public) -----------------------------------------------
