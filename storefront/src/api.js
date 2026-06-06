@@ -31,7 +31,7 @@ export const api = {
   createCart: (id, body) => req(`/storefront/${id}/carts`, { method: 'POST', body }),
   getCart: (cid) => req(`/storefront/carts/${cid}`),
   addItem: (cid, body) => req(`/storefront/carts/${cid}/items`, { method: 'POST', body }),
-  checkout: (cid) => req(`/storefront/carts/${cid}/checkout`, { method: 'POST' }),
+  checkout: (cid, body) => req(`/storefront/carts/${cid}/checkout`, { method: 'POST', body }),
   supportConfig: (id) => req(`/storefront/${id}/support/config`),
   supportChat: (id, body) => req(`/storefront/${id}/support/chat`, { method: 'POST', body }),
   productReviews: (id, pid) => req(`/storefront/${id}/products/${pid}/reviews`),
@@ -45,6 +45,7 @@ export const api = {
   orderLookup: (id, number, email) =>
     req(`/storefront/${id}/order-lookup?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
   requestReturn: (id, body) => req(`/storefront/${id}/returns`, { method: 'POST', body }),
+  loyalty: (id, email) => req(`/storefront/${id}/loyalty?email=${encodeURIComponent(email)}`),
 };
 
 export function money(minor, currency = 'INR') {

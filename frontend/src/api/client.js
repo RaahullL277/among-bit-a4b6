@@ -148,6 +148,12 @@ export const api = {
     receive: (id) => request(`/returns/${id}/receive`, { method: 'POST' }),
     refund: (id, amountMinor) => request(`/returns/${id}/refund`, { method: 'POST', body: { amountMinor } }),
   },
+  loyalty: {
+    getProgram: (storeId) => request(`/loyalty/program?${qs({ storeId })}`),
+    setProgram: (body) => request('/loyalty/program', { method: 'PUT', body }),
+    accounts: (storeId) => request(`/loyalty/accounts?${qs({ storeId })}`),
+    adjust: (customerId, body) => request(`/loyalty/accounts/${customerId}/adjust`, { method: 'POST', body }),
+  },
   analytics: {
     summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),
     revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),

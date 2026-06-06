@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError, type TenantContext } from '../context.j
 import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { OfferService } from './offer.service.js';
+import type { LoyaltyService } from './loyalty.service.js';
 
 const cartInclude = { items: true } as const;
 
@@ -31,7 +32,19 @@ export class CartService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly offers?: OfferService,
+    private readonly loyalty?: LoyaltyService,
   ) {}
+
+  /** Find a store customer by email, creating one if needed (for loyalty). */
+  private async resolveCustomer(ctx: TenantContext, storeId: string, email: string): Promise<string> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { storeId, email: { equals: email, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await this.prisma.customer.create({ data: { tenantId: ctx.tenantId, storeId, email } });
+    return created.id;
+  }
 
   private async assertStore(ctx: TenantContext, storeId: string) {
     const store = await this.prisma.store.findFirst({
@@ -125,20 +138,38 @@ export class CartService {
   }
 
   /** Check out a cart: creates an order/payment and links them back to it. */
-  async checkoutCart(ctx: TenantContext, cartId: string, opts: { provider?: any } = {}) {
+  async checkoutCart(
+    ctx: TenantContext,
+    cartId: string,
+    opts: { provider?: any; email?: string; redeemPoints?: number } = {},
+  ) {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
 
     const items = cart.items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }));
+    const subtotalMinor = cart.items.reduce((s, i) => s + i.unitPriceMinor * i.quantity, 0);
+
+    // Identify the customer (for loyalty): explicit email, else the cart's link.
+    let customerId = cart.customerId ?? undefined;
+    if (!customerId && opts.email) customerId = await this.resolveCustomer(ctx, cart.storeId, opts.email);
+
     // Auto-apply any bundle saving the cart qualifies for (no coupon codes).
     const offer = this.offers ? await this.offers.computeCartDiscount(ctx, cart.storeId, items) : undefined;
+    let discountMinor = offer?.discountMinor ?? 0;
+
+    // Redeem loyalty points for a discount, capped at the remaining order value.
+    if (opts.redeemPoints && customerId && this.loyalty) {
+      const remaining = Math.max(0, subtotalMinor - discountMinor);
+      const r = await this.loyalty.redeem(ctx, customerId, opts.redeemPoints, remaining);
+      discountMinor += r.discountMinor;
+    }
 
     const result = await this.payments.checkout(ctx, {
       storeId: cart.storeId,
-      customerId: cart.customerId ?? undefined,
+      customerId,
       items,
       provider: opts.provider,
-      discountMinor: offer?.discountMinor,
+      discountMinor: discountMinor || undefined,
     });
 
     await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });

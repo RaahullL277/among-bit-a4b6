@@ -583,6 +583,44 @@ export function registerTools(
     }),
   );
 
+  // --- Loyalty / rewards ----------------------------------------------------
+  server.registerTool(
+    'get_loyalty_program',
+    { description: 'Get the loyalty/rewards program config for a store.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.loyalty.getProgram(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_loyalty_program',
+    {
+      description: 'Configure the loyalty program (earn rate, redemption value, minimum, signup bonus, tiers).',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        pointsPerCurrencyUnit: z.number().optional(),
+        redeemValueMinorPerPoint: z.number().optional(),
+        minRedeemPoints: z.number().optional(),
+        signupBonus: z.number().optional(),
+        tiers: z.array(z.object({ name: z.string(), minPoints: z.number() })).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.loyalty.setProgram(ctx, a)),
+  );
+
+  server.registerTool(
+    'adjust_loyalty_points',
+    {
+      description: "Manually add or remove points from a customer's loyalty balance.",
+      inputSchema: {
+        customerId: z.string(),
+        points: z.number(),
+        note: z.string().optional(),
+        type: z.enum(['EARN', 'REDEEM', 'SIGNUP', 'ADJUST']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.loyalty.award(ctx, a.customerId, a.points, a.note, a.type)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

@@ -26,6 +26,7 @@ import { ReviewService } from './services/review.service.js';
 import { OfferService } from './services/offer.service.js';
 import { PageService } from './services/page.service.js';
 import { ReturnService } from './services/return.service.js';
+import { LoyaltyService } from './services/loyalty.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -60,6 +61,7 @@ export class Commerce {
   readonly offers: OfferService;
   readonly pages: PageService;
   readonly returns: ReturnService;
+  readonly loyalty: LoyaltyService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -73,12 +75,13 @@ export class Commerce {
     this.customers = new CustomerService(prisma, this.marketing);
     this.notifications = new NotificationService(prisma, this.integrations);
     this.orders = new OrderService(prisma, this.notifications);
-    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing);
+    this.loyalty = new LoyaltyService(prisma);
+    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty);
     this.messaging = new MessagingService(prisma, this.integrations);
     this.offers = new OfferService(prisma);
-    this.carts = new CartService(prisma, this.payments, this.notifications, this.offers);
+    this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.stock = new StockService(prisma, this.notifications);
-    this.storefront = new StorefrontService(prisma, this.products, this.carts);
+    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty);
     this.analytics = new AnalyticsService(prisma);
     this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
     this.platformAuth = new PlatformAuthService(prisma);

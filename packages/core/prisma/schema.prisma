@@ -118,6 +118,14 @@ enum ReturnReason {
   OTHER
 }
 
+// Kind of loyalty-points ledger entry.
+enum LoyaltyTxnType {
+  EARN    // earned from a paid order
+  REDEEM  // spent for a discount
+  SIGNUP  // joining bonus
+  ADJUST  // manual merchant adjustment
+}
+
 // Moderation state of a product review.
 enum ReviewStatus {
   PENDING
@@ -366,6 +374,7 @@ model Store {
   pages        StorePage[]
   theme        StoreTheme?
   returns      Return[]
+  loyaltyProgram LoyaltyProgram?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -435,8 +444,9 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orders Order[]
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders         Order[]
+  loyaltyAccount LoyaltyAccount?
 
   @@index([tenantId])
   @@index([storeId])
@@ -1036,4 +1046,65 @@ model ReturnItem {
   orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@index([returnId])
+}
+
+// ---------------------------------------------------------------------------
+// Loyalty / rewards (LoyaltyLion-style)
+// ---------------------------------------------------------------------------
+
+// Per-store points program configuration.
+model LoyaltyProgram {
+  id                       String   @id @default(cuid())
+  tenantId                 String
+  storeId                  String   @unique
+  enabled                  Boolean  @default(false)
+  // Points earned per 1 major currency unit spent (e.g. 1 point per ₹1).
+  pointsPerCurrencyUnit    Int      @default(1)
+  // Value in minor units each point is worth on redemption (e.g. 10 = ₹0.10).
+  redeemValueMinorPerPoint Int      @default(10)
+  minRedeemPoints          Int      @default(100)
+  signupBonus              Int      @default(0)
+  // Tier thresholds by lifetime points: [{ "name": "Gold", "minPoints": 1000 }].
+  tiers                    Json     @default("[]")
+  updatedAt                DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// A customer's points balance + lifetime total (drives tier).
+model LoyaltyAccount {
+  id             String   @id @default(cuid())
+  tenantId       String
+  storeId        String
+  customerId     String   @unique
+  pointsBalance  Int      @default(0)
+  lifetimePoints Int      @default(0)
+  tier           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([tenantId])
+  @@index([storeId])
+}
+
+// Append-only points ledger. `points` is signed (+earn / -redeem).
+model LoyaltyTransaction {
+  id        String         @id @default(cuid())
+  tenantId  String
+  accountId String
+  type      LoyaltyTxnType
+  points    Int
+  note      String?
+  orderId   String?
+  createdAt DateTime       @default(now())
+
+  account LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([orderId])
 }

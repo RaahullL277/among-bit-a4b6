@@ -22,6 +22,7 @@ import { ReviewsController } from './controllers/reviews.controller.js';
 import { OffersController } from './controllers/offers.controller.js';
 import { PagesController } from './controllers/pages.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
+import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { ShipmentsController } from './controllers/shipments.controller.js';
 import { PlatformAuthController } from './controllers/platform-auth.controller.js';
 import { PlatformController } from './controllers/platform.controller.js';
@@ -51,6 +52,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     OffersController,
     PagesController,
     ReturnsController,
+    LoyaltyController,
     ShipmentsController,
     PlatformAuthController,
     PlatformController,

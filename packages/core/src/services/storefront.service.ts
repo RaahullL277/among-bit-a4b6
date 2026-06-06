@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { NotFoundError, type TenantContext } from '../context.js';
 import type { ProductService } from './product.service.js';
 import type { CartService } from './cart.service.js';
+import type { LoyaltyService } from './loyalty.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -14,6 +15,7 @@ export class StorefrontService {
     private readonly prisma: PrismaClient,
     private readonly products: ProductService,
     private readonly carts: CartService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   private async ctxForStore(storeId: string): Promise<{ ctx: TenantContext; store: any }> {
@@ -77,10 +79,19 @@ export class StorefrontService {
     return this.carts.removeItem(ctx, cartId, itemId);
   }
 
-  /** Begin checkout: creates a pending order + payment via the active provider. */
-  async checkout(cartId: string) {
+  /**
+   * Begin checkout: creates a pending order + payment via the active provider.
+   * Optionally identifies the shopper by email and redeems loyalty points.
+   */
+  async checkout(cartId: string, opts: { email?: string; redeemPoints?: number } = {}) {
     const { ctx } = await this.ctxForCart(cartId);
-    return this.carts.checkoutCart(ctx, cartId, {});
+    return this.carts.checkoutCart(ctx, cartId, opts);
+  }
+
+  /** Public loyalty balance/program lookup by email (for the rewards widget). */
+  async loyaltyBalance(storeId: string, email: string) {
+    await this.ctxForStore(storeId);
+    return this.loyalty.publicBalance(storeId, email);
   }
 
   /**

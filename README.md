@@ -70,6 +70,13 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   toggle bundles from a **Bundles** admin page (with co-purchase suggestions). Public
   `/storefront/:id/products/:pid/bundles` + `/frequently-bought-together`; merchant `/bundles/*`;
   MCP `list_bundles` / `create_bundle`.
+- **Loyalty & rewards** — a per-store points program (LoyaltyLion-style): points are **earned
+  automatically on paid orders**, **lifetime points drive tiers**, and customers **redeem points for a
+  checkout discount** (capped at the order value, combinable with bundle savings). A signed points
+  ledger is the source of truth. Merchants configure the program (earn rate, redemption value,
+  minimum, signup bonus, tiers) and view/adjust member balances on a **Loyalty** admin page;
+  shoppers check their balance and redeem from the cart. Public `/storefront/:id/loyalty`; merchant
+  `/loyalty/*`; MCP `get_loyalty_program` / `set_loyalty_program` / `adjust_loyalty_points`.
 - **Customer reviews** — product star-ratings & written reviews (judge.me-style). Shoppers submit
   from the storefront; a review is **verified** when it matches a paid order for that product/email.
   Merchants moderate (approve/reject), post a public reply, and see per-status counts in a **Reviews**

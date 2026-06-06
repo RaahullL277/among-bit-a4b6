@@ -42,8 +42,8 @@ export class StorefrontController {
   }
 
   @Post('carts/:cartId/checkout')
-  checkout(@Param('cartId') cartId: string) {
-    return this.commerce.storefront.checkout(cartId);
+  checkout(@Param('cartId') cartId: string, @Body() body: any) {
+    return this.commerce.storefront.checkout(cartId, body ?? {});
   }
 
   // --- Support chatbot (public) ---------------------------------------------
@@ -108,5 +108,11 @@ export class StorefrontController {
   @Post(':storeId/returns')
   requestReturn(@Param('storeId') storeId: string, @Body() body: any) {
     return this.commerce.returns.requestPublic(storeId, body ?? {});
+  }
+
+  // --- Loyalty (public) -----------------------------------------------------
+  @Get(':storeId/loyalty')
+  loyalty(@Param('storeId') storeId: string, @Query('email') email: string): Promise<any> {
+    return this.commerce.storefront.loyaltyBalance(storeId, email);
   }
 }

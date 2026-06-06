@@ -4,6 +4,7 @@ import { getPaymentProvider } from '../adapters/registry.js';
 import type { IntegrationService } from './integration.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { MarketingService } from './marketing.service.js';
+import type { LoyaltyService } from './loyalty.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -25,6 +26,7 @@ export class PaymentService {
     private readonly integrations: IntegrationService,
     private readonly notifications?: NotificationService,
     private readonly marketing?: MarketingService,
+    private readonly loyalty?: LoyaltyService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -237,6 +239,8 @@ export class PaymentService {
         await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
         // Track the purchase to marketing platforms (best-effort).
         await this.marketing?.trackOrder(ctx, orderId, 'Placed Order').catch(() => undefined);
+        // Award loyalty points for the purchase (best-effort, idempotent).
+        await this.loyalty?.earnForOrder(ctx, orderId).catch(() => undefined);
       }
     }
   }
