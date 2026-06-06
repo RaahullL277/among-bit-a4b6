@@ -484,6 +484,9 @@ model Customer {
   name      String?
   email     String?
   phone     String?
+  // Lightweight CRM: merchant-applied tags and free-form notes.
+  tags      String[] @default([])
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

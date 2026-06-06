@@ -13,6 +13,7 @@ When a Claude user has the connector installed and says, e.g., *"set up a loyalt
 | Skill | Sets up | Key connector tools |
 |-------|---------|---------------------|
 | `acp-launch-store` | Create & launch a store from zero | `create_account`, `launch_store` |
+| `acp-crm` | Customers & CRM (360° profile, LTV, segments, tags/notes) | `list_customers`, `get_customer_profile`, `update_customer`, `customer_summary` |
 | `acp-payments` | Payments & checkout (Razorpay/GoKwik) | `configure_payment_provider`, `checkout` |
 | `acp-reviews` | Customer reviews & moderation | `list_reviews`, `moderate_review` |
 | `acp-bundles` | Bundles / frequently bought together | `create_bundle`, `list_bundles` |

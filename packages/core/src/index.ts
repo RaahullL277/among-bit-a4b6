@@ -21,7 +21,12 @@ export {
   type UpdateProductInput,
   type VariantInput,
 } from './services/product.service.js';
-export { CustomerService, type CreateCustomerInput } from './services/customer.service.js';
+export {
+  CustomerService,
+  type CreateCustomerInput,
+  type UpdateCustomerInput,
+  type CustomerSegment,
+} from './services/customer.service.js';
 export { OrderService } from './services/order.service.js';
 export { IntegrationService } from './services/integration.service.js';
 export { PaymentService, type CheckoutInput } from './services/payment.service.js';

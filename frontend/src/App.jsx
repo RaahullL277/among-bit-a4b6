@@ -12,6 +12,7 @@ import Shipments from './pages/Shipments';
 import Returns from './pages/Returns';
 import Stock from './pages/Stock';
 import Customers from './pages/Customers';
+import CustomerDetail from './pages/CustomerDetail';
 import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
 import Support from './pages/Support';
@@ -41,6 +42,7 @@ function AuthedApp() {
           <Route path="/shipments" element={<Shipments />} />
           <Route path="/returns" element={<Returns />} />
           <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/:id" element={<CustomerDetail />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/support" element={<Support />} />

@@ -100,8 +100,11 @@ export const api = {
     update: (id, body) => request(`/products/${id}`, { method: 'PATCH', body }),
   },
   customers: {
-    list: (storeId) => request(`/customers?storeId=${encodeURIComponent(storeId)}`),
+    list: (storeId, search, segment) => request(`/customers?${qs({ storeId, search, segment })}`),
+    summary: (storeId) => request(`/customers/summary?${qs({ storeId })}`),
     create: (body) => request('/customers', { method: 'POST', body }),
+    profile: (id) => request(`/customers/${id}/profile`),
+    update: (id, body) => request(`/customers/${id}`, { method: 'PATCH', body }),
   },
   orders: {
     list: (storeId) => request(storeId ? `/orders?storeId=${encodeURIComponent(storeId)}` : '/orders'),

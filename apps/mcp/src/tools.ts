@@ -230,6 +230,51 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.customers.create(ctx, a)),
   );
 
+  const segmentEnum = z.enum(['NEW', 'ONE_TIME', 'REPEAT', 'VIP', 'AT_RISK', 'LAPSED']);
+
+  server.registerTool(
+    'list_customers',
+    {
+      description: 'List a store\'s customers with CRM stats (orders, lifetime spend, last order, segment). Optionally search by name/email/phone or filter by segment.',
+      inputSchema: { storeId: z.string(), search: z.string().optional(), segment: segmentEnum.optional() },
+    },
+    tool((ctx, a: any) => commerce.customers.list(ctx, a.storeId, { search: a.search, segment: a.segment })),
+  );
+
+  server.registerTool(
+    'get_customer_profile',
+    {
+      description: 'A 360° customer profile: lifetime value, orders, AOV, segment, loyalty, subscriptions, reviews, returns, support, and recent orders.',
+      inputSchema: { customerId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.customers.profile(ctx, a.customerId)),
+  );
+
+  server.registerTool(
+    'update_customer',
+    {
+      description: 'Update a customer: contact details, tags, and notes (CRM).',
+      inputSchema: {
+        customerId: z.string(),
+        name: z.string().optional(),
+        email: z.string().optional(),
+        phone: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.customers.update(ctx, a.customerId, a)),
+  );
+
+  server.registerTool(
+    'customer_summary',
+    {
+      description: 'Store CRM summary: customer count, repeat rate, average lifetime value, and a segment breakdown.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.customers.summary(ctx, a.storeId)),
+  );
+
   // --- Orders ---------------------------------------------------------------
   server.registerTool(
     'list_orders',

@@ -48,6 +48,12 @@ partner/        Partner/agency portal (client analytics + earnings) over /partne
 - **Analytics** — KPI summary (revenue/AOV/conversion), revenue time-series, the
   cart→checkout→paid funnel, and top products over a date range, behind `/analytics/*` and the
   merchant dashboard.
+- **Customers & CRM** — a 360° customer profile (lifetime value, orders, AOV, loyalty tier/points,
+  active subscriptions, reviews, returns, support) with **tags & notes**, **search**, and heuristic
+  **RFM-style segments** (NEW / ONE_TIME / REPEAT / VIP / AT_RISK / LAPSED) plus a store summary
+  (repeat rate, avg LTV, segment breakdown). Customers are auto-created at checkout and synced to the
+  connected ESP. Merchant **Customers** list + **customer detail** page; `/customers/*`; MCP
+  `list_customers` / `get_customer_profile` / `update_customer` / `customer_summary`.
 - **Customer support chatbot** — a storefront sales & support assistant (Claude tool-use; stub
   fallback) that answers from the live catalog and verified order status, and escalates to a human.
   Backed by a merchant **support inbox** (read transcripts, reply as an agent, resolve) and per-store
