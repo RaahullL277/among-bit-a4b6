@@ -46,6 +46,7 @@ export { PlatformAuthService, type PlatformSessionResult } from './services/plat
 export { PlatformService } from './services/platform.service.js';
 export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
 export { SupportAssistantService } from './services/support-assistant.service.js';
+export { CustomerSupportService } from './services/customer-support.service.js';
 export type { ChatMessage, AssistantReply, AssistantProvider } from './assistant/types.js';
 export { effectivePlan, TIER_DEFAULTS, type EffectivePlan } from './platform/plans.js';
 export {
@@ -126,4 +127,6 @@ export type {
   PlatformRole,
   TenantStatus,
   PlanTier,
+  SupportConversationStatus,
+  SupportSender,
 } from '@prisma/client';

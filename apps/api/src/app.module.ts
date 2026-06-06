@@ -16,6 +16,7 @@ import { CartsController } from './controllers/carts.controller.js';
 import { StockController } from './controllers/stock.controller.js';
 import { StorefrontController } from './controllers/storefront.controller.js';
 import { AnalyticsController } from './controllers/analytics.controller.js';
+import { SupportController } from './controllers/support.controller.js';
 import { ShipmentsController } from './controllers/shipments.controller.js';
 import { PlatformAuthController } from './controllers/platform-auth.controller.js';
 import { PlatformController } from './controllers/platform.controller.js';
@@ -39,6 +40,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     StockController,
     StorefrontController,
     AnalyticsController,
+    SupportController,
     ShipmentsController,
     PlatformAuthController,
     PlatformController,

@@ -97,6 +97,14 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  support: {
+    getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
+    setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),
+    conversations: (storeId, status) => request(`/support/conversations?${qs({ storeId, status })}`),
+    conversation: (id) => request(`/support/conversations/${id}`),
+    reply: (id, body) => request(`/support/conversations/${id}/reply`, { method: 'POST', body: { body } }),
+    setStatus: (id, status) => request(`/support/conversations/${id}/status`, { method: 'POST', body: { status } }),
+  },
   shipments: {
     list: (storeId, status) => request(`/shipments?${qs({ storeId, status })}`),
     get: (id) => request(`/shipments/${id}`),

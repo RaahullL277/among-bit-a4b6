@@ -45,4 +45,15 @@ export class StorefrontController {
   checkout(@Param('cartId') cartId: string) {
     return this.commerce.storefront.checkout(cartId);
   }
+
+  // --- Support chatbot (public) ---------------------------------------------
+  @Get(':storeId/support/config')
+  supportConfig(@Param('storeId') storeId: string) {
+    return this.commerce.customerSupport.publicConfig(storeId);
+  }
+
+  @Post(':storeId/support/chat')
+  supportChat(@Param('storeId') storeId: string, @Body() body: any) {
+    return this.commerce.customerSupport.chat({ storeId, ...(body ?? {}) });
+  }
 }

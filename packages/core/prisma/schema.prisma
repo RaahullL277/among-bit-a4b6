@@ -117,6 +117,20 @@ enum StockStatus {
   RED    // critical / out of stock
 }
 
+// A customer-support conversation's state.
+enum SupportConversationStatus {
+  OPEN       // bot/customer exchange in progress
+  ESCALATED  // flagged for a human agent
+  RESOLVED   // closed
+}
+
+// Who authored a support message.
+enum SupportSender {
+  CUSTOMER
+  BOT
+  AGENT
+}
+
 // ---------------------------------------------------------------------------
 // Account / tenancy
 // ---------------------------------------------------------------------------
@@ -298,6 +312,8 @@ model Store {
   cartRecoveryPolicy CartRecoveryPolicy?
   stockPolicy  StockPolicy?
   shipments    Shipment[]
+  supportConversations SupportConversation[]
+  supportBotConfig SupportBotConfig?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -735,4 +751,60 @@ model PlatformAuditLog {
   createdAt      DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Customer support chatbot
+// ---------------------------------------------------------------------------
+
+// Per-store configuration for the storefront support/sales chatbot.
+model SupportBotConfig {
+  id          String   @id @default(cuid())
+  tenantId    String
+  storeId     String   @unique
+  enabled     Boolean  @default(true)
+  displayName String   @default("Assistant")
+  greeting    String?
+  // Extra persona/instructions appended to the system prompt.
+  persona     String?
+  updatedAt   DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model SupportConversation {
+  id            String                    @id @default(cuid())
+  tenantId      String
+  storeId       String
+  customerId    String?
+  contactName   String?
+  contactEmail  String?
+  status        SupportConversationStatus @default(OPEN)
+  escalationReason String?
+  lastMessageAt DateTime                  @default(now())
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([status])
+}
+
+model SupportMessage {
+  id             String        @id @default(cuid())
+  tenantId       String
+  conversationId String
+  sender         SupportSender
+  body           String
+  toolsUsed      String[]      @default([])
+  createdAt      DateTime      @default(now())
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
 }

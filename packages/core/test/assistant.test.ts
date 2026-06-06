@@ -38,7 +38,7 @@ describe.skipIf(!hasDb)('support assistant (stub)', () => {
 
   it('answers a top-merchants question', async () => {
     const res = await assistant.chat([{ role: 'user', content: 'Who are the top merchants?' }]);
-    expect(res.toolsUsed).toContain('topMerchants');
+    expect(res.toolsUsed).toContain('top_merchants');
   });
 
   it('falls back to help text for unknown questions', async () => {

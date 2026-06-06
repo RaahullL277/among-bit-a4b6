@@ -47,6 +47,10 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
 - **Analytics** — KPI summary (revenue/AOV/conversion), revenue time-series, the
   cart→checkout→paid funnel, and top products over a date range, behind `/analytics/*` and the
   merchant dashboard.
+- **Customer support chatbot** — a storefront sales & support assistant (Claude tool-use; stub
+  fallback) that answers from the live catalog and verified order status, and escalates to a human.
+  Backed by a merchant **support inbox** (read transcripts, reply as an agent, resolve) and per-store
+  bot config. Public `/storefront/:id/support/*`; merchant `/support/*`.
 - **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
   tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
   shipped / out-for-delivery / delivered milestones.

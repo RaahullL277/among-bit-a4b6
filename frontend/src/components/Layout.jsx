@@ -9,6 +9,7 @@ import {
   Users,
   Plug,
   Bell,
+  MessageSquare,
   Activity,
   UserCog,
   Settings,
@@ -30,6 +31,7 @@ const nav = [
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/integrations', label: 'Integrations', icon: Plug, perm: 'integrations:write' },
   { to: '/notifications', label: 'Notifications', icon: Bell, perm: 'notifications:write' },
+  { to: '/support', label: 'Support', icon: MessageSquare },
   { to: '/team', label: 'Team', icon: UserCog, perm: 'members:manage' },
   { to: '/settings', label: 'Settings', icon: Settings, perm: 'apikeys:manage' },
 ];

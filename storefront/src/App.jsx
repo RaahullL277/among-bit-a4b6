@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
+import ChatWidget from './ChatWidget';
 import { CartProvider, useCart } from './cart';
 import Home from './pages/Home';
 import Product from './pages/Product';
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <ChatWidget />
     </CartProvider>
   );
 }
