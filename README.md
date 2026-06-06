@@ -122,7 +122,11 @@ partner/        Partner/agency portal (client analytics + earnings) over /partne
   earnings** (a configurable % of client GMV), recurring **MRR**, and **upcoming renewals**, plus
   per-client breakdowns. Operators provision partners and assign client tenants (with a monthly fee +
   renewal date) from the platform console. Partner endpoints `/partner/*`; operator management under
-  `/platform/partners`.
+  `/platform/partners`. A partner can also **manage a client's store** (every merchant feature — add /
+  edit / delete) by deep-linking into the merchant console; this is **governed by the client**, who
+  sets a per-partner access level (**MANAGE / VIEW / NONE**) from Settings and can revoke it any time.
+  Delegation flows through the normal tenant guard (partner token + `x-acp-client` header → permissions
+  scoped to the access level); a partner can never change its own access.
 
 ## Prerequisites
 

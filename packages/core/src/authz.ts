@@ -51,10 +51,15 @@ export function permissionsForRole(role: Role): Permission[] {
   return ROLE_PERMISSIONS[role] ?? [];
 }
 
-/** The actor behind a request: a human (with a role) or an API key. */
+/** The actor behind a request: a human (with a role), an API key, or a partner
+ * acting on a client store under a delegated, client-controlled access level. */
 export type Actor =
   | { kind: 'user'; userId: string; role: Role; permissions: Permission[] }
-  | { kind: 'apiKey'; permissions: Permission[] };
+  | { kind: 'apiKey'; permissions: Permission[] }
+  | { kind: 'partner'; partnerId: string; permissions: Permission[] };
+
+/** Read-only subset of permissions (granted to a partner with VIEW access). */
+export const READ_PERMISSIONS: Permission[] = ['stores:read', 'products:read', 'orders:read', 'customers:read'];
 
 /** Every permission, granted to API keys. */
 export const ALL_PERMISSIONS: Permission[] = Array.from(

@@ -31,10 +31,22 @@ export class AuthGuard implements CanActivate {
     const raw = typeof header === 'string' ? header.replace(/^Bearer\s+/i, '') : undefined;
 
     const commerce = getCommerce();
-    // API keys start with "sk_"; everything else is treated as a session token.
-    const ctx = raw && !raw.startsWith('sk_')
-      ? await commerce.auth.resolveSession(raw)
-      : await commerce.apiKeys.verify(raw);
+    let ctx;
+    if (raw?.startsWith('pts_')) {
+      // A partner acting on a client store. The target client tenant is named by
+      // the `x-acp-client` header; the granted permissions are governed by the
+      // client's access level (MANAGE → full, VIEW → read-only, NONE → denied).
+      const clientTenant = req.headers['x-acp-client'];
+      if (typeof clientTenant !== 'string' || !clientTenant) {
+        throw new ForbiddenError('Partner requests must specify an x-acp-client tenant.');
+      }
+      const partner = await commerce.partnerAuth.resolveSession(raw);
+      ctx = await commerce.partners.resolveDelegatedContext(partner.partnerId, clientTenant);
+    } else if (raw && !raw.startsWith('sk_')) {
+      ctx = await commerce.auth.resolveSession(raw); // user session (`ses_`)
+    } else {
+      ctx = await commerce.apiKeys.verify(raw); // API key (`sk_`)
+    }
     req.tenant = ctx;
 
     const required = this.reflector.getAllAndOverride<Permission[]>(PERMISSIONS_KEY, [

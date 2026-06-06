@@ -232,6 +232,13 @@ enum PlanTier {
   ENTERPRISE
 }
 
+// How much a partner may do on a client's store. The client controls this.
+enum PartnerAccessLevel {
+  MANAGE // full admin: add / edit / delete across the store
+  VIEW   // read-only analytics
+  NONE   // no store access (dashboard aggregates only)
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -1251,12 +1258,14 @@ model Partner {
 // Links a partner to a client tenant, with the recurring fee the client pays
 // and the next renewal date (drives the "upcoming renewals" view).
 model PartnerClient {
-  id              String    @id @default(cuid())
+  id              String             @id @default(cuid())
   partnerId       String
-  tenantId        String    @unique
-  monthlyFeeMinor Int       @default(0)
+  tenantId        String             @unique
+  monthlyFeeMinor Int                @default(0)
   renewsAt        DateTime?
-  createdAt       DateTime  @default(now())
+  // What the partner may do on this client's store (client-controlled).
+  accessLevel     PartnerAccessLevel @default(MANAGE)
+  createdAt       DateTime           @default(now())
 
   partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)

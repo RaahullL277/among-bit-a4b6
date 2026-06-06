@@ -1,18 +1,80 @@
 import { useState } from 'react';
-import { Plus, KeyRound, Copy, Trash2 } from 'lucide-react';
+import { Plus, KeyRound, Copy, Trash2, Users } from 'lucide-react';
 import { api, BASE_URL } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
+import { useAuth } from '../context/AuthContext';
 import {
   Button,
   Card,
   CardHeader,
   Field,
   Input,
+  Select,
   Modal,
   Spinner,
   ErrorBanner,
   EmptyState,
+  Badge,
 } from '../components/ui';
+
+const ACCESS_LABEL = {
+  MANAGE: 'Full access — can add, edit & delete',
+  VIEW: 'View only — read-only analytics',
+  NONE: 'No access — dashboard totals only',
+};
+
+// Lets the merchant (client) control how much their managing partner may do.
+function PartnerAccessCard() {
+  const { me } = useAuth();
+  const { data, loading, reload } = useAsync(() => api.partnerAccess.get(), []);
+  const [saving, setSaving] = useState(false);
+  const isPartnerActor = me?.actor === 'partner';
+
+  async function change(level) {
+    setSaving(true);
+    try {
+      await api.partnerAccess.set(level);
+      reload();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return null;
+  if (!data?.partner) {
+    return (
+      <Card>
+        <CardHeader title="Partner access" subtitle="No agency manages this store." />
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader
+        title="Partner access"
+        subtitle={`${data.partner.name} (${data.partner.email}) manages this store.`}
+      />
+      <div className="space-y-3 p-5">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Users size={15} className="text-indigo-500" />
+          Current: <Badge>{data.accessLevel}</Badge> {ACCESS_LABEL[data.accessLevel]}
+        </div>
+        {isPartnerActor ? (
+          <p className="text-xs text-slate-400">Only the store owner can change partner access.</p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Select value={data.accessLevel} onChange={(e) => change(e.target.value)} disabled={saving} className="max-w-xs">
+              <option value="MANAGE">Full access (manage)</option>
+              <option value="VIEW">View only</option>
+              <option value="NONE">Revoke access</option>
+            </Select>
+            <span className="text-xs text-slate-400">Changes take effect immediately.</span>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export default function Settings() {
   const { data: keys, loading, error, reload } = useAsync(() => api.apiKeys.list(), []);
@@ -52,6 +114,8 @@ export default function Settings() {
         <div className="text-xs font-medium text-slate-500">API base URL</div>
         <div className="font-mono text-sm text-slate-800">{BASE_URL}</div>
       </Card>
+
+      <PartnerAccessCard />
 
       {createdKey && (
         <Card className="border-emerald-200 bg-emerald-50 p-5">

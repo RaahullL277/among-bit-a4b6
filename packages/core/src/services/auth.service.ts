@@ -150,6 +150,9 @@ export class AuthService {
   /** Current user + their memberships, for the /auth/me endpoint. */
   async me(ctx: TenantContext) {
     const permissions = ctx.actor?.permissions ?? [];
+    if (ctx.actor?.kind === 'partner') {
+      return { actor: 'partner' as const, tenantId: ctx.tenantId, role: 'ADMIN' as Role, permissions };
+    }
     if (ctx.actor?.kind !== 'user') {
       return { actor: 'apiKey' as const, tenantId: ctx.tenantId, role: 'OWNER' as Role, permissions };
     }

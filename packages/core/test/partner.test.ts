@@ -79,6 +79,41 @@ describe.skipIf(!hasDb)('partner dashboard', () => {
     expect(renewals[0].monthlyFeeMinor).toBe(200000);
   });
 
+  it('delegates client-store admin to the partner, governed by the access level', async () => {
+    // Default MANAGE → full permissions on the client tenant.
+    const manage = await commerce.partners.resolveDelegatedContext(partnerId, clientTenantId);
+    expect(manage.tenantId).toBe(clientTenantId);
+    expect(manage.actor?.kind).toBe('partner');
+    expect(manage.actor?.permissions).toContain('products:write');
+    // The partner can actually create a product on the client store.
+    const product = await commerce.products.create(manage, { storeId: (await commerce.stores.list(manage))[0].id, title: 'Partner-added', status: 'ACTIVE', variants: [{ priceMinor: 1000 }] });
+    expect(product.title).toBe('Partner-added');
+
+    // Client downgrades to VIEW → read-only.
+    await commerce.partners.setAccessForTenant(clientTenantId, 'VIEW');
+    const view = await commerce.partners.resolveDelegatedContext(partnerId, clientTenantId);
+    expect(view.actor?.permissions).toContain('products:read');
+    expect(view.actor?.permissions).not.toContain('products:write');
+
+    // Client revokes entirely → denied.
+    await commerce.partners.setAccessForTenant(clientTenantId, 'NONE');
+    await expect(commerce.partners.resolveDelegatedContext(partnerId, clientTenantId)).rejects.toBeTruthy();
+
+    // A partner cannot manage a tenant that isn't its client.
+    const stranger = await prisma.tenant.create({ data: { name: 'Stranger' } });
+    created.push(stranger.id);
+    await expect(commerce.partners.resolveDelegatedContext(partnerId, stranger.id)).rejects.toBeTruthy();
+
+    // Restore MANAGE for later assertions.
+    await commerce.partners.setAccessForTenant(clientTenantId, 'MANAGE');
+  });
+
+  it('reports the managing partner + access level to the client', async () => {
+    const access = await commerce.partners.getAccessForTenant(clientTenantId);
+    expect(access.partner?.email).toBe('agency@example.com');
+    expect(access.accessLevel).toBe('MANAGE');
+  });
+
   it('authenticates a partner via magic link and resolves a session', async () => {
     const { token } = await commerce.partnerAuth.requestMagicLink('AGENCY@example.com');
     expect(token).toBeTruthy();

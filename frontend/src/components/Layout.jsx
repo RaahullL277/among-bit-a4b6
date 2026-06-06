@@ -69,7 +69,7 @@ function StoreSwitcher() {
 }
 
 export default function Layout() {
-  const { signOut, me, can } = useAuth();
+  const { signOut, me, can, actingClient } = useAuth();
   const items = nav.filter((n) => !n.perm || can(n.perm));
 
   return (
@@ -113,6 +113,11 @@ export default function Layout() {
       </aside>
 
       <div className="flex flex-1 flex-col">
+        {actingClient && (
+          <div className="flex items-center justify-center gap-2 bg-amber-500 px-6 py-1.5 text-xs font-medium text-white">
+            Managing <span className="font-semibold">{actingClient.name}</span> as a partner — changes apply to the client's store.
+          </div>
+        )}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
           <div className="text-sm text-slate-500">Active store</div>
           <StoreSwitcher />

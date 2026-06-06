@@ -112,6 +112,7 @@ export {
   type Actor,
   ROLE_PERMISSIONS,
   ALL_PERMISSIONS,
+  READ_PERMISSIONS,
   permissionsForRole,
   actorHasPermission,
   requirePermission,
@@ -176,4 +177,5 @@ export type {
   LoyaltyTxnType,
   SubscriptionStatus,
   BillingInterval,
+  PartnerAccessLevel,
 } from '@prisma/client';

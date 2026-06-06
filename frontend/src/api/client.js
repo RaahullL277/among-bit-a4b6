@@ -4,6 +4,9 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 const TOKEN_STORAGE = 'acp.token';
+// When a partner is managing a client store, we authenticate with their partner
+// token and name the client tenant via the x-acp-client header.
+const CLIENT_STORAGE = 'acp.actingClient'; // { tenantId, name }
 
 export function getToken() {
   return localStorage.getItem(TOKEN_STORAGE) ?? '';
@@ -12,6 +15,19 @@ export function getToken() {
 export function setToken(token) {
   if (token) localStorage.setItem(TOKEN_STORAGE, token);
   else localStorage.removeItem(TOKEN_STORAGE);
+}
+
+export function getActingClient() {
+  try {
+    return JSON.parse(localStorage.getItem(CLIENT_STORAGE) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function setActingClient(client) {
+  if (client) localStorage.setItem(CLIENT_STORAGE, JSON.stringify(client));
+  else localStorage.removeItem(CLIENT_STORAGE);
 }
 
 export class ApiError extends Error {
@@ -32,12 +48,14 @@ function qs(params) {
 
 async function request(path, { method = 'GET', body, signal } = {}) {
   const token = getToken();
+  const acting = getActingClient();
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     signal,
     headers: {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(acting?.tenantId ? { 'x-acp-client': acting.tenantId } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -207,6 +225,10 @@ export const api = {
     list: () => request('/api-keys'),
     create: (body) => request('/api-keys', { method: 'POST', body }),
     revoke: (id) => request(`/api-keys/${id}`, { method: 'DELETE' }),
+  },
+  partnerAccess: {
+    get: () => request('/partner-access'),
+    set: (accessLevel) => request('/partner-access', { method: 'PUT', body: { accessLevel } }),
   },
 };
 

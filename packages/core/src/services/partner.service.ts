@@ -1,5 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
-import { NotFoundError, ValidationError } from '../context.js';
+import type { PartnerAccessLevel, PrismaClient } from '@prisma/client';
+import { ForbiddenError, NotFoundError, ValidationError, type TenantContext } from '../context.js';
+import { ALL_PERMISSIONS, READ_PERMISSIONS } from '../authz.js';
 
 const PAID = ['PAID', 'FULFILLED'] as const;
 const DAY_MS = 86_400_000;
@@ -134,6 +135,7 @@ export class PartnerService {
         earningsMinor: Math.floor((g.gmvMinor * partner.commissionPercent) / 100),
         monthlyFeeMinor: c.monthlyFeeMinor,
         renewsAt: c.renewsAt,
+        accessLevel: c.accessLevel,
       };
     });
   }
@@ -165,6 +167,46 @@ export class PartnerService {
       upcomingRenewals: await this.renewals(partnerId, 30),
       topClients: [...clients].sort((a, b) => b.gmvMinor - a.gmvMinor).slice(0, 5),
     };
+  }
+
+  // --- Delegated admin (partner acts on a client store) ---------------------
+
+  /**
+   * Build a tenant context for a partner acting on one of its client stores.
+   * The client-controlled access level decides the granted permissions:
+   * MANAGE → full admin, VIEW → read-only, NONE/unlinked → denied. This lets a
+   * partner use every merchant feature for that client, governed by the client.
+   */
+  async resolveDelegatedContext(partnerId: string, tenantId: string): Promise<TenantContext> {
+    const link = await this.prisma.partnerClient.findFirst({
+      where: { partnerId, tenantId },
+      select: { accessLevel: true },
+    });
+    if (!link) throw new ForbiddenError('You do not manage this client.');
+    if (link.accessLevel === 'NONE') throw new ForbiddenError('The client has revoked your store access.');
+    const permissions = link.accessLevel === 'MANAGE' ? ALL_PERMISSIONS : READ_PERMISSIONS;
+    return { tenantId, actor: { kind: 'partner', partnerId, permissions } };
+  }
+
+  // --- Client governance (the merchant grants/revokes partner access) -------
+
+  /** The partner managing a tenant (if any) and the current access level. */
+  async getAccessForTenant(tenantId: string) {
+    const link = await this.prisma.partnerClient.findUnique({
+      where: { tenantId },
+      include: { partner: { select: { name: true, email: true } } },
+    });
+    if (!link) return { partner: null, accessLevel: 'NONE' as PartnerAccessLevel };
+    return { partner: { name: link.partner.name, email: link.partner.email }, accessLevel: link.accessLevel };
+  }
+
+  /** The client sets how much its partner may do (grant or revoke). */
+  async setAccessForTenant(tenantId: string, accessLevel: PartnerAccessLevel) {
+    if (!['MANAGE', 'VIEW', 'NONE'].includes(accessLevel)) throw new ValidationError('Invalid access level.');
+    const link = await this.prisma.partnerClient.findUnique({ where: { tenantId }, select: { id: true } });
+    if (!link) throw new NotFoundError('PartnerClient', tenantId);
+    await this.prisma.partnerClient.update({ where: { id: link.id }, data: { accessLevel } });
+    return this.getAccessForTenant(tenantId);
   }
 
   /** Clients whose plan renews within `withinDays`, soonest first. */
