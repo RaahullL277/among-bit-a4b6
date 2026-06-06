@@ -46,6 +46,11 @@ export const api = {
     req(`/storefront/${id}/order-lookup?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
   requestReturn: (id, body) => req(`/storefront/${id}/returns`, { method: 'POST', body }),
   loyalty: (id, email) => req(`/storefront/${id}/loyalty?email=${encodeURIComponent(email)}`),
+  subscriptionSettings: (id) => req(`/storefront/${id}/subscription-settings`),
+  subscribe: (id, body) => req(`/storefront/${id}/subscriptions`, { method: 'POST', body }),
+  mySubscriptions: (id, email) => req(`/storefront/${id}/subscriptions?email=${encodeURIComponent(email)}`),
+  manageSubscription: (id, subId, body) =>
+    req(`/storefront/${id}/subscriptions/${subId}/manage`, { method: 'POST', body }),
 };
 
 export function money(minor, currency = 'INR') {

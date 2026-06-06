@@ -3,6 +3,7 @@ import { NotFoundError, type TenantContext } from '../context.js';
 import type { ProductService } from './product.service.js';
 import type { CartService } from './cart.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
+import type { SubscriptionService } from './subscription.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -16,6 +17,7 @@ export class StorefrontService {
     private readonly products: ProductService,
     private readonly carts: CartService,
     private readonly loyalty: LoyaltyService,
+    private readonly subscriptions: SubscriptionService,
   ) {}
 
   private async ctxForStore(storeId: string): Promise<{ ctx: TenantContext; store: any }> {
@@ -117,5 +119,27 @@ export class StorefrontService {
       currency: order.currency,
       items: order.items.map((i) => ({ orderItemId: i.id, title: i.title, quantity: i.quantity, unitPriceMinor: i.unitPriceMinor })),
     };
+  }
+
+  // --- Subscriptions (public) -----------------------------------------------
+
+  async subscriptionSettings(storeId: string) {
+    await this.ctxForStore(storeId);
+    return this.subscriptions.publicSettings(storeId);
+  }
+
+  async subscribe(storeId: string, input: { variantId: string; quantity?: number; interval: any; email: string }) {
+    const { ctx } = await this.ctxForStore(storeId);
+    return this.subscriptions.create(ctx, { storeId, ...input });
+  }
+
+  async mySubscriptions(storeId: string, email: string) {
+    await this.ctxForStore(storeId);
+    return this.subscriptions.listForEmail(storeId, email);
+  }
+
+  async manageSubscription(storeId: string, email: string, subscriptionId: string, status: any) {
+    await this.ctxForStore(storeId);
+    return this.subscriptions.manageByEmail(storeId, email, subscriptionId, status);
   }
 }

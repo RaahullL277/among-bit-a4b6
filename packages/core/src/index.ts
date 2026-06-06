@@ -67,6 +67,11 @@ export {
   type ReturnItemInput,
 } from './services/return.service.js';
 export { LoyaltyService, type LoyaltyProgramInput } from './services/loyalty.service.js';
+export {
+  SubscriptionService,
+  type CreateSubscriptionInput,
+  type SubscriptionSettingsInput,
+} from './services/subscription.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,
@@ -165,4 +170,6 @@ export type {
   ReturnStatus,
   ReturnReason,
   LoyaltyTxnType,
+  SubscriptionStatus,
+  BillingInterval,
 } from '@prisma/client';

@@ -30,6 +30,11 @@ async function tick() {
       // eslint-disable-next-line no-console
       console.log(`[worker] stock: ${stock.scanned} scanned, ${stock.alerts} alerts sent`);
     }
+    const subs = await commerce.subscriptions.runDueSubscriptions();
+    if (subs.orders || subs.failed) {
+      // eslint-disable-next-line no-console
+      console.log(`[worker] subscriptions: ${subs.orders} orders generated, ${subs.failed} failed`);
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[worker] job failed:', err);

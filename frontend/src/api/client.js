@@ -154,6 +154,14 @@ export const api = {
     accounts: (storeId) => request(`/loyalty/accounts?${qs({ storeId })}`),
     adjust: (customerId, body) => request(`/loyalty/accounts/${customerId}/adjust`, { method: 'POST', body }),
   },
+  subscriptions: {
+    list: (storeId, status) => request(`/subscriptions?${qs({ storeId, status })}`),
+    counts: (storeId) => request(`/subscriptions/counts?${qs({ storeId })}`),
+    getSettings: (storeId) => request(`/subscriptions/settings?${qs({ storeId })}`),
+    setSettings: (body) => request('/subscriptions/settings', { method: 'PUT', body }),
+    setStatus: (id, status) => request(`/subscriptions/${id}/status`, { method: 'POST', body: { status } }),
+    runBilling: () => request('/subscriptions/run-billing', { method: 'POST' }),
+  },
   analytics: {
     summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),
     revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),

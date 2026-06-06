@@ -621,6 +621,44 @@ export function registerTools(
     tool((ctx, a: any) => commerce.loyalty.award(ctx, a.customerId, a.points, a.note, a.type)),
   );
 
+  // --- Subscriptions --------------------------------------------------------
+  const intervalEnum = z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY']);
+
+  server.registerTool(
+    'list_subscriptions',
+    {
+      description: 'List subscriptions, optionally filtered by store or status.',
+      inputSchema: { storeId: z.string().optional(), status: z.enum(['ACTIVE', 'PAUSED', 'CANCELLED']).optional() },
+    },
+    tool((ctx, a: any) => commerce.subscriptions.list(ctx, a)),
+  );
+
+  server.registerTool(
+    'create_subscription',
+    {
+      description: 'Create a recurring "subscribe & save" subscription for a customer (by email or id).',
+      inputSchema: {
+        storeId: z.string(),
+        variantId: z.string(),
+        interval: intervalEnum,
+        quantity: z.number().optional(),
+        email: z.string().optional(),
+        customerId: z.string().optional(),
+        discountPercent: z.number().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.subscriptions.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'update_subscription_status',
+    {
+      description: 'Pause, resume (ACTIVE), or cancel a subscription.',
+      inputSchema: { subscriptionId: z.string(), status: z.enum(['ACTIVE', 'PAUSED', 'CANCELLED']) },
+    },
+    tool((ctx, a: any) => commerce.subscriptions.setStatus(ctx, a.subscriptionId, a.status)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

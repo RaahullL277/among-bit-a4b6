@@ -70,6 +70,13 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   toggle bundles from a **Bundles** admin page (with co-purchase suggestions). Public
   `/storefront/:id/products/:pid/bundles` + `/frequently-bought-together`; merchant `/bundles/*`;
   MCP `list_bundles` / `create_bundle`.
+- **Subscriptions** — "subscribe & save" recurring orders (Recharge/LoyaltyLion-style). Shoppers
+  subscribe to a product at a chosen cadence (weekly → quarterly) from the product page at a merchant-
+  set discount; the **background worker generates a discounted order on each due date** and advances
+  the schedule. Customers self-manage (pause / resume / cancel) by email; merchants configure the
+  storefront offer, view/manage all subscriptions, and can trigger billing on demand. Public
+  `/storefront/:id/subscription-settings` + `/subscriptions`; merchant `/subscriptions/*`; MCP
+  `list_subscriptions` / `create_subscription` / `update_subscription_status`.
 - **Loyalty & rewards** — a per-store points program (LoyaltyLion-style): points are **earned
   automatically on paid orders**, **lifetime points drive tiers**, and customers **redeem points for a
   checkout discount** (capped at the order value, combinable with bundle savings). A signed points

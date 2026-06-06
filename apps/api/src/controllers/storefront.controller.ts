@@ -115,4 +115,29 @@ export class StorefrontController {
   loyalty(@Param('storeId') storeId: string, @Query('email') email: string): Promise<any> {
     return this.commerce.storefront.loyaltyBalance(storeId, email);
   }
+
+  // --- Subscriptions (public) -----------------------------------------------
+  @Get(':storeId/subscription-settings')
+  subscriptionSettings(@Param('storeId') storeId: string): Promise<any> {
+    return this.commerce.storefront.subscriptionSettings(storeId);
+  }
+
+  @Post(':storeId/subscriptions')
+  subscribe(@Param('storeId') storeId: string, @Body() body: any) {
+    return this.commerce.storefront.subscribe(storeId, body ?? {});
+  }
+
+  @Get(':storeId/subscriptions')
+  mySubscriptions(@Param('storeId') storeId: string, @Query('email') email: string): Promise<any> {
+    return this.commerce.storefront.mySubscriptions(storeId, email);
+  }
+
+  @Post(':storeId/subscriptions/:id/manage')
+  manageSubscription(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Body() body: { email: string; status: any },
+  ) {
+    return this.commerce.storefront.manageSubscription(storeId, body?.email, id, body?.status);
+  }
 }

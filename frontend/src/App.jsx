@@ -18,6 +18,7 @@ import Support from './pages/Support';
 import Reviews from './pages/Reviews';
 import Bundles from './pages/Bundles';
 import Loyalty from './pages/Loyalty';
+import Subscriptions from './pages/Subscriptions';
 import Design from './pages/Design';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
@@ -44,6 +45,7 @@ function AuthedApp() {
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/bundles" element={<Bundles />} />
           <Route path="/loyalty" element={<Loyalty />} />
+          <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/design" element={<Design />} />
           <Route path="/team" element={<Team />} />
           <Route path="/settings" element={<Settings />} />
