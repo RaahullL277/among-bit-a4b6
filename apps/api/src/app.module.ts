@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth/auth.guard.js';
+import { RateLimitMiddleware } from './common/rate-limit.middleware.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { MembersController } from './controllers/members.controller.js';
 import { HealthController } from './controllers/health.controller.js';
@@ -84,4 +85,9 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  // IP-based rate limiting runs before guards, protecting public endpoints.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RateLimitMiddleware).forRoutes('*');
+  }
+}

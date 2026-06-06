@@ -113,6 +113,18 @@ describe.skipIf(!hasDb)('shopability (AI-assistant commerce)', () => {
     expect(res.agentCheckout.channel).toBe('CLAUDE');
     expect(res.agentCheckout.mandateRef).toBe('mnd_ok');
 
+    // The order itself carries the channel attribution.
+    const order = await prisma.order.findUnique({ where: { id: res.order.id } });
+    expect(order?.source).toBe('agent');
+    expect(order?.agentChannel).toBe('CLAUDE');
+
+    // Once paid, analytics attributes the revenue to the assistant.
+    await prisma.order.update({ where: { id: res.order.id }, data: { status: 'PAID' } });
+    const sales = await commerce.analytics.agentSales(ctx, { storeId });
+    expect(sales.agentOrders).toBeGreaterThanOrEqual(1);
+    expect(sales.agentRevenueMinor).toBeGreaterThan(0);
+    expect(sales.byChannel.some((c) => c.channel === 'CLAUDE')).toBe(true);
+
     // A disabled assistant is blocked before any mandate check.
     await commerce.shopability.setChannel(ctx, storeId, 'CHATGPT', false);
     const c4 = await newCart();

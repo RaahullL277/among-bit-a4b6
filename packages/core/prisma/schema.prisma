@@ -582,6 +582,10 @@ model Order {
   // Bundle/offer savings applied at checkout, in minor units (0 = none).
   discountMinor Int      @default(0)
   currency   String      @default("INR")
+  // Sales-channel attribution. source: e.g. "agent" (AI assistant), null = web/direct.
+  // agentChannel names the assistant when source = "agent".
+  source       String?
+  agentChannel AgentChannel?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 

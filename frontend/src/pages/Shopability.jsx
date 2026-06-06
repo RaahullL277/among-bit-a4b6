@@ -26,6 +26,10 @@ export default function Shopability() {
     () => (selectedId ? api.shopability.agentCheckouts(selectedId) : Promise.resolve([])),
     [selectedId],
   );
+  const { data: sales } = useAsync(
+    () => (selectedId ? api.analytics.agentSales(selectedId).catch(() => null) : Promise.resolve(null)),
+    [selectedId],
+  );
 
   async function toggleMaster() {
     setBusy('master');
@@ -139,6 +143,25 @@ export default function Shopability() {
         </div>
       </Card>
 
+      {/* Agent-driven sales (attribution) */}
+      {sales && (sales.agentOrders > 0 || sales.byChannel.length > 0) && (
+        <Card>
+          <CardHeader title="Agent-driven sales" subtitle="Paid revenue attributed to AI assistants (last 30 days)" />
+          <div className="flex flex-wrap items-center gap-x-10 gap-y-3 px-5 py-4">
+            <Stat label="Agent orders" value={sales.agentOrders} />
+            <Stat label="Agent revenue" value={`₹${(sales.agentRevenueMinor / 100).toFixed(0)}`} />
+            <Stat label="Share of revenue" value={`${Math.round((sales.agentRevenueShare ?? 0) * 100)}%`} highlight />
+            <div className="flex flex-wrap gap-1.5">
+              {sales.byChannel.map((c) => (
+                <span key={c.channel} className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  {c.channel}: ₹{(c.revenueMinor / 100).toFixed(0)}
+                </span>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Agent-driven orders (attribution) */}
       <Card>
         <CardHeader title="Agent checkouts" subtitle="Purchases initiated by AI assistants — attribution & mandate audit" />
@@ -169,6 +192,15 @@ export default function Shopability() {
           </table>
         )}
       </Card>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className={`text-lg font-semibold ${highlight ? 'text-emerald-600' : 'text-slate-900'}`}>{value}</div>
     </div>
   );
 }

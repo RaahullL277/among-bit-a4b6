@@ -39,6 +39,16 @@ export class AnalyticsController {
     return this.commerce.analytics.funnel(t, { storeId, from, to });
   }
 
+  @Get('agent-sales')
+  agentSales(
+    @Tenant() t: TenantContext,
+    @Query('storeId') storeId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.commerce.analytics.agentSales(t, { storeId, from, to });
+  }
+
   @Get('top-products')
   topProducts(
     @Tenant() t: TenantContext,

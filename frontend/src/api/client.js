@@ -230,6 +230,7 @@ export const api = {
     revenue: (storeId, from, interval) => request(`/analytics/revenue?${qs({ storeId, from, interval })}`),
     funnel: (storeId, from) => request(`/analytics/funnel?${qs({ storeId, from })}`),
     topProducts: (storeId, from, limit) => request(`/analytics/top-products?${qs({ storeId, from, limit })}`),
+    agentSales: (storeId, from) => request(`/analytics/agent-sales?${qs({ storeId, from })}`),
   },
   stock: {
     status: (storeId) => request(`/stores/${storeId}/stock`),

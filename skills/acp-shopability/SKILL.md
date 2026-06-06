@@ -39,6 +39,11 @@ A checkout with no mandate, a currency mismatch, or a cap below the cart total i
 and audited. Every attempt is recorded with the assistant channel for revenue attribution
 (owner/partner view: `GET /shopability/agent-checkouts`).
 
+### Attribution & analytics
+Agent-driven orders are tagged `source = "agent"` with the assistant channel, so you can measure
+AI-assistant-driven sales: `get_agent_sales` (or `GET /analytics/agent-sales`) reports paid orders
+and revenue per assistant and their share of total revenue.
+
 So "disable ChatGPT shopping" means ChatGPT gets `shoppable: false` from the manifest and a
 403 from the feed/checkout, while other assistants keep working.
 

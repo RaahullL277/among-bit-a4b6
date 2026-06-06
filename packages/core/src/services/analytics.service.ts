@@ -73,6 +73,45 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * AI-assistant sales attribution: orders and paid revenue driven by each
+   * shopping assistant (source = "agent"), vs. the rest. Answers "how much
+   * revenue did Claude/ChatGPT/… bring?".
+   */
+  async agentSales(ctx: TenantContext, input: AnalyticsRange) {
+    const { from, to } = this.range(input);
+    const base = { tenantId: ctx.tenantId, ...(input.storeId ? { storeId: input.storeId } : {}), createdAt: { gte: from, lte: to } };
+
+    const grouped = await this.prisma.order.groupBy({
+      by: ['agentChannel'],
+      where: { ...base, source: 'agent', status: { in: [...PAID_STATUSES] } },
+      _count: true,
+      _sum: { totalMinor: true },
+    });
+    const byChannel = grouped.map((g) => ({
+      channel: g.agentChannel ?? 'GENERIC',
+      orders: g._count,
+      revenueMinor: g._sum.totalMinor ?? 0,
+    })).sort((a, b) => b.revenueMinor - a.revenueMinor);
+
+    const [agentRevenue, totalRevenue] = await Promise.all([
+      this.prisma.order.aggregate({ where: { ...base, source: 'agent', status: { in: [...PAID_STATUSES] } }, _sum: { totalMinor: true }, _count: true }),
+      this.prisma.order.aggregate({ where: { ...base, status: { in: [...PAID_STATUSES] } }, _sum: { totalMinor: true } }),
+    ]);
+    const agentRevenueMinor = agentRevenue._sum.totalMinor ?? 0;
+    const allRevenueMinor = totalRevenue._sum.totalMinor ?? 0;
+    return {
+      from,
+      to,
+      byChannel,
+      agentOrders: agentRevenue._count,
+      agentRevenueMinor,
+      totalRevenueMinor: allRevenueMinor,
+      // Share of paid revenue attributable to AI assistants.
+      agentRevenueShare: allRevenueMinor > 0 ? round(agentRevenueMinor / allRevenueMinor) : 0,
+    };
+  }
+
   /** Revenue and order counts bucketed over time. */
   async revenueSeries(ctx: TenantContext, input: AnalyticsRange & { interval?: Interval }) {
     const interval = input.interval ?? 'day';

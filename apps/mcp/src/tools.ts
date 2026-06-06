@@ -769,6 +769,15 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.analytics.topProducts(ctx, a)),
   );
 
+  server.registerTool(
+    'get_agent_sales',
+    {
+      description: 'AI-assistant sales attribution: paid orders and revenue driven by each shopping assistant (Claude, ChatGPT, …) over a date range, and their share of total revenue.',
+      inputSchema: rangeSchema,
+    },
+    tool((ctx, a: any) => commerce.analytics.agentSales(ctx, a)),
+  );
+
   // --- Stock ----------------------------------------------------------------
   server.registerTool(
     'get_stock_status',

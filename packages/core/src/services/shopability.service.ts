@@ -261,6 +261,10 @@ export class ShopabilityService {
 
     const result: any = await this.storefront.checkout(cartId, { email: opts.email, redeemPoints: opts.redeemPoints });
     const orderTotal = result?.order?.totalMinor ?? cartTotal;
+    // Attribute the order to the AI assistant (source=agent) for analytics.
+    if (result?.order?.id) {
+      await this.prisma.order.update({ where: { id: result.order.id }, data: { source: 'agent', agentChannel: channel ?? undefined } });
+    }
     const agentCheckout = await this.prisma.agentCheckout.create({
       data: {
         tenantId: store.tenantId, storeId, cartId, orderId: result?.order?.id ?? null, channel: channel ?? undefined,
