@@ -40,7 +40,19 @@ export {
   type NotifyInput,
   type DispatchResult,
 } from './services/notification.service.js';
-export { AuthService, type IssuedSession } from './services/auth.service.js';
+export { AuthService, type IssuedSession, type LoginOutcome, type TwoFactorPending, type OtpSender } from './services/auth.service.js';
+export { HttpOAuthVerifier, type OAuthVerifier, type OAuthProfile, type OAuthProviderName } from './auth/oauth.js';
+export {
+  hashPassword,
+  verifyPassword,
+  generateNumericOtp,
+  generateTotpSecret,
+  totp,
+  verifyTotp,
+  otpauthUrl,
+  base32Encode,
+  base32Decode,
+} from './crypto.js';
 export { MemberService } from './services/member.service.js';
 export { CartService, type CreateCartInput } from './services/cart.service.js';
 export { StockService, type VariantStock } from './services/stock.service.js';

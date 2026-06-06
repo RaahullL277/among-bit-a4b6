@@ -54,3 +54,14 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 - [ ] Multi-location / warehouse inventory (large architectural change).
 - [ ] Buyer accounts / order history / saved addresses (currently guest-only storefront).
 - [ ] Outstanding **P2** hardening items — see `AUDIT.md` P2 section.
+
+## Authentication (audited + extended 2026-06-06 — see AUTH_AUDIT.md)
+- [x] Audit platform / merchant+roles / partner auth planes.
+- [x] Email + password (register/login/set) — scrypt.
+- [x] Phone-number OTP login (hashed code, 5-min TTL, attempt lockout).
+- [x] Google + Apple OAuth (tokeninfo / Apple JWKS; injectable verifier; OAuthIdentity linking).
+- [x] TOTP two-factor (setup/enable/disable + login challenge/verify; encrypted secret).
+- [ ] (Follow-up) 2FA for **platform operators** (reuse TOTP primitives on PlatformUser).
+- [ ] (Follow-up) Make merchant `requestMagicLink` enumeration-safe (match platform plane).
+- [ ] (Follow-up) Per-identifier rate-limiting on OTP/login at the edge; global SMS sender wired into OtpSender for real OTP delivery.
+- [ ] (Follow-up) Passkeys/WebAuthn; OAuth for partner/platform planes.

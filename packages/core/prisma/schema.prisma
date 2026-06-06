@@ -235,6 +235,12 @@ enum TenantStatus {
   SUSPENDED
 }
 
+// Social-login providers supported for user sign-in.
+enum OAuthProvider {
+  GOOGLE
+  APPLE
+}
+
 // Roles for staff of the platform operator (the SaaS company), distinct from
 // per-tenant merchant roles.
 enum PlatformRole {
@@ -345,15 +351,70 @@ model TenantPlan {
 }
 
 // Global user identity. A user can belong to multiple tenants via Membership.
+// Supports several sign-in methods: passwordless magic link, email + password,
+// phone-number OTP, and Google/Apple OAuth — optionally protected by TOTP 2FA.
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  // E.164 phone, for phone-number OTP login (unique when set).
+  phone     String?  @unique
+  // scrypt password hash ("scrypt$N$salt$hash"); null = no password set.
+  passwordHash String?
+  // Encrypted TOTP secret (serialized AES-GCM blob) + when 2FA was enabled.
+  // 2FA is active iff twoFactorEnabledAt is set.
+  twoFactorSecret    String?
+  twoFactorEnabledAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   memberships Membership[]
   sessions    Session[]
+  oauthIdentities OAuthIdentity[]
+}
+
+// Social-login identity linked to a User (one row per provider account).
+model OAuthIdentity {
+  id             String        @id @default(cuid())
+  userId         String
+  provider       OAuthProvider
+  // The provider's stable subject id ("sub").
+  providerUserId String
+  email          String?
+  createdAt      DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+// A single-use numeric code for phone (or email) OTP login. Only the hash is
+// stored; codes expire quickly and lock out after too many failed attempts.
+model OtpCode {
+  id         String    @id @default(cuid())
+  identifier String    // E.164 phone or email the code was sent to
+  channel    String    // "sms" | "email"
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier, createdAt])
+}
+
+// Short-lived challenge issued after a correct password/OTP when the account has
+// 2FA enabled; exchanged for a session by submitting a valid TOTP code.
+model TwoFactorChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // A user's role within a specific tenant.

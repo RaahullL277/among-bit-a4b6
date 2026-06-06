@@ -47,6 +47,66 @@ export class AuthController {
     return this.commerce.auth.acceptInvite(body.token, body.name);
   }
 
+  // --- Email + password -----------------------------------------------------
+  @Public()
+  @Post('register')
+  register(@Body() body: { email: string; password: string; name?: string; tenantName: string }) {
+    return this.commerce.auth.registerWithPassword(body);
+  }
+
+  @Public()
+  @Post('login')
+  login(@Body() body: { email: string; password: string }) {
+    return this.commerce.auth.loginWithPassword(body);
+  }
+
+  @Post('password')
+  setPassword(@Tenant() t: TenantContext, @Body() body: { password: string }) {
+    return this.commerce.auth.setPassword(t, body.password);
+  }
+
+  // --- Phone-number OTP -----------------------------------------------------
+  @Public()
+  @Post('phone/request')
+  requestPhoneOtp(@Body() body: { phone: string }) {
+    return this.commerce.auth.requestPhoneOtp(body.phone);
+  }
+
+  @Public()
+  @Post('phone/verify')
+  verifyPhoneOtp(@Body() body: { phone: string; code: string; name?: string; tenantName?: string }) {
+    return this.commerce.auth.verifyPhoneOtp(body);
+  }
+
+  // --- Google / Apple OAuth -------------------------------------------------
+  @Public()
+  @Post('oauth')
+  oauth(@Body() body: { provider: 'GOOGLE' | 'APPLE'; idToken: string; tenantName?: string }) {
+    return this.commerce.auth.oauthLogin(body);
+  }
+
+  // --- Two-factor (TOTP) ----------------------------------------------------
+  @Public()
+  @Post('2fa/verify')
+  verifyTwoFactor(@Body() body: { challengeToken: string; code: string }) {
+    return this.commerce.auth.verifyTwoFactor(body.challengeToken, body.code);
+  }
+
+  @Post('2fa/setup')
+  setupTwoFactor(@Tenant() t: TenantContext): Promise<unknown> {
+    return this.commerce.auth.setupTwoFactor(t);
+  }
+
+  @Post('2fa/enable')
+  enableTwoFactor(@Tenant() t: TenantContext, @Body() body: { code: string }) {
+    return this.commerce.auth.enableTwoFactor(t, body.code);
+  }
+
+  @Post('2fa/disable')
+  disableTwoFactor(@Tenant() t: TenantContext, @Body() body: { code: string }) {
+    return this.commerce.auth.disableTwoFactor(t, body.code);
+  }
+
   @Get('me')
   me(@Tenant() t: TenantContext) {
     return this.commerce.auth.me(t);

@@ -76,6 +76,70 @@ function PartnerAccessCard() {
   );
 }
 
+// Account security: password + TOTP two-factor.
+function SecurityCard() {
+  const { data: me, loading, reload } = useAsync(() => api.auth.me(), []);
+  const [pw, setPw] = useState('');
+  const [pwSaved, setPwSaved] = useState(false);
+  const [setup, setSetup] = useState(null); // { secret, otpauthUrl }
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+
+  if (loading || !me || me.actor !== 'user') return null;
+  const twoFa = me.auth?.twoFactorEnabled;
+
+  const run = (key, fn) => async () => {
+    setBusy(key); setError('');
+    try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(''); }
+  };
+  const savePassword = run('pw', async () => { await api.auth.setPassword(pw); setPw(''); setPwSaved(true); reload(); });
+  const beginSetup = run('setup', async () => { setSetup(await api.auth.setup2fa()); });
+  const enable = run('enable', async () => { await api.auth.enable2fa(code.trim()); setSetup(null); setCode(''); reload(); });
+  const disable = run('disable', async () => { await api.auth.disable2fa(code.trim()); setCode(''); reload(); });
+
+  return (
+    <Card>
+      <CardHeader title="Account security" subtitle="Password & two-factor authentication" />
+      <div className="space-y-5 p-5">
+        <ErrorBanner message={error} />
+
+        <div>
+          <div className="mb-2 text-sm font-medium text-slate-700">Password {me.auth?.hasPassword && <Badge>set</Badge>}</div>
+          <div className="flex gap-2">
+            <Input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setPwSaved(false); }} placeholder="New password (min 8 chars)" />
+            <Button onClick={savePassword} loading={busy === 'pw'} disabled={pw.length < 8}>Save</Button>
+          </div>
+          {pwSaved && <p className="mt-1 text-xs text-emerald-600">Password updated.</p>}
+        </div>
+
+        <div className="border-t border-slate-100 pt-4">
+          <div className="mb-2 text-sm font-medium text-slate-700">Two-factor authentication {twoFa ? <Badge>on</Badge> : <span className="text-xs text-slate-400">off</span>}</div>
+          {!twoFa && !setup && (
+            <Button variant="secondary" onClick={beginSetup} loading={busy === 'setup'}>Set up 2FA</Button>
+          )}
+          {!twoFa && setup && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Add this secret to your authenticator app, then enter the 6-digit code to turn 2FA on.</p>
+              <div className="rounded-lg bg-slate-50 p-2 font-mono text-xs break-all">{setup.secret}</div>
+              <div className="flex gap-2">
+                <Input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" />
+                <Button onClick={enable} loading={busy === 'enable'} disabled={code.trim().length < 6}>Enable</Button>
+              </div>
+            </div>
+          )}
+          {twoFa && (
+            <div className="flex gap-2">
+              <Input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code to disable" />
+              <Button variant="danger" onClick={disable} loading={busy === 'disable'} disabled={code.trim().length < 6}>Disable 2FA</Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const { data: keys, loading, error, reload } = useAsync(() => api.apiKeys.list(), []);
   const [open, setOpen] = useState(false);
@@ -116,6 +180,8 @@ export default function Settings() {
       </Card>
 
       <PartnerAccessCard />
+
+      <SecurityCard />
 
       {createdKey && (
         <Card className="border-emerald-200 bg-emerald-50 p-5">

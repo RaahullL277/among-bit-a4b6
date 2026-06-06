@@ -101,6 +101,20 @@ export const api = {
       request('/auth/accept-invite', { method: 'POST', body: { token, name } }),
     me: () => request('/auth/me'),
     logout: (token) => request('/auth/logout', { method: 'POST', body: { token } }),
+    // Email + password
+    register: (body) => request('/auth/register', { method: 'POST', body }),
+    login: (body) => request('/auth/login', { method: 'POST', body }),
+    setPassword: (password) => request('/auth/password', { method: 'POST', body: { password } }),
+    // Phone OTP
+    requestPhoneOtp: (phone) => request('/auth/phone/request', { method: 'POST', body: { phone } }),
+    verifyPhoneOtp: (body) => request('/auth/phone/verify', { method: 'POST', body }),
+    // Google / Apple OAuth (idToken from the provider SDK)
+    oauth: (body) => request('/auth/oauth', { method: 'POST', body }),
+    // Two-factor
+    verifyTwoFactor: (challengeToken, code) => request('/auth/2fa/verify', { method: 'POST', body: { challengeToken, code } }),
+    setup2fa: () => request('/auth/2fa/setup', { method: 'POST' }),
+    enable2fa: (code) => request('/auth/2fa/enable', { method: 'POST', body: { code } }),
+    disable2fa: (code) => request('/auth/2fa/disable', { method: 'POST', body: { code } }),
   },
   members: {
     list: () => request('/members'),
