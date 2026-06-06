@@ -78,7 +78,15 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   + `/reviews/summary`; merchant `/reviews/*`.
 - **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
   tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
-  shipped / out-for-delivery / delivered milestones.
+  shipped / out-for-delivery / delivered milestones. Shipments can be **insured** and carry a
+  **packed-order video** (dispute evidence, QuickBooks-style).
+- **Returns / RMA** — customers raise a return against a paid order from the storefront (verified by
+  order number + email, optionally with an **unboxing/damage video** as evidence); merchants
+  approve/reject, mark the item received, and issue a **refund through the payment adapter** (full or
+  partial). A guarded status machine (REQUESTED→APPROVED→RECEIVED→REFUNDED, or REJECTED/CANCELLED)
+  drives notifications at each step, and a full refund flips the order + payment to REFUNDED. Public
+  `/storefront/:id/order-lookup` + `/returns`; merchant `/returns/*`; MCP `list_returns` /
+  `update_return`.
 - **Platform operator console** — a *separate* cross-tenant auth plane (platform staff with
   SUPER_ADMIN / SUPPORT / BILLING / READ_ONLY roles, own magic-link login) for the company running
   the platform: a tenant/store directory, **suspend/reactivate** (which blocks the merchant's API

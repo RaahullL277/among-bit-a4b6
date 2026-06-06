@@ -93,6 +93,29 @@ enum NotificationEvent {
   OUT_FOR_DELIVERY
   DELIVERED
   REVIEW_REQUEST
+  RETURN_REQUESTED
+  RETURN_APPROVED
+  RETURN_REJECTED
+  RETURN_REFUNDED
+}
+
+// Lifecycle of a return / RMA.
+enum ReturnStatus {
+  REQUESTED  // customer asked to return
+  APPROVED   // merchant authorized; awaiting the item back
+  REJECTED   // merchant declined
+  RECEIVED   // returned item received by the merchant
+  REFUNDED   // money returned to the customer
+  CANCELLED  // withdrawn
+}
+
+// Why a customer is returning items.
+enum ReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  NOT_AS_DESCRIBED
+  NO_LONGER_NEEDED
+  OTHER
 }
 
 // Moderation state of a product review.
@@ -342,6 +365,7 @@ model Store {
   bundles      Bundle[]
   pages        StorePage[]
   theme        StoreTheme?
+  returns      Return[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -441,6 +465,7 @@ model Order {
   items    OrderItem[]
   payment  Payment?
   shipment Shipment?
+  returns  Return[]
 
   @@unique([storeId, number])
   @@index([tenantId])
@@ -457,8 +482,9 @@ model OrderItem {
   quantity       Int     @default(1)
   unitPriceMinor Int
 
-  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  returnItems ReturnItem[]
 
   @@index([orderId])
 }
@@ -667,6 +693,11 @@ model Shipment {
   labelUrl    String?
   codAmountMinor Int?
   weightGrams Int?
+  // Shipment-protection / insurance (recorded; no live insurer integration).
+  insured            Boolean @default(false)
+  insuredAmountMinor Int?
+  // Merchant's packed-order video (dispute evidence, QuickBooks-style).
+  packingVideoUrl    String?
   toAddress   Json
   fromAddress Json?
   raw         Json?
@@ -957,4 +988,52 @@ model StoreTheme {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Returns / RMA
+// ---------------------------------------------------------------------------
+
+// A return request against a paid order. Customers raise it (optionally with an
+// unboxing/damage video as evidence); merchants approve/reject, mark the item
+// received, and issue a refund through the payment adapter.
+model Return {
+  id               String       @id @default(cuid())
+  tenantId         String
+  storeId          String
+  orderId          String
+  customerId       String?
+  number           Int          // sequential RMA number per store
+  status           ReturnStatus @default(REQUESTED)
+  reason           ReturnReason @default(OTHER)
+  comment          String?
+  // Customer-supplied unboxing/damage video (dispute evidence).
+  evidenceVideoUrl String?
+  merchantNote     String?
+  refundMinor      Int?
+  refundRef        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  store Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items ReturnItem[]
+
+  @@unique([storeId, number])
+  @@index([tenantId])
+  @@index([storeId, status])
+  @@index([orderId])
+}
+
+model ReturnItem {
+  id          String @id @default(cuid())
+  tenantId    String
+  returnId    String
+  orderItemId String
+  quantity    Int    @default(1)
+
+  return    Return    @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
 }

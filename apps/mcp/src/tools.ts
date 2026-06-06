@@ -541,6 +541,48 @@ export function registerTools(
     tool((ctx, a: any) => commerce.pages.setTheme(ctx, a)),
   );
 
+  // --- Returns / RMA --------------------------------------------------------
+  server.registerTool(
+    'list_returns',
+    {
+      description: 'List returns/RMAs, optionally filtered by store or status.',
+      inputSchema: {
+        storeId: z.string().optional(),
+        status: z.enum(['REQUESTED', 'APPROVED', 'REJECTED', 'RECEIVED', 'REFUNDED', 'CANCELLED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.returns.list(ctx, a)),
+  );
+
+  server.registerTool(
+    'update_return',
+    {
+      description: 'Advance a return: approve, reject, mark received, refund, or cancel.',
+      inputSchema: {
+        returnId: z.string(),
+        action: z.enum(['approve', 'reject', 'receive', 'refund', 'cancel']),
+        note: z.string().optional(),
+        amountMinor: z.number().optional(),
+      },
+    },
+    tool((ctx, a: any) => {
+      switch (a.action) {
+        case 'approve':
+          return commerce.returns.approve(ctx, a.returnId, a.note);
+        case 'reject':
+          return commerce.returns.reject(ctx, a.returnId, a.note);
+        case 'receive':
+          return commerce.returns.markReceived(ctx, a.returnId);
+        case 'refund':
+          return commerce.returns.refund(ctx, a.returnId, a.amountMinor);
+        case 'cancel':
+          return commerce.returns.cancel(ctx, a.returnId);
+        default:
+          throw new Error('Unknown action');
+      }
+    }),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

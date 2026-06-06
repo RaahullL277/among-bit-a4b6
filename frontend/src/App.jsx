@@ -9,6 +9,7 @@ import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Carts from './pages/Carts';
 import Shipments from './pages/Shipments';
+import Returns from './pages/Returns';
 import Stock from './pages/Stock';
 import Customers from './pages/Customers';
 import Integrations from './pages/Integrations';
@@ -34,6 +35,7 @@ function AuthedApp() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/carts" element={<Carts />} />
           <Route path="/shipments" element={<Shipments />} />
+          <Route path="/returns" element={<Returns />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />

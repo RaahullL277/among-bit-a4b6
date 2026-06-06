@@ -84,6 +84,32 @@ export const DEFAULT_TEMPLATES: Record<NotificationEvent, ChannelTemplates> = {
     },
     WHATSAPP: { body: 'Hi {{customerName}}! How was order #{{orderNumber}}? Leave a review: {{reviewUrl}}' },
   },
+  RETURN_REQUESTED: {
+    EMAIL: {
+      subject: '[Return #{{returnNumber}}] requested for order #{{orderNumber}}',
+      body: 'A return was requested for order #{{orderNumber}} ({{reason}}). Review it in your dashboard.',
+    },
+  },
+  RETURN_APPROVED: {
+    EMAIL: {
+      subject: 'Your return for order #{{orderNumber}} is approved',
+      body: 'Hi {{customerName}}, your return #{{returnNumber}} is approved. Please ship the item back to complete it.',
+    },
+    WHATSAPP: { body: 'Return #{{returnNumber}} for order #{{orderNumber}} approved. Please ship the item back.' },
+  },
+  RETURN_REJECTED: {
+    EMAIL: {
+      subject: 'Update on your return for order #{{orderNumber}}',
+      body: 'Hi {{customerName}}, we could not approve return #{{returnNumber}}. {{merchantNote}}',
+    },
+  },
+  RETURN_REFUNDED: {
+    EMAIL: {
+      subject: 'Refund issued for order #{{orderNumber}}',
+      body: 'Hi {{customerName}}, we have refunded {{refund}} for return #{{returnNumber}}. It may take a few days to reflect.',
+    },
+    WHATSAPP: { body: 'Refund of {{refund}} issued for order #{{orderNumber}}. ✅' },
+  },
 };
 
 type RecipientChannels = Partial<Record<RecipientType, NotificationChannel[]>>;
@@ -100,6 +126,10 @@ export const DEFAULT_PREFERENCES: Record<NotificationEvent, RecipientChannels> =
   OUT_FOR_DELIVERY: { CUSTOMER: ['WHATSAPP'] },
   DELIVERED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
   REVIEW_REQUEST: { CUSTOMER: ['EMAIL'] },
+  RETURN_REQUESTED: { STORE_OWNER: ['EMAIL'] },
+  RETURN_APPROVED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
+  RETURN_REJECTED: { CUSTOMER: ['EMAIL'] },
+  RETURN_REFUNDED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
 };
 
 /** Replace {{key}} tokens from `data`; unknown tokens become empty strings. */

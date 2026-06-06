@@ -33,6 +33,8 @@ export default function Shipments() {
   const [open, setOpen] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [addr, setAddr] = useState(emptyAddr);
+  const [insured, setInsured] = useState(false);
+  const [packingVideoUrl, setPackingVideoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -45,10 +47,12 @@ export default function Shipments() {
     setFormError('');
     setSaving(true);
     try {
-      await api.shipments.create({ orderId, to: addr });
+      await api.shipments.create({ orderId, to: addr, insured, packingVideoUrl: packingVideoUrl || undefined });
       setOpen(false);
       setOrderId('');
       setAddr(emptyAddr);
+      setInsured(false);
+      setPackingVideoUrl('');
       reload();
     } catch (err) {
       setFormError(err.message);
@@ -100,6 +104,7 @@ export default function Shipments() {
                 <th className="px-5 py-3 font-medium">AWB</th>
                 <th className="px-5 py-3 font-medium">Courier</th>
                 <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium">Protection</th>
                 <th className="px-5 py-3 font-medium">Latest update</th>
                 <th className="px-5 py-3" />
               </tr>
@@ -118,6 +123,15 @@ export default function Shipments() {
                   </td>
                   <td className="px-5 py-3 text-slate-500">{s.courier ?? '—'}</td>
                   <td className="px-5 py-3"><Badge>{s.status}</Badge></td>
+                  <td className="px-5 py-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      {s.insured && <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">Insured</span>}
+                      {s.packingVideoUrl && (
+                        <a href={s.packingVideoUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Video</a>
+                      )}
+                      {!s.insured && !s.packingVideoUrl && <span className="text-slate-300">—</span>}
+                    </div>
+                  </td>
                   <td className="px-5 py-3 text-xs text-slate-500">
                     {s.events?.[0]?.description ?? '—'}
                     {s.events?.[0]?.location ? ` · ${s.events[0].location}` : ''}
@@ -158,6 +172,13 @@ export default function Shipments() {
             <Field label="State"><Input value={addr.state} onChange={set('state')} /></Field>
             <Field label="Pincode"><Input value={addr.pincode} onChange={set('pincode')} /></Field>
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={insured} onChange={(e) => setInsured(e.target.checked)} />
+            Insure this shipment (protect against loss/damage in transit)
+          </label>
+          <Field label="Packed-order video URL" hint="Dispute evidence (QuickBooks-style). Optional.">
+            <Input value={packingVideoUrl} onChange={(e) => setPackingVideoUrl(e.target.value)} placeholder="Link to a packing video" />
+          </Field>
           <ErrorBanner message={formError} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>Cancel</Button>

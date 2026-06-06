@@ -61,6 +61,11 @@ export {
   type PageSection,
   type UpsertPageInput,
 } from './services/page.service.js';
+export {
+  ReturnService,
+  type RequestReturnInput,
+  type ReturnItemInput,
+} from './services/return.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,
@@ -156,4 +161,6 @@ export type {
   PageStatus,
   StorePage,
   StoreTheme,
+  ReturnStatus,
+  ReturnReason,
 } from '@prisma/client';

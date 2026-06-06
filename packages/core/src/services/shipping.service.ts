@@ -20,6 +20,11 @@ export interface CreateShipmentInput {
   from?: Address;
   weightGrams?: number;
   provider?: ProviderName;
+  /** Shipment protection / insurance (recorded; no live insurer). */
+  insured?: boolean;
+  insuredAmountMinor?: number;
+  /** Merchant's packed-order video URL (dispute evidence). */
+  packingVideoUrl?: string;
 }
 
 /**
@@ -69,6 +74,9 @@ export class ShippingService {
         trackingUrl: result.trackingUrl,
         labelUrl: result.labelUrl,
         weightGrams: input.weightGrams,
+        insured: input.insured ?? false,
+        insuredAmountMinor: input.insured ? input.insuredAmountMinor ?? order.totalMinor : null,
+        packingVideoUrl: input.packingVideoUrl,
         toAddress: input.to as unknown as Prisma.InputJsonValue,
         fromAddress: (input.from ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
         events: { create: [{ status: result.status, description: 'Shipment created' }] },
@@ -101,6 +109,12 @@ export class ShippingService {
       include: shipmentInclude,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /** Attach (or replace) the packed-order video evidence on a shipment. */
+  async setPackingVideo(ctx: TenantContext, id: string, url: string) {
+    await this.getShipment(ctx, id);
+    return this.prisma.shipment.update({ where: { id }, data: { packingVideoUrl: url }, include: shipmentInclude });
   }
 
   async cancelShipment(ctx: TenantContext, id: string) {

@@ -137,6 +137,16 @@ export const api = {
     get: (id) => request(`/shipments/${id}`),
     create: (body) => request('/shipments', { method: 'POST', body }),
     cancel: (id) => request(`/shipments/${id}/cancel`, { method: 'POST' }),
+    setPackingVideo: (id, url) => request(`/shipments/${id}/packing-video`, { method: 'POST', body: { url } }),
+  },
+  returns: {
+    list: (storeId, status) => request(`/returns?${qs({ storeId, status })}`),
+    counts: (storeId) => request(`/returns/counts?${qs({ storeId })}`),
+    get: (id) => request(`/returns/${id}`),
+    approve: (id, note) => request(`/returns/${id}/approve`, { method: 'POST', body: { note } }),
+    reject: (id, note) => request(`/returns/${id}/reject`, { method: 'POST', body: { note } }),
+    receive: (id) => request(`/returns/${id}/receive`, { method: 'POST' }),
+    refund: (id, amountMinor) => request(`/returns/${id}/refund`, { method: 'POST', body: { amountMinor } }),
   },
   analytics: {
     summary: (storeId, from) => request(`/analytics/summary?${qs({ storeId, from })}`),

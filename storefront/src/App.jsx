@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Product from './pages/Product';
 import Cart from './pages/Cart';
 import Confirmation from './pages/Confirmation';
+import Returns from './pages/Returns';
 
 function Header({ storeName }) {
   const { itemCount } = useCart();
@@ -15,6 +16,8 @@ function Header({ storeName }) {
     <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <Link to="/" className="text-lg font-semibold text-[var(--brand)]">{storeName || 'Store'}</Link>
+        <div className="flex items-center gap-4">
+        <Link to="/returns" className="text-sm text-stone-500 hover:text-stone-800">Returns</Link>
         <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
           <ShoppingCart size={20} />
           {itemCount > 0 && (
@@ -23,6 +26,7 @@ function Header({ storeName }) {
             </span>
           )}
         </Link>
+        </div>
       </div>
     </header>
   );
@@ -88,6 +92,7 @@ export default function App() {
           <Route path="/product/:id" element={<Product />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/confirmation" element={<Confirmation />} />
+          <Route path="/returns" element={<Returns />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

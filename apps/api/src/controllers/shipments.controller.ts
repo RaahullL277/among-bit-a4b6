@@ -35,4 +35,11 @@ export class ShipmentsController {
   cancel(@Tenant() t: TenantContext, @Param('id') id: string) {
     return this.commerce.shipping.cancelShipment(t, id);
   }
+
+  /** Attach packed-order video evidence (QuickBooks-style) to a shipment. */
+  @Post(':id/packing-video')
+  @Permissions('orders:write')
+  packingVideo(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: { url: string }) {
+    return this.commerce.shipping.setPackingVideo(t, id, body?.url);
+  }
 }

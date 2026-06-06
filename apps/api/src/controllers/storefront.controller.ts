@@ -94,4 +94,19 @@ export class StorefrontController {
   page(@Param('storeId') storeId: string, @Param('slug') slug: string): Promise<any> {
     return this.commerce.pages.renderPage(storeId, slug);
   }
+
+  // --- Returns (public) -----------------------------------------------------
+  @Get(':storeId/order-lookup')
+  orderLookup(
+    @Param('storeId') storeId: string,
+    @Query('number') number: string,
+    @Query('email') email: string,
+  ): Promise<any> {
+    return this.commerce.storefront.lookupOrder(storeId, Number(number), email);
+  }
+
+  @Post(':storeId/returns')
+  requestReturn(@Param('storeId') storeId: string, @Body() body: any) {
+    return this.commerce.returns.requestPublic(storeId, body ?? {});
+  }
 }

@@ -125,6 +125,41 @@ export class PaymentService {
   }
 
   /**
+   * Refund a (paid) order through its payment adapter. Supports partial refunds
+   * via `amountMinor`; marks the order REFUNDED on a full refund. Returns the
+   * provider refund reference. Used by the returns flow.
+   */
+  async refund(ctx: TenantContext, orderId: string, amountMinor?: number) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, tenantId: ctx.tenantId },
+      include: { payment: true },
+    });
+    if (!order) throw new NotFoundError('Order', orderId);
+    if (!order.payment) throw new ValidationError('This order has no payment to refund.');
+    if (order.payment.status !== 'CAPTURED') {
+      throw new ValidationError('Only a captured (paid) order can be refunded.');
+    }
+    const amount = amountMinor ?? order.totalMinor;
+    if (amount <= 0 || amount > order.totalMinor) {
+      throw new ValidationError('Refund amount must be between 1 and the order total.');
+    }
+
+    const creds = await this.integrations.getCredentials(ctx, order.storeId, order.payment.provider);
+    const adapter = getPaymentProvider(order.payment.provider, creds);
+    const result = await adapter.refund(order.payment.providerRef ?? order.id, amount);
+
+    const fullRefund = amount >= order.totalMinor;
+    await this.prisma.payment.update({
+      where: { orderId: order.id },
+      data: { status: fullRefund ? 'REFUNDED' : order.payment.status },
+    });
+    if (fullRefund) {
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'REFUNDED' } });
+    }
+    return { refundRef: result.refundRef, amountMinor: amount, full: fullRefund };
+  }
+
+  /**
    * Handle an inbound payment webhook. Not tenant-scoped at the edge: the
    * payment is located by providerRef, which yields the owning tenant/store,
    * and the signature is then verified with that store's credentials.

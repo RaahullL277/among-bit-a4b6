@@ -42,6 +42,9 @@ export const api = {
   frequentlyBoughtTogether: (id, pid) => req(`/storefront/${id}/products/${pid}/frequently-bought-together`),
   theme: (id) => req(`/storefront/${id}/theme`),
   page: (id, slug) => req(`/storefront/${id}/pages/${slug}`),
+  orderLookup: (id, number, email) =>
+    req(`/storefront/${id}/order-lookup?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
+  requestReturn: (id, body) => req(`/storefront/${id}/returns`, { method: 'POST', body }),
 };
 
 export function money(minor, currency = 'INR') {

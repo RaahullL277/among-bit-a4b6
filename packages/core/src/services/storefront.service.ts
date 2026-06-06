@@ -82,4 +82,29 @@ export class StorefrontService {
     const { ctx } = await this.ctxForCart(cartId);
     return this.carts.checkoutCart(ctx, cartId, {});
   }
+
+  /**
+   * Look up an order by its number + customer email for the returns flow. Only
+   * buyer-safe fields (items, status) are exposed so a shopper can pick what to
+   * return. Returns null when no order matches.
+   */
+  async lookupOrder(storeId: string, orderNumber: number, email: string) {
+    await this.ctxForStore(storeId);
+    if (!orderNumber || !email) return null;
+    const order = await this.prisma.order.findFirst({
+      where: {
+        storeId,
+        number: Number(orderNumber),
+        customer: { email: { equals: email, mode: 'insensitive' } },
+      },
+      include: { items: true },
+    });
+    if (!order) return null;
+    return {
+      number: order.number,
+      status: order.status,
+      currency: order.currency,
+      items: order.items.map((i) => ({ orderItemId: i.id, title: i.title, quantity: i.quantity, unitPriceMinor: i.unitPriceMinor })),
+    };
+  }
 }
