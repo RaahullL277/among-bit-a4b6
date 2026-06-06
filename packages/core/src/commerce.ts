@@ -35,6 +35,7 @@ import { PartnerService } from './services/partner.service.js';
 import { PricingService } from './services/pricing.service.js';
 import { OnboardingService } from './services/onboarding.service.js';
 import { TemplateService } from './services/template.service.js';
+import { CohortService } from './services/cohort.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -78,6 +79,7 @@ export class Commerce {
   readonly pricing: PricingService;
   readonly onboarding: OnboardingService;
   readonly templates: TemplateService;
+  readonly cohorts: CohortService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -117,6 +119,7 @@ export class Commerce {
     this.onboarding = new OnboardingService(prisma, this.auth, this.apiKeys, this.stores, this.products, this.integrations, this.pages, this.templates);
     // Constructed after onboarding so partners can self-serve new client workspaces.
     this.partners = new PartnerService(prisma, this.onboarding);
+    this.cohorts = new CohortService(prisma);
   }
 }
 

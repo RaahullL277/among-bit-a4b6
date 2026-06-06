@@ -43,6 +43,18 @@ export class CustomersController {
     return this.commerce.customers.profile(t, id);
   }
 
+  @Get(':id/cohorts')
+  @Permissions('customers:read')
+  cohorts(@Tenant() t: TenantContext, @Param('id') id: string): Promise<any> {
+    return this.commerce.cohorts.forCustomer(t, id);
+  }
+
+  @Get(':id/recommendations')
+  @Permissions('customers:read')
+  recommendations(@Tenant() t: TenantContext, @Param('id') id: string): Promise<any> {
+    return this.commerce.cohorts.recommendations(t, id);
+  }
+
   @Patch(':id')
   @Permissions('customers:write')
   update(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {

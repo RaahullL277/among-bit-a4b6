@@ -105,6 +105,12 @@ export const api = {
     create: (body) => request('/customers', { method: 'POST', body }),
     profile: (id) => request(`/customers/${id}/profile`),
     update: (id, body) => request(`/customers/${id}`, { method: 'PATCH', body }),
+    cohorts: (id) => request(`/customers/${id}/cohorts`),
+    recommendations: (id) => request(`/customers/${id}/recommendations`),
+  },
+  cohorts: {
+    list: (storeId) => request(`/cohorts?${qs({ storeId })}`),
+    recompute: (storeId) => request('/cohorts/recompute', { method: 'POST', body: { storeId } }),
   },
   orders: {
     list: (storeId) => request(storeId ? `/orders?storeId=${encodeURIComponent(storeId)}` : '/orders'),

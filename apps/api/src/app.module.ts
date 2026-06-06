@@ -22,6 +22,7 @@ import { ReviewsController } from './controllers/reviews.controller.js';
 import { OffersController } from './controllers/offers.controller.js';
 import { PagesController } from './controllers/pages.controller.js';
 import { TemplatesController } from './controllers/templates.controller.js';
+import { CohortsController } from './controllers/cohorts.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
 import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { SubscriptionsController } from './controllers/subscriptions.controller.js';
@@ -58,6 +59,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     OffersController,
     PagesController,
     TemplatesController,
+    CohortsController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,

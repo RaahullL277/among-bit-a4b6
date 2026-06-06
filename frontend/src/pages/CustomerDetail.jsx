@@ -13,6 +13,8 @@ const SEGMENT_BADGE = {
   AT_RISK: 'bg-orange-100 text-orange-700',
   LAPSED: 'bg-rose-100 text-rose-700',
 };
+const TEMP_BADGE = { HOT: 'bg-rose-100 text-rose-700', WARM: 'bg-amber-100 text-amber-800', COLD: 'bg-sky-100 text-sky-700' };
+const COHORT_BADGE = { BEHAVIORAL: 'bg-indigo-100 text-indigo-700', ACQUISITION: 'bg-emerald-100 text-emerald-700' };
 
 function Metric({ label, value, sub }) {
   return (
@@ -27,6 +29,8 @@ function Metric({ label, value, sub }) {
 export default function CustomerDetail() {
   const { id } = useParams();
   const { data, loading, error, reload } = useAsync(() => api.customers.profile(id), [id]);
+  const { data: cohorts } = useAsync(() => api.customers.cohorts(id), [id]);
+  const { data: recs } = useAsync(() => api.customers.recommendations(id), [id]);
   const [tagInput, setTagInput] = useState('');
   const [notes, setNotes] = useState(null);
   const [savingNotes, setSavingNotes] = useState(false);
@@ -76,6 +80,12 @@ export default function CustomerDetail() {
           <div className="text-sm text-slate-500">{customer.email} {customer.phone ? `· ${customer.phone}` : ''}</div>
         </div>
         <span className={`rounded px-2 py-0.5 text-xs font-medium ${SEGMENT_BADGE[segment]}`}>{segment}</span>
+        {cohorts && <span className={`rounded px-2 py-0.5 text-xs font-medium ${TEMP_BADGE[cohorts.temperature]}`}>{cohorts.temperature}</span>}
+        {cohorts?.acquisition?.source && (
+          <span className="text-xs text-slate-400">
+            via {cohorts.acquisition.source}{cohorts.acquisition.campaign ? ` · ${cohorts.acquisition.campaign}` : ''}{cohorts.acquisition.term ? ` · "${cohorts.acquisition.term}"` : ''}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -92,6 +102,39 @@ export default function CustomerDetail() {
         <Metric label="Returns" value={returns} />
         <Metric label="Open support" value={support.open} />
       </div>
+
+      {(cohorts?.cohorts?.length > 0 || recs?.recommendations?.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader title="Cohorts" subtitle="ML micro-cohorts this customer belongs to (weighted)" />
+            <div className="flex flex-wrap gap-2 p-5">
+              {(cohorts?.cohorts ?? []).map((c) => (
+                <span key={c.key} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${COHORT_BADGE[c.kind]}`}>
+                  {c.label}<span className="opacity-60">·{Math.round(c.weight * 100)}%</span>
+                </span>
+              ))}
+              {(!cohorts?.cohorts || cohorts.cohorts.length === 0) && <span className="text-sm text-slate-400">No cohorts yet — recompute on the Cohorts page.</span>}
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Recommended next purchases" subtitle="What peers in their cohorts bought" />
+            {recs?.recommendations?.length ? (
+              <table className="w-full text-sm">
+                <tbody>
+                  {recs.recommendations.map((r) => (
+                    <tr key={r.productId} className="border-b border-slate-50 last:border-0">
+                      <td className="px-5 py-3 text-slate-800">{r.title}</td>
+                      <td className="px-5 py-3 text-right font-medium text-slate-900">{r.priceMinor != null ? formatMoney(r.priceMinor, r.currency) : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-5 text-sm text-slate-400">No recommendations yet.</div>
+            )}
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

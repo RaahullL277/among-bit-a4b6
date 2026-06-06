@@ -46,6 +46,12 @@ export class StorefrontController {
     return this.commerce.storefront.checkout(cartId, body ?? {});
   }
 
+  // --- Behaviour tracking (public; feeds cohort intelligence) ----------------
+  @Post(':storeId/track')
+  track(@Param('storeId') storeId: string, @Body() body: any) {
+    return this.commerce.cohorts.track({ storeId, ...(body ?? {}) });
+  }
+
   // --- Support chatbot (public) ---------------------------------------------
   @Get(':storeId/support/config')
   supportConfig(@Param('storeId') storeId: string) {

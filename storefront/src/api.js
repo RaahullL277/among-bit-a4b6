@@ -40,6 +40,7 @@ export const api = {
     req(`/storefront/${id}/reviews/summary${productIds ? `?productIds=${productIds.join(',')}` : ''}`),
   productBundles: (id, pid) => req(`/storefront/${id}/products/${pid}/bundles`),
   frequentlyBoughtTogether: (id, pid) => req(`/storefront/${id}/products/${pid}/frequently-bought-together`),
+  track: (id, body) => req(`/storefront/${id}/track`, { method: 'POST', body }),
   theme: (id) => req(`/storefront/${id}/theme`),
   page: (id, slug) => req(`/storefront/${id}/pages/${slug}`),
   orderLookup: (id, number, email) =>

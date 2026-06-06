@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
+import { identify } from '../track';
 import { useCart } from '../cart';
 
 export default function Cart() {
@@ -25,6 +26,7 @@ export default function Cart() {
 
   async function checkRewards() {
     if (!email) return;
+    identify(email); // stitch this session's behaviour to the customer + attribution
     try {
       const r = await api.loyalty(STORE_ID, email);
       setRewards(r);

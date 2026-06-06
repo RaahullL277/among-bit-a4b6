@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, applySeo, money, STORE_ID } from '../api';
+import { track } from '../track';
 import { useCart } from '../cart';
 import Reviews from '../Reviews';
 import FrequentlyBoughtTogether from '../FrequentlyBoughtTogether';
@@ -26,6 +27,7 @@ export default function Product() {
   useEffect(() => {
     api.product(STORE_ID, id).then(setProduct).catch((e) => setError(e.message));
     api.productSeo(STORE_ID, id).then(applySeo).catch(() => undefined);
+    track('VIEW', id); // product view → cohort signal
     api.subscriptionSettings(STORE_ID)
       .then((s) => {
         setSubSettings(s);
@@ -44,6 +46,7 @@ export default function Product() {
     setAdding(true);
     try {
       await addToCart(v.id, qty);
+      track('ADD_TO_CART', product.id);
       if (goToCart) navigate('/cart');
     } finally {
       setAdding(false);

@@ -246,6 +246,21 @@ enum RepricingStrategy {
   FIXED_MARGIN // price to hit a target margin off cost (ignores competitors)
 }
 
+// A tracked storefront behaviour signal (the cohort-intelligence funnel).
+enum BehaviorEventType {
+  LAND        // landed on the store (carries acquisition attribution)
+  VIEW        // viewed a product
+  CLICK       // clicked a product/CTA
+  ADD_TO_CART // added a product to cart
+  PURCHASE    // bought (also derived from orders)
+}
+
+// How a cohort was formed.
+enum CohortKind {
+  BEHAVIORAL  // soft-clustered (fuzzy c-means) over behaviour + attribution
+  ACQUISITION // grouped by a Meta campaign or Google search term
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -487,6 +502,11 @@ model Customer {
   // Lightweight CRM: merchant-applied tags and free-form notes.
   tags      String[] @default([])
   notes     String?
+  // First-touch acquisition attribution (e.g. source=meta, campaign="Summer Sale";
+  // or source=google, term="running shoes").
+  acqSource   String?
+  acqCampaign String?
+  acqTerm     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1355,4 +1375,66 @@ model PricingRule {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// Cohort intelligence (behaviour tracking + ML micro-cohorts)
+// ---------------------------------------------------------------------------
+
+// A storefront behaviour signal. Pre-identification events carry an anonymousId
+// (visitor/session); when the shopper is identified, events are linked to the
+// customer. LAND events carry the acquisition attribution.
+model BehaviorEvent {
+  id          String            @id @default(cuid())
+  tenantId    String
+  storeId     String
+  customerId  String?
+  anonymousId String?
+  type        BehaviorEventType
+  productId   String?
+  variantId   String?
+  source      String?
+  medium      String?
+  campaign    String?
+  term        String?
+  createdAt   DateTime          @default(now())
+
+  @@index([tenantId])
+  @@index([storeId, type])
+  @@index([customerId])
+  @@index([anonymousId])
+}
+
+// A computed micro-cohort. `signature` holds the cohort's dominant signals
+// (channel, behaviour profile, value tier, top products). Members join via
+// CohortMembership with a soft `weight` — a customer can be in many cohorts.
+model Cohort {
+  id        String     @id @default(cuid())
+  tenantId  String
+  storeId   String
+  kind      CohortKind
+  key       String
+  label     String
+  signature Json       @default("{}")
+  size      Int        @default(0)
+  updatedAt DateTime   @updatedAt
+
+  members CohortMembership[]
+
+  @@unique([storeId, key])
+  @@index([tenantId])
+  @@index([storeId])
+}
+
+model CohortMembership {
+  id         String @id @default(cuid())
+  tenantId   String
+  cohortId   String
+  customerId String
+  weight     Float  @default(1)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, customerId])
+  @@index([customerId])
 }

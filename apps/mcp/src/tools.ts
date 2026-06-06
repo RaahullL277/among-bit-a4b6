@@ -328,6 +328,43 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.customers.summary(ctx, a.storeId)),
   );
 
+  // --- Cohort intelligence --------------------------------------------------
+  server.registerTool(
+    'recompute_cohorts',
+    {
+      description: 'Re-run cohort intelligence for a store: ML micro-cohorts (fuzzy c-means over behaviour + Meta/Google attribution) + acquisition cohorts.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.cohorts.recompute(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'list_cohorts',
+    {
+      description: 'List a store\'s micro-cohorts with size, label, and signature (top channel, behaviour, value).',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.cohorts.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'customer_cohorts',
+    {
+      description: 'The cohorts a customer belongs to (multi-membership, weighted), their acquisition source, and HOT/WARM/COLD temperature.',
+      inputSchema: { customerId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.cohorts.forCustomer(ctx, a.customerId)),
+  );
+
+  server.registerTool(
+    'customer_recommendations',
+    {
+      description: 'Cohort-based product recommendations for a customer ("others in your cohort bought…"), excluding what they already own.',
+      inputSchema: { customerId: z.string(), limit: z.number().optional() },
+    },
+    tool((ctx, a: any) => commerce.cohorts.recommendations(ctx, a.customerId, a.limit)),
+  );
+
   // --- Orders ---------------------------------------------------------------
   server.registerTool(
     'list_orders',

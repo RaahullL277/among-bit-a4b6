@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
+import { trackLand } from './track';
 import ChatWidget from './ChatWidget';
 import { CartProvider, useCart } from './cart';
 import Home from './pages/Home';
@@ -81,6 +82,7 @@ export default function App() {
       applyTheme(t);
       if (t?.logoText) setStoreName(t.logoText);
     }).catch(() => undefined);
+    trackLand(); // capture acquisition attribution + landing
   }, []);
 
   if (missing) return <StoreGate />;
