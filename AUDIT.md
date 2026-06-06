@@ -1,5 +1,9 @@
 # Platform Audit — Exhaustive Prioritized Fix List
 
+> **Status (this pass): all P0 and P1 FIXED, except P0-1 (real integrations) which was intentionally skipped (needs live credentials).**
+> Fixed & shipped: P0-2 checkout delivery address · P0-3 tax & shipping · P1 order state machine · P1 variant edit surface · P1 refund cumulative cap + partial status · P1 subscription billing tenant-scope + idempotency · P1 shopability null-channel bypass · P1 support-escalation owner alert. Several P2s fixed along the way (compare-at validation, agent mandate vs. full total). Tests: 185 core / 11 api / 4 mcp green. Remaining work is **P2** (hardening/polish) and **P0-1 + multi-location** (roadmap).
+
+
 _Method: four parallel feature-cluster audits (commerce core · fulfillment/post-purchase · customer/growth · platform/security) plus a cross-cutting sweep. **Every non-trivial finding was re-verified against the code before inclusion** — ~10 agent-reported "multi-tenant leaks" were dismissed as false positives (`storeId` is globally unique and internal methods are reached only after an ownership check). Severity below is re-graded by me, not the raw agent grades._
 
 Legend: **P0** = blocks running a real store · **P1** = real bug / missing core capability · **P2** = hardening / polish.
