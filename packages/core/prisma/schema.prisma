@@ -476,6 +476,7 @@ model Store {
   returns      Return[]
   returnPolicy ReturnPolicy?
   listingAgentConfig ListingAgentConfig?
+  checkoutSettings CheckoutSettings?
   stockMovements StockMovement[]
   stockReservations StockReservation[]
   loyaltyProgram LoyaltyProgram?
@@ -651,11 +652,18 @@ model Order {
   // Set when an order originates from a cart, so recovery can be attributed.
   cartId     String?
   status     OrderStatus @default(PENDING)
-  // totalMinor is the amount actually charged (after any bundle discount).
+  // Item subtotal (before discount/tax/shipping). totalMinor is the amount
+  // actually charged = subtotal - discount + tax + shipping.
+  subtotalMinor Int      @default(0)
   totalMinor Int
   // Bundle/offer savings applied at checkout, in minor units (0 = none).
   discountMinor Int      @default(0)
+  taxMinor      Int      @default(0)
+  shippingMinor Int      @default(0)
   currency   String      @default("INR")
+  // Buyer contact + delivery address captured at checkout.
+  email           String?
+  shippingAddress Json?
   // Sales-channel attribution. source: e.g. "agent" (AI assistant), null = web/direct.
   // agentChannel names the assistant when source = "agent".
   source       String?
@@ -959,6 +967,27 @@ model ShipmentEvent {
   shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
   @@index([shipmentId])
+}
+
+// Per-store tax & shipping configuration applied at checkout.
+model CheckoutSettings {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  storeId               String   @unique
+  // Tax rate in basis points (1800 = 18% GST). 0 = no tax.
+  taxBps                Int      @default(0)
+  taxLabel              String   @default("Tax")
+  // When true, product prices already include tax (extract it; total unchanged).
+  pricesIncludeTax      Boolean  @default(false)
+  // Flat shipping fee (minor units); 0 = free shipping.
+  flatShippingMinor     Int      @default(0)
+  // Order subtotal (after discount) at/above which shipping is free; null = never.
+  freeShippingOverMinor Int?
+  requireAddress        Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 // Per-store stock-alert thresholds (drives the R/A/G scorer).

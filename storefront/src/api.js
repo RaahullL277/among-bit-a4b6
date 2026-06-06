@@ -40,6 +40,7 @@ export const api = {
   getCart: (cid) => req(`/storefront/carts/${cid}`),
   addItem: (cid, body) => req(`/storefront/carts/${cid}/items`, { method: 'POST', body }),
   checkout: (cid, body) => req(`/storefront/carts/${cid}/checkout`, { method: 'POST', body }),
+  checkoutQuote: (cid) => req(`/storefront/carts/${cid}/quote`),
   supportConfig: (id) => req(`/storefront/${id}/support/config`),
   supportChat: (id, body) => req(`/storefront/${id}/support/chat`, { method: 'POST', body }),
   productReviews: (id, pid) => req(`/storefront/${id}/products/${pid}/reviews`),

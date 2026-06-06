@@ -953,6 +953,32 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'get_checkout_settings',
+    {
+      description: 'Tax & shipping settings applied at checkout (tax rate, whether prices include tax, flat shipping, free-shipping threshold, address requirement).',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.checkoutSettings.get(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_checkout_settings',
+    {
+      description: 'Configure checkout tax & shipping: taxBps (basis points, 1800=18% GST), taxLabel, pricesIncludeTax, flatShippingMinor, freeShippingOverMinor (subtotal at/above which shipping is free), and requireAddress (block checkout without a delivery address).',
+      inputSchema: {
+        storeId: z.string(),
+        taxBps: z.number().int().min(0).max(10000).optional(),
+        taxLabel: z.string().optional(),
+        pricesIncludeTax: z.boolean().optional(),
+        flatShippingMinor: z.number().int().nonnegative().optional(),
+        freeShippingOverMinor: z.number().int().nonnegative().nullable().optional(),
+        requireAddress: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.checkoutSettings.set(ctx, a)),
+  );
+
+  server.registerTool(
     'receive_stock',
     {
       description: 'Receive a restock / purchase order: add units to a variant\'s on-hand inventory. Records a RECEIVE movement in the ledger.',

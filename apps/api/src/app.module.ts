@@ -6,6 +6,7 @@ import { AuditInterceptor } from './common/audit.interceptor.js';
 import { AuditController } from './controllers/audit.controller.js';
 import { AppsController } from './controllers/apps.controller.js';
 import { ListingController } from './controllers/listing.controller.js';
+import { CheckoutSettingsController } from './controllers/checkout-settings.controller.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { MembersController } from './controllers/members.controller.js';
 import { HealthController } from './controllers/health.controller.js';
@@ -74,6 +75,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     AuditController,
     AppsController,
     ListingController,
+    CheckoutSettingsController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,

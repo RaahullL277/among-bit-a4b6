@@ -5,6 +5,7 @@ import type { CartService } from './cart.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
 import type { SubscriptionService } from './subscription.service.js';
 import type { StockService } from './stock.service.js';
+import type { CheckoutSettingsService } from './checkout-settings.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -20,6 +21,7 @@ export class StorefrontService {
     private readonly loyalty: LoyaltyService,
     private readonly subscriptions: SubscriptionService,
     private readonly stock?: StockService,
+    private readonly checkoutSettings?: CheckoutSettingsService,
   ) {}
 
   /** Adds a buyer-safe `availability` (in_stock / low_stock / out_of_stock) to
@@ -192,11 +194,29 @@ export class StorefrontService {
 
   /**
    * Begin checkout: creates a pending order + payment via the active provider.
-   * Optionally identifies the shopper by email and redeems loyalty points.
+   * Captures the delivery address, identifies the shopper by email, redeems
+   * loyalty points, and applies the store's tax + shipping.
    */
-  async checkout(cartId: string, opts: { email?: string; redeemPoints?: number } = {}) {
-    const { ctx } = await this.ctxForCart(cartId);
+  async checkout(cartId: string, opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown> } = {}) {
+    const { ctx, storeId } = await this.ctxForCart(cartId);
+    const settings = await this.checkoutSettings?.resolve(storeId);
+    if (settings?.requireAddress) {
+      const a = opts.shippingAddress ?? {};
+      if (!(a as any).line1 && !(a as any).pincode) {
+        throw new ValidationError('A delivery address (at least a street line or pincode) is required to check out.');
+      }
+    }
     return this.carts.checkoutCart(ctx, cartId, opts);
+  }
+
+  /** Public price breakdown for a cart (subtotal, discount, tax, shipping, total). */
+  async checkoutQuote(cartId: string) {
+    const { ctx, storeId } = await this.ctxForCart(cartId);
+    const cart = await this.carts.getCart(ctx, cartId);
+    const items = (cart.items ?? []).map((i: any) => ({ variantId: i.variantId, quantity: i.quantity }));
+    const subtotalMinor = (cart.items ?? []).reduce((s: number, i: any) => s + i.unitPriceMinor * i.quantity, 0);
+    // Offers/loyalty are applied at checkout; the quote shows a pre-discount estimate.
+    return (await this.checkoutSettings?.quote(storeId, subtotalMinor, 0)) ?? { subtotalMinor, discountMinor: 0, taxMinor: 0, taxLabel: 'Tax', shippingMinor: 0, totalMinor: subtotalMinor, pricesIncludeTax: false };
   }
 
   /** Public loyalty balance/program lookup by email (for the rewards widget). */

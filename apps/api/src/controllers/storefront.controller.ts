@@ -66,6 +66,11 @@ export class StorefrontController {
     return this.commerce.storefront.addItem(cartId, body);
   }
 
+  @Get('carts/:cartId/quote')
+  quote(@Param('cartId') cartId: string): Promise<unknown> {
+    return this.commerce.storefront.checkoutQuote(cartId);
+  }
+
   @Post('carts/:cartId/checkout')
   checkout(@Param('cartId') cartId: string, @Body() body: any) {
     return this.commerce.storefront.checkout(cartId, body ?? {});

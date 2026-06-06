@@ -166,7 +166,9 @@ describe.skipIf(!hasDb)('mcp tools', () => {
     const fetched = await call('get_order', { orderId: checkout.order.id });
     expect(fetched.items[0].quantity).toBe(2);
 
-    // 5. Advance fulfillment status through the agent.
+    // 5. Advance fulfillment through the agent, following the state machine
+    // (PENDING → PAID → FULFILLED). The order is unpaid here, so mark it paid first.
+    await call('update_order_status', { orderId: checkout.order.id, status: 'PAID' });
     const updated = await call('update_order_status', {
       orderId: checkout.order.id,
       status: 'FULFILLED',

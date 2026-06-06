@@ -10,6 +10,9 @@ import {
   ErrorBanner,
   Badge,
   EmptyState,
+  Button,
+  Field,
+  Input,
   formatMoney,
 } from '../components/ui';
 
@@ -52,6 +55,8 @@ export default function Orders() {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold text-slate-900">Orders</h1>
       <ErrorBanner message={error} />
+
+      <CheckoutSettings storeId={selectedId} />
 
       <Card>
         <CardHeader title={selectedStore?.name} subtitle="Orders in this store" />
@@ -106,5 +111,80 @@ export default function Orders() {
         )}
       </Card>
     </div>
+  );
+}
+
+function CheckoutSettings({ storeId }) {
+  const { data, loading, reload } = useAsync(() => api.checkoutSettings.get(storeId), [storeId]);
+  const [form, setForm] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  if (loading || !data) return null;
+  const p = form ?? data;
+  const set = (k, v) => { setForm({ ...p, [k]: v }); setSaved(false); };
+  async function save() {
+    setBusy(true);
+    try {
+      await api.checkoutSettings.set({
+        storeId,
+        taxBps: Math.round(Number(p.taxBps) || 0),
+        taxLabel: p.taxLabel || 'Tax',
+        pricesIncludeTax: !!p.pricesIncludeTax,
+        flatShippingMinor: Math.round((Number(p.flatShippingRupees ?? p.flatShippingMinor / 100) || 0) * 100),
+        freeShippingOverMinor: p.freeShippingOverRupees ? Math.round(Number(p.freeShippingOverRupees) * 100) : (p.freeShippingOverMinor ?? null),
+        requireAddress: !!p.requireAddress,
+      });
+      setForm(null); setSaved(true); reload();
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Card>
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-5 py-4 text-left">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Checkout · tax &amp; shipping</div>
+          <div className="text-xs text-slate-400">
+            {data.taxBps ? `${(data.taxBps / 100).toFixed(2)}% ${data.taxLabel}${data.pricesIncludeTax ? ' (incl.)' : ''}` : 'No tax'} ·
+            {data.flatShippingMinor ? ` ₹${(data.flatShippingMinor / 100).toFixed(0)} shipping` : ' Free shipping'} ·
+            {data.requireAddress ? ' address required' : ' address optional'}
+          </div>
+        </div>
+        <span className="text-xs text-indigo-600">{open ? 'Hide' : 'Edit'}</span>
+      </button>
+      {open && (
+        <div className="grid grid-cols-1 gap-4 border-t border-slate-100 p-5 md:grid-cols-3">
+          <Field label="Tax rate (%)" hint="e.g. 18 for GST">
+            <Input type="number" min={0} max={100} step="0.5" value={(p.taxBps ?? 0) / 100} onChange={(e) => set('taxBps', Math.round(Number(e.target.value) * 100))} />
+          </Field>
+          <Field label="Tax label"><Input value={p.taxLabel ?? 'Tax'} onChange={(e) => set('taxLabel', e.target.value)} /></Field>
+          <Field label="Prices include tax?">
+            <Toggle on={p.pricesIncludeTax} onClick={() => set('pricesIncludeTax', !p.pricesIncludeTax)} />
+          </Field>
+          <Field label="Flat shipping (₹)">
+            <Input type="number" min={0} value={p.flatShippingRupees ?? (p.flatShippingMinor / 100)} onChange={(e) => set('flatShippingRupees', e.target.value)} />
+          </Field>
+          <Field label="Free shipping over (₹)" hint="blank = never">
+            <Input type="number" min={0} value={p.freeShippingOverRupees ?? (p.freeShippingOverMinor != null ? p.freeShippingOverMinor / 100 : '')} onChange={(e) => set('freeShippingOverRupees', e.target.value)} />
+          </Field>
+          <Field label="Require delivery address?" hint="On for physical goods">
+            <Toggle on={p.requireAddress} onClick={() => set('requireAddress', !p.requireAddress)} />
+          </Field>
+          <div className="md:col-span-3 flex items-center gap-3">
+            <Button onClick={save} loading={busy} disabled={!form}>Save</Button>
+            {saved && <span className="text-sm text-emerald-600">Saved.</span>}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Toggle({ on, onClick }) {
+  return (
+    <button onClick={onClick} className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${on ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
   );
 }

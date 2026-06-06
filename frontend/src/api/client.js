@@ -144,6 +144,10 @@ export const api = {
     get: (id) => request(`/orders/${id}`),
     updateStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } }),
   },
+  checkoutSettings: {
+    get: (storeId) => request(`/checkout-settings?${qs({ storeId })}`),
+    set: (body) => request('/checkout-settings', { method: 'PUT', body }),
+  },
   integrations: {
     list: (storeId) => request(`/integrations?storeId=${encodeURIComponent(storeId)}`),
     configure: (body) => request('/integrations', { method: 'POST', body }),

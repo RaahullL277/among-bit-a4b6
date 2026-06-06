@@ -28,3 +28,11 @@ fulfilled after dispatch, or cancelled/refunded when needed.
 - Prefer the shipping flow over manually setting FULFILLED when you have a courier, so the
   customer gets tracking automatically.
 - Refunds for returns are best driven through **acp-returns**, which also restocks.
+
+## Checkout tax, shipping & address
+Orders capture the buyer's delivery address + email and a price breakdown
+(subtotal − discount + tax + shipping = total). Configure per store with
+`get_checkout_settings` / `set_checkout_settings`: tax rate (`taxBps`, 1800 = 18%
+GST), `pricesIncludeTax`, `flatShippingMinor`, `freeShippingOverMinor`, and
+`requireAddress` (block storefront checkout without a delivery address). The
+storefront shows the live breakdown and collects the address at checkout.

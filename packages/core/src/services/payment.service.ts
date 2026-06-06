@@ -6,6 +6,7 @@ import type { NotificationService } from './notification.service.js';
 import type { MarketingService } from './marketing.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
 import type { StockService } from './stock.service.js';
+import type { CheckoutSettingsService } from './checkout-settings.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -15,6 +16,9 @@ export interface CheckoutInput {
   provider?: ProviderName;
   /** Bundle/offer saving to subtract from the order total (minor units). */
   discountMinor?: number;
+  /** Buyer contact + delivery address captured at checkout. */
+  email?: string;
+  shippingAddress?: Record<string, unknown>;
 }
 
 /**
@@ -29,6 +33,7 @@ export class PaymentService {
     private readonly marketing?: MarketingService,
     private readonly loyalty?: LoyaltyService,
     private readonly stock?: StockService,
+    private readonly checkoutSettings?: CheckoutSettingsService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -66,7 +71,15 @@ export class PaymentService {
     const subtotalMinor = lineItems.reduce((sum, li) => sum + li.unitPriceMinor * li.quantity, 0);
     // Clamp any offer discount to the subtotal so the charged total never goes negative.
     const discountMinor = Math.max(0, Math.min(Math.round(input.discountMinor ?? 0), subtotalMinor));
-    const totalMinor = subtotalMinor - discountMinor;
+    // Apply the store's tax + shipping to get the final charged total.
+    const quote = (await this.checkoutSettings?.quote(store.id, subtotalMinor, discountMinor)) ?? {
+      taxMinor: 0,
+      shippingMinor: 0,
+      totalMinor: subtotalMinor - discountMinor,
+    };
+    const taxMinor = quote.taxMinor;
+    const shippingMinor = quote.shippingMinor;
+    const totalMinor = quote.totalMinor;
 
     const provider = input.provider ?? (await this.integrations.getActivePaymentProvider(ctx, store.id));
     const creds = await this.integrations.getCredentials(ctx, store.id, provider);
@@ -87,8 +100,13 @@ export class PaymentService {
           number,
           customerId: input.customerId,
           status: 'PENDING',
+          subtotalMinor,
           totalMinor,
           discountMinor,
+          taxMinor,
+          shippingMinor,
+          email: input.email,
+          shippingAddress: (input.shippingAddress ?? undefined) as object | undefined,
           currency: store.currency,
           items: {
             create: lineItems.map((li) => ({

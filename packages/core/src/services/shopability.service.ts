@@ -249,14 +249,17 @@ export class ShopabilityService {
     if (!cart) throw new NotFoundError('Cart', cartId);
     const store = await this.prisma.store.findUnique({ where: { id: storeId }, select: { tenantId: true, currency: true } });
     if (!store) throw new NotFoundError('Store', storeId);
-    const cartTotal = cart.items.reduce((s, i) => s + i.unitPriceMinor * i.quantity, 0);
+    // Validate the mandate against the FULL quoted total (incl. tax + shipping),
+    // not just the item subtotal — so the order can't exceed what the buyer authorized.
+    const quote = await this.storefront.checkoutQuote(cartId);
+    const quotedTotal = quote.totalMinor;
 
     const reject = async (reason: string) => {
       await this.prisma.agentCheckout.create({
         data: {
           tenantId: store.tenantId, storeId, cartId, channel: channel ?? undefined,
           mandateRef: opts.mandate?.ref ?? '(none)', maxAmountMinor: opts.mandate?.maxAmountMinor ?? 0,
-          amountMinor: cartTotal, currency: store.currency, status: 'REJECTED', reason,
+          amountMinor: quotedTotal, currency: store.currency, status: 'REJECTED', reason,
         },
       });
       throw new ForbiddenError(`Agent checkout rejected: ${reason}.`);
@@ -265,10 +268,10 @@ export class ShopabilityService {
     const m = opts.mandate;
     if (!m || !m.ref || typeof m.maxAmountMinor !== 'number') await reject('missing_payment_mandate');
     else if (m.currency && m.currency !== store.currency) await reject('currency_mismatch');
-    else if (m.maxAmountMinor < cartTotal) await reject('mandate_insufficient');
+    else if (m.maxAmountMinor < quotedTotal) await reject('mandate_insufficient');
 
-    const result: any = await this.storefront.checkout(cartId, { email: opts.email, redeemPoints: opts.redeemPoints });
-    const orderTotal = result?.order?.totalMinor ?? cartTotal;
+    const result: any = await this.storefront.checkout(cartId, { email: opts.email, redeemPoints: opts.redeemPoints, shippingAddress: (opts as any).shippingAddress });
+    const orderTotal = result?.order?.totalMinor ?? quotedTotal;
     // Attribute the order to the AI assistant (source=agent) for analytics.
     if (result?.order?.id) {
       await this.prisma.order.update({ where: { id: result.order.id }, data: { source: 'agent', agentChannel: channel ?? undefined } });

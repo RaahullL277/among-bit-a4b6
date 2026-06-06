@@ -141,7 +141,7 @@ export class CartService {
   async checkoutCart(
     ctx: TenantContext,
     cartId: string,
-    opts: { provider?: any; email?: string; redeemPoints?: number } = {},
+    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown> } = {},
   ) {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
@@ -170,6 +170,8 @@ export class CartService {
       items,
       provider: opts.provider,
       discountMinor: discountMinor || undefined,
+      email: opts.email ?? cart.contactEmail ?? undefined,
+      shippingAddress: opts.shippingAddress,
     });
 
     await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });
