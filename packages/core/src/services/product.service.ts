@@ -27,6 +27,7 @@ export interface UpdateProductInput {
   title?: string;
   description?: string;
   status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  tags?: string[];
   metaTitle?: string;
   metaDescription?: string;
 }
@@ -49,6 +50,9 @@ export class ProductService {
     const variants = input.variants ?? [{ priceMinor: 0 }];
     if (variants.some((v) => v.priceMinor == null || v.priceMinor < 0)) {
       throw new ValidationError('Each variant requires a non-negative priceMinor.');
+    }
+    if (variants.some((v) => v.compareAtMinor != null && v.compareAtMinor < v.priceMinor)) {
+      throw new ValidationError('compareAtMinor (the "was" price) must be at least the selling price.');
     }
 
     return this.prisma.product.create({
@@ -105,10 +109,38 @@ export class ProductService {
         title: input.title,
         description: input.description,
         status: input.status,
+        tags: input.tags,
         metaTitle: input.metaTitle,
         metaDescription: input.metaDescription,
       },
       include: productInclude,
+    });
+  }
+
+  /** Edit an existing variant's price, compare-at, cost, title, or SKU. */
+  async updateVariant(
+    ctx: TenantContext,
+    variantId: string,
+    patch: { priceMinor?: number; compareAtMinor?: number | null; costMinor?: number; title?: string; sku?: string | null },
+  ) {
+    const variant = await this.prisma.productVariant.findFirst({ where: { id: variantId, tenantId: ctx.tenantId } });
+    if (!variant) throw new NotFoundError('ProductVariant', variantId);
+    const priceMinor = patch.priceMinor ?? variant.priceMinor;
+    if (patch.priceMinor != null && patch.priceMinor < 0) throw new ValidationError('priceMinor must be non-negative.');
+    if (patch.costMinor != null && patch.costMinor < 0) throw new ValidationError('costMinor must be non-negative.');
+    const compareAtMinor = patch.compareAtMinor === undefined ? variant.compareAtMinor : patch.compareAtMinor;
+    if (compareAtMinor != null && compareAtMinor < priceMinor) {
+      throw new ValidationError('compareAtMinor (the "was" price) must be at least the selling price.');
+    }
+    return this.prisma.productVariant.update({
+      where: { id: variantId },
+      data: {
+        priceMinor: patch.priceMinor ?? undefined,
+        compareAtMinor: patch.compareAtMinor === undefined ? undefined : patch.compareAtMinor,
+        costMinor: patch.costMinor ?? undefined,
+        title: patch.title ?? undefined,
+        sku: patch.sku === undefined ? undefined : patch.sku,
+      },
     });
   }
 }

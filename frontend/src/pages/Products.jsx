@@ -125,7 +125,7 @@ export default function Products() {
                     <td className="px-5 py-3">
                       <Badge>{p.status}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-slate-700">{v ? formatMoney(v.priceMinor, v.currency) : '—'}</td>
+                    <td className="px-5 py-3 text-slate-700">{v ? <PriceCell variant={v} onSaved={reload} /> : '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v?.sku ?? '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v?.inventory ?? 0}</td>
                     <td className="px-5 py-3">
@@ -188,6 +188,52 @@ export default function Products() {
           </div>
         </form>
       </Modal>
+    </div>
+  );
+}
+
+function PriceCell({ variant, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [price, setPrice] = useState(String((variant.priceMinor / 100).toFixed(0)));
+  const [compareAt, setCompareAt] = useState(variant.compareAtMinor ? String((variant.compareAtMinor / 100).toFixed(0)) : '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function save() {
+    setBusy(true);
+    setErr('');
+    try {
+      await api.products.updateVariant(variant.id, {
+        priceMinor: Math.max(0, Math.round(Number(price) * 100)),
+        compareAtMinor: compareAt ? Math.round(Number(compareAt) * 100) : null,
+      });
+      setEditing(false);
+      onSaved?.();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button onClick={() => setEditing(true)} className="rounded px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100" title="Edit price">
+        {formatMoney(variant.priceMinor, variant.currency)}
+        {variant.compareAtMinor > variant.priceMinor && (
+          <span className="ml-1.5 text-xs font-normal text-slate-400 line-through">{formatMoney(variant.compareAtMinor, variant.currency)}</span>
+        )}
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-slate-400">₹</span>
+      <input autoFocus type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm" placeholder="price" />
+      <input type="number" min={0} value={compareAt} onChange={(e) => setCompareAt(e.target.value)} className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-sm" placeholder="was" title="Compare-at (was) price — optional" />
+      <button onClick={save} disabled={busy} className="rounded bg-indigo-600 px-1.5 py-0.5 text-xs font-medium text-white">Save</button>
+      <button onClick={() => setEditing(false)} className="text-xs text-slate-400">✕</button>
+      {err && <span className="text-xs text-rose-600">{err}</span>}
     </div>
   );
 }

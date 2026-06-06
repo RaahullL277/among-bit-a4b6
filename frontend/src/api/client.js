@@ -98,6 +98,7 @@ export const api = {
     list: (storeId) => request(`/products?storeId=${encodeURIComponent(storeId)}`),
     create: (body) => request('/products', { method: 'POST', body }),
     update: (id, body) => request(`/products/${id}`, { method: 'PATCH', body }),
+    updateVariant: (variantId, body) => request(`/products/variants/${variantId}`, { method: 'PATCH', body }),
   },
   listing: {
     getConfig: (storeId) => request(`/listing/config?${qs({ storeId })}`),

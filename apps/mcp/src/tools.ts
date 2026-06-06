@@ -330,15 +330,32 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'update_product',
     {
-      description: 'Update a product\'s title, description, or status.',
+      description: 'Update a product\'s title, description, status, or tags.',
       inputSchema: {
         productId: z.string(),
         title: z.string().optional(),
         description: z.string().optional(),
         status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
+        tags: z.array(z.string()).optional(),
       },
     },
     tool((ctx, a: any) => commerce.products.update(ctx, a.productId, a)),
+  );
+
+  server.registerTool(
+    'update_variant',
+    {
+      description: 'Edit an existing variant\'s price, compare-at ("was") price, cost, title, or SKU. compareAt must be ≥ price.',
+      inputSchema: {
+        variantId: z.string(),
+        priceMinor: z.number().int().nonnegative().optional(),
+        compareAtMinor: z.number().int().nonnegative().nullable().optional(),
+        costMinor: z.number().int().nonnegative().optional(),
+        title: z.string().optional(),
+        sku: z.string().nullable().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.products.updateVariant(ctx, a.variantId, a)),
   );
 
   server.registerTool(

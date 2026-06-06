@@ -25,6 +25,12 @@ export class ProductsController {
     return this.commerce.products.get(t, id);
   }
 
+  @Patch('variants/:variantId')
+  @Permissions('products:write')
+  updateVariant(@Tenant() t: TenantContext, @Param('variantId') variantId: string, @Body() body: any) {
+    return this.commerce.products.updateVariant(t, variantId, body);
+  }
+
   @Patch(':id')
   @Permissions('products:write')
   update(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
