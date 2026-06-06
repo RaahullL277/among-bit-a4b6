@@ -370,7 +370,72 @@ export class CohortService {
         },
       });
     }
+    // Mark the recompute time so the scheduled cadence (manual or worker) advances.
+    await this.prisma.store.update({ where: { id: storeId }, data: { cohortsRecomputedAt: new Date() } });
     return { cohorts: cohorts.length, behavioral: cohorts.filter((c) => c.kind === 'BEHAVIORAL').length, acquisition: cohorts.filter((c) => c.kind === 'ACQUISITION').length, customers: feats.length };
+  }
+
+  // --- Scheduled recompute (cadence by daily visitor volume) ----------------
+
+  /** Average distinct daily visitors over the last 7 days (smoothed). */
+  private async avgDailyVisitors(storeId: string, now = Date.now()): Promise<number> {
+    const since = new Date(now - 7 * DAY_MS);
+    const rows = await this.prisma.$queryRaw<{ count: number }[]>`
+      SELECT COUNT(DISTINCT "anonymousId")::int AS count
+      FROM "BehaviorEvent"
+      WHERE "storeId" = ${storeId} AND "createdAt" >= ${since} AND "anonymousId" IS NOT NULL
+    `;
+    return Number(rows[0]?.count ?? 0) / 7;
+  }
+
+  /** Recompute cadence by traffic: ≥10k/day nightly, ≥1k weekly, else monthly. */
+  cadence(avgDailyVisitors: number): { cadence: 'DAILY' | 'WEEKLY' | 'MONTHLY'; intervalDays: number } {
+    if (avgDailyVisitors >= 10000) return { cadence: 'DAILY', intervalDays: 1 };
+    if (avgDailyVisitors >= 1000) return { cadence: 'WEEKLY', intervalDays: 7 };
+    return { cadence: 'MONTHLY', intervalDays: 30 };
+  }
+
+  /** The store's cohort recompute schedule (for display). */
+  async scheduleStatus(ctx: TenantContext, storeId: string) {
+    const store = await this.prisma.store.findFirst({ where: { id: storeId, tenantId: ctx.tenantId }, select: { cohortsRecomputedAt: true } });
+    if (!store) throw new NotFoundError('Store', storeId);
+    const avg = await this.avgDailyVisitors(storeId);
+    const { cadence, intervalDays } = this.cadence(avg);
+    const last = store.cohortsRecomputedAt;
+    const nextDueAt = last ? new Date(last.getTime() + intervalDays * DAY_MS) : null;
+    return {
+      avgDailyVisitors: Math.round(avg * 10) / 10,
+      cadence,
+      intervalDays,
+      lastRecomputedAt: last,
+      nextDueAt,
+      dueNow: !last || Date.now() >= (nextDueAt?.getTime() ?? 0),
+    };
+  }
+
+  /**
+   * Worker job (cross-tenant): recompute cohorts for every store whose cadence
+   * is due. Cadence is chosen per store from its recent daily visitor volume,
+   * so high-traffic stores refresh nightly and quiet ones monthly.
+   */
+  async runDueRecomputes(now: Date = new Date()): Promise<{ scanned: number; recomputed: number }> {
+    const stores = await this.prisma.store.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, tenantId: true, cohortsRecomputedAt: true },
+    });
+    let recomputed = 0;
+    for (const s of stores) {
+      // Skip stores with no customers (nothing to cluster).
+      const customers = await this.prisma.customer.count({ where: { storeId: s.id } });
+      if (!customers) continue;
+      const avg = await this.avgDailyVisitors(s.id, now.getTime());
+      const { intervalDays } = this.cadence(avg);
+      const due = !s.cohortsRecomputedAt || now.getTime() - s.cohortsRecomputedAt.getTime() >= intervalDays * DAY_MS;
+      if (!due) continue;
+      await this.recompute({ tenantId: s.tenantId }, s.id).catch(() => undefined);
+      recomputed++;
+    }
+    return { scanned: stores.length, recomputed };
   }
 
   private channelName(source: string) {

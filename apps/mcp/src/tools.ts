@@ -348,6 +348,15 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'cohort_schedule',
+    {
+      description: 'The store\'s automatic cohort-recompute cadence (nightly ≥10k daily visitors, weekly ≥1k, monthly otherwise), its avg daily visitors, and when it last/next refreshes.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.cohorts.scheduleStatus(ctx, a.storeId)),
+  );
+
+  server.registerTool(
     'customer_cohorts',
     {
       description: 'The cohorts a customer belongs to (multi-membership, weighted), their acquisition source, and HOT/WARM/COLD temperature.',

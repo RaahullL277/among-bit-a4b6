@@ -110,6 +110,7 @@ export const api = {
   },
   cohorts: {
     list: (storeId) => request(`/cohorts?${qs({ storeId })}`),
+    schedule: (storeId) => request(`/cohorts/schedule?${qs({ storeId })}`),
     recompute: (storeId) => request('/cohorts/recompute', { method: 'POST', body: { storeId } }),
   },
   orders: {

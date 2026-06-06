@@ -397,6 +397,8 @@ model Store {
   // Phase 2 will derive these from user memberships; explicit for now.
   ownerEmail String?
   ownerPhone String?
+  // Last time cohort intelligence was recomputed (drives the scheduled cadence).
+  cohortsRecomputedAt DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 

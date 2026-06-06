@@ -111,6 +111,52 @@ describe.skipIf(!hasDb)('cohort intelligence', () => {
     expect(ids).not.toContain(products[0]); // already owned → excluded
   });
 
+  it('picks recompute cadence by daily-visitor volume', () => {
+    expect(commerce.cohorts.cadence(15000)).toEqual({ cadence: 'DAILY', intervalDays: 1 });
+    expect(commerce.cohorts.cadence(10000)).toEqual({ cadence: 'DAILY', intervalDays: 1 });
+    expect(commerce.cohorts.cadence(5000)).toEqual({ cadence: 'WEEKLY', intervalDays: 7 });
+    expect(commerce.cohorts.cadence(1000)).toEqual({ cadence: 'WEEKLY', intervalDays: 7 });
+    expect(commerce.cohorts.cadence(500)).toEqual({ cadence: 'MONTHLY', intervalDays: 30 });
+    expect(commerce.cohorts.cadence(0)).toEqual({ cadence: 'MONTHLY', intervalDays: 30 });
+  });
+
+  it('reports a store schedule with avg daily visitors from recent traffic', async () => {
+    // 14 distinct anonymous visitors over the last 7 days → avg 2/day → MONTHLY.
+    for (let i = 0; i < 14; i++) {
+      await prisma.behaviorEvent.create({
+        data: {
+          tenantId: ctx.tenantId, storeId, type: 'LAND', anonymousId: `vis_${i}`,
+          createdAt: new Date(Date.now() - (i % 7) * DAY),
+        },
+      });
+    }
+    const sched = await commerce.cohorts.scheduleStatus(ctx, storeId);
+    expect(sched.avgDailyVisitors).toBeCloseTo(2, 1);
+    expect(sched.cadence).toBe('MONTHLY');
+    expect(sched.intervalDays).toBe(30);
+    // recompute() above set lastRecomputedAt, so it's not due for ~30 days.
+    expect(sched.lastRecomputedAt).toBeTruthy();
+    expect(sched.dueNow).toBe(false);
+  });
+
+  it('runDueRecomputes recomputes only stores past their interval', async () => {
+    // Freshly recomputed (this suite ran recompute) → not due yet.
+    const fresh = await commerce.cohorts.runDueRecomputes(new Date());
+    const before = await prisma.store.findUnique({ where: { id: storeId }, select: { cohortsRecomputedAt: true } });
+
+    // Simulate the monthly interval elapsing.
+    await prisma.store.update({ where: { id: storeId }, data: { cohortsRecomputedAt: new Date(Date.now() - 40 * DAY) } });
+    const due = await commerce.cohorts.runDueRecomputes(new Date());
+    expect(due.scanned).toBeGreaterThanOrEqual(1);
+    expect(due.recomputed).toBeGreaterThanOrEqual(1);
+
+    // Timestamp advanced to ~now after the due recompute.
+    const after = await prisma.store.findUnique({ where: { id: storeId }, select: { cohortsRecomputedAt: true } });
+    expect(after!.cohortsRecomputedAt!.getTime()).toBeGreaterThan(Date.now() - 5 * 60 * 1000);
+    expect(fresh.scanned).toBeGreaterThanOrEqual(1);
+    expect(before?.cohortsRecomputedAt).toBeTruthy();
+  });
+
   it('tracks events with attribution and stitches anonymous → identified', async () => {
     const anon = 'sess_' + randomBytes(4).toString('hex');
     await commerce.cohorts.track({ storeId, type: 'LAND', anonymousId: anon, source: 'facebook', campaign: 'Diwali' });

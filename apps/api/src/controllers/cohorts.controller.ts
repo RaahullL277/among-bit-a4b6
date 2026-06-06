@@ -14,6 +14,12 @@ export class CohortsController {
     return this.commerce.cohorts.list(t, storeId);
   }
 
+  @Get('schedule')
+  @Permissions('customers:read')
+  schedule(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<any> {
+    return this.commerce.cohorts.scheduleStatus(t, storeId);
+  }
+
   @Post('recompute')
   @Permissions('customers:write')
   recompute(@Tenant() t: TenantContext, @Body() body: { storeId: string }): Promise<any> {
