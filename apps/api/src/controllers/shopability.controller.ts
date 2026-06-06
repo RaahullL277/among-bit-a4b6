@@ -36,4 +36,10 @@ export class ShopabilityController {
   ): Promise<unknown> {
     return this.commerce.shopability.setChannel(t, body.storeId, body.channel, body.enabled);
   }
+
+  @Get('agent-checkouts')
+  @Permissions('orders:read')
+  agentCheckouts(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<unknown> {
+    return this.commerce.shopability.checkoutLog(t, storeId);
+  }
 }

@@ -77,6 +77,8 @@ interface CustomerRow {
   email: string | null;
   phone: string | null;
   temperature: Temperature;
+  marketingConsent: boolean;
+  unsubscribedAt: Date | null;
 }
 
 // A featured product for a broadcast trigger (same hero for everyone in the run).
@@ -362,7 +364,7 @@ export class EngagementService {
     if (!data.stockLeft && template.body.includes('{{stockLeft}}')) data.stockLeft = 'a few';
 
     const subject = template.subject ? renderTemplate(template.subject, data) : undefined;
-    const body = renderTemplate(template.body, data);
+    const body = renderTemplate(template.body, data) + this.unsubscribeFooter(store, campaign.channel, customer.email);
     return { template, subject, body, productIds: Array.from(new Set(productIds)) };
   }
 
@@ -370,6 +372,15 @@ export class EngagementService {
 
   private storeBase(store: Store): string {
     return store.domain ? `https://${store.domain}` : `https://${store.slug}.acp.store`;
+  }
+
+  /** Compliance footer: an opt-out path on every promotional message. */
+  private unsubscribeFooter(store: Store, channel: NotificationChannel, email: string | null): string {
+    if (channel === 'EMAIL') {
+      const link = `${this.storeBase(store)}/unsubscribe${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+      return `\n\n—\nYou’re receiving this because you opted in at ${store.name}. Unsubscribe: ${link}`;
+    }
+    return ' Reply STOP to opt out.';
   }
 
   /** Newest active, in-stock product. */
@@ -579,8 +590,12 @@ export class EngagementService {
         this.log({ ctx, storeId, customerId, trigger: winner.campaign.trigger, channel, templateKey: rendered.template.key, temperature: cust.temperature, to: to ?? '', body: rendered.body, status, reason, providerRef, productIds: rendered.productIds, dryRun });
 
       let entry;
-      const cap = !to || dryRun ? { ok: true } : await this.withinCaps(storeId, customerId, cust.temperature, policy, now);
-      if (!to) {
+      const consented = cust.marketingConsent && !cust.unsubscribedAt;
+      const cap = !to || !consented || dryRun ? { ok: true } : await this.withinCaps(storeId, customerId, cust.temperature, policy, now);
+      if (!consented) {
+        entry = await record('SKIPPED', cust.unsubscribedAt ? 'unsubscribed' : 'no_consent');
+        summary.skipped++;
+      } else if (!to) {
         entry = await record('SKIPPED', `no_${channel === 'EMAIL' ? 'email' : 'phone'}`);
         summary.skipped++;
       } else if (opts.respectQuietHours && inQuietWindow(now, policy)) {
@@ -615,7 +630,7 @@ export class EngagementService {
     if (!customer) throw new NotFoundError('Customer', input.customerId);
     const last = await this.prisma.order.aggregate({ where: { customerId: customer.id, status: { in: [...PAID] } }, _max: { createdAt: true } });
     const temperature = this.cohorts.temperatureFor(last._max.createdAt ?? null);
-    const cust: CustomerRow = { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone, temperature };
+    const cust: CustomerRow = { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone, temperature, marketingConsent: customer.marketingConsent, unsubscribedAt: customer.unsubscribedAt };
     const campaign: CampaignRow = { id: 'preview', trigger: input.trigger, channel: input.channel, templateKey: input.templateKey ?? null, temperatures: [], cohortKey: null, priority: TRIGGER_PRIORITY[input.trigger] };
 
     // Supply a representative hero so non-cohort triggers preview with a product.
@@ -685,7 +700,7 @@ export class EngagementService {
   private async loadCustomers(storeId: string, now: Date): Promise<CustomerRow[]> {
     const customers = await this.prisma.customer.findMany({
       where: { storeId },
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, marketingConsent: true, unsubscribedAt: true },
     });
     if (!customers.length) return [];
     const lastOrders = await this.prisma.order.groupBy({

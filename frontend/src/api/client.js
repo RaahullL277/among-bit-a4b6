@@ -107,6 +107,7 @@ export const api = {
     update: (id, body) => request(`/customers/${id}`, { method: 'PATCH', body }),
     cohorts: (id) => request(`/customers/${id}/cohorts`),
     recommendations: (id) => request(`/customers/${id}/recommendations`),
+    setConsent: (id, consent) => request(`/customers/${id}/consent`, { method: 'PATCH', body: { consent } }),
   },
   cohorts: {
     list: (storeId) => request(`/cohorts?${qs({ storeId })}`),
@@ -117,6 +118,7 @@ export const api = {
     get: (storeId) => request(`/shopability?${qs({ storeId })}`),
     update: (body) => request('/shopability', { method: 'PUT', body }),
     setChannel: (storeId, channel, enabled) => request('/shopability/channel', { method: 'PUT', body: { storeId, channel, enabled } }),
+    agentCheckouts: (storeId) => request(`/shopability/agent-checkouts?${qs({ storeId })}`),
   },
   engagement: {
     library: () => request('/engagement/library'),

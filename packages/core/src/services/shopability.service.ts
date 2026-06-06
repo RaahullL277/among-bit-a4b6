@@ -1,6 +1,14 @@
 import type { AgentChannel, PrismaClient, Store } from '@prisma/client';
-import { ForbiddenError, NotFoundError, type TenantContext } from '../context.js';
+import { ForbiddenError, NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { StorefrontService } from './storefront.service.js';
+
+/** A delegated-payment mandate an AI buyer-agent presents: authorization to pay
+ * up to `maxAmountMinor` in `currency`, identified by `ref` (AP2/ACP-style). */
+export interface PaymentMandate {
+  ref: string;
+  maxAmountMinor: number;
+  currency: string;
+}
 
 export const AGENT_CHANNELS: AgentChannel[] = ['CLAUDE', 'CHATGPT', 'GEMINI', 'PERPLEXITY', 'COPILOT', 'META_AI'];
 
@@ -213,9 +221,62 @@ export class ShopabilityService {
     return this.storefront.createCart(storeId, input ?? {});
   }
 
-  /** Gated agent checkout — delegates to the storefront once shoppable. */
-  async checkout(storeId: string, channelInput: string | null, cartId: string, opts: any) {
-    await this.assertShoppable(storeId, channelInput);
-    return this.storefront.checkout(cartId, opts ?? {});
+  /**
+   * Gated agent checkout. Beyond the shopability switch, an agent purchase must
+   * carry a **delegated-payment mandate** (the buyer's authorization to pay up to
+   * a cap) — without it, or if it doesn't cover the cart, the checkout is rejected
+   * and audited. Every attempt is recorded with the assistant channel for
+   * attribution.
+   */
+  async checkout(
+    storeId: string,
+    channelInput: string | null,
+    cartId: string,
+    opts: { mandate?: PaymentMandate; email?: string; redeemPoints?: number } = {},
+  ) {
+    const channel = await this.assertShoppable(storeId, channelInput);
+    if (!cartId) throw new ValidationError('cartId is required.');
+
+    const cart = await this.prisma.cart.findFirst({ where: { id: cartId, storeId }, include: { items: true } });
+    if (!cart) throw new NotFoundError('Cart', cartId);
+    const store = await this.prisma.store.findUnique({ where: { id: storeId }, select: { tenantId: true, currency: true } });
+    if (!store) throw new NotFoundError('Store', storeId);
+    const cartTotal = cart.items.reduce((s, i) => s + i.unitPriceMinor * i.quantity, 0);
+
+    const reject = async (reason: string) => {
+      await this.prisma.agentCheckout.create({
+        data: {
+          tenantId: store.tenantId, storeId, cartId, channel: channel ?? undefined,
+          mandateRef: opts.mandate?.ref ?? '(none)', maxAmountMinor: opts.mandate?.maxAmountMinor ?? 0,
+          amountMinor: cartTotal, currency: store.currency, status: 'REJECTED', reason,
+        },
+      });
+      throw new ForbiddenError(`Agent checkout rejected: ${reason}.`);
+    };
+
+    const m = opts.mandate;
+    if (!m || !m.ref || typeof m.maxAmountMinor !== 'number') await reject('missing_payment_mandate');
+    else if (m.currency && m.currency !== store.currency) await reject('currency_mismatch');
+    else if (m.maxAmountMinor < cartTotal) await reject('mandate_insufficient');
+
+    const result: any = await this.storefront.checkout(cartId, { email: opts.email, redeemPoints: opts.redeemPoints });
+    const orderTotal = result?.order?.totalMinor ?? cartTotal;
+    const agentCheckout = await this.prisma.agentCheckout.create({
+      data: {
+        tenantId: store.tenantId, storeId, cartId, orderId: result?.order?.id ?? null, channel: channel ?? undefined,
+        mandateRef: m!.ref, maxAmountMinor: m!.maxAmountMinor, amountMinor: orderTotal, currency: store.currency, status: 'AUTHORIZED',
+      },
+    });
+    return { ...result, agentCheckout: { id: agentCheckout.id, channel, mandateRef: m!.ref, amountMinor: orderTotal } };
+  }
+
+  /** Recent agent-checkout audit (owner/partner view: who bought via which assistant). */
+  async checkoutLog(ctx: TenantContext, storeId: string, limit = 50) {
+    await this.getStore(ctx, storeId);
+    return this.prisma.agentCheckout.findMany({
+      where: { tenantId: ctx.tenantId, storeId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   }
 }

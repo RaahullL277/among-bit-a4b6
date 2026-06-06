@@ -11,6 +11,7 @@ describe.skipIf(!hasDb)('shopability (AI-assistant commerce)', () => {
   const commerce = new Commerce(prisma);
   let ctx: TenantContext;
   let storeId: string;
+  let variantId: string;
 
   beforeAll(async () => {
     process.env.CORE_ENCRYPTION_KEY ??= randomBytes(32).toString('base64');
@@ -18,7 +19,10 @@ describe.skipIf(!hasDb)('shopability (AI-assistant commerce)', () => {
     ctx = { tenantId: tenant.id };
     const store = await commerce.stores.create(ctx, { name: 'Shop Store' });
     storeId = store.id;
-    await commerce.products.create(ctx, { storeId, title: 'Widget', status: 'ACTIVE', variants: [{ priceMinor: 49900, inventory: 5 }] });
+    const product = await commerce.products.create(ctx, { storeId, title: 'Widget', status: 'ACTIVE', variants: [{ priceMinor: 49900, inventory: 5 }] });
+    variantId = product.variants[0].id;
+    // Payment provider so agent checkout can complete an order.
+    await commerce.integrations.configure(ctx, { storeId, provider: 'RAZORPAY', credentials: { webhookSecret: 's' } });
   });
 
   afterAll(async () => {
@@ -85,5 +89,41 @@ describe.skipIf(!hasDb)('shopability (AI-assistant commerce)', () => {
     expect(commerce.shopability.resolveChannel('google')).toBe('GEMINI');
     expect(commerce.shopability.resolveChannel('anthropic')).toBe('CLAUDE');
     expect(commerce.shopability.resolveChannel('unknown-bot')).toBeNull();
+  });
+
+  it('agent checkout requires a delegated-payment mandate that covers the cart', async () => {
+    // Re-enable everything (a prior test left ChatGPT off / master toggled).
+    await commerce.shopability.update(ctx, storeId, { enabled: true, enabledChannels: ['CLAUDE', 'CHATGPT', 'GEMINI', 'PERPLEXITY', 'COPILOT', 'META_AI'] });
+    const newCart = () => commerce.storefront.createCart(storeId, { items: [{ variantId, quantity: 1 }] });
+
+    // No mandate → rejected + audited.
+    const c1 = await newCart();
+    await expect(commerce.shopability.checkout(storeId, 'claude', c1.id, {})).rejects.toBeInstanceOf(ForbiddenError);
+
+    // Mandate too small (cart is ₹499 = 49900) → rejected.
+    const c2 = await newCart();
+    await expect(
+      commerce.shopability.checkout(storeId, 'claude', c2.id, { mandate: { ref: 'mnd_1', maxAmountMinor: 10000, currency: 'INR' } }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    // Valid mandate → authorized order, attributed to the assistant.
+    const c3 = await newCart();
+    const res: any = await commerce.shopability.checkout(storeId, 'claude', c3.id, { mandate: { ref: 'mnd_ok', maxAmountMinor: 100000, currency: 'INR' }, email: 'buyer@ex.com' });
+    expect(res.order?.id).toBeTruthy();
+    expect(res.agentCheckout.channel).toBe('CLAUDE');
+    expect(res.agentCheckout.mandateRef).toBe('mnd_ok');
+
+    // A disabled assistant is blocked before any mandate check.
+    await commerce.shopability.setChannel(ctx, storeId, 'CHATGPT', false);
+    const c4 = await newCart();
+    await expect(
+      commerce.shopability.checkout(storeId, 'chatgpt', c4.id, { mandate: { ref: 'm', maxAmountMinor: 100000, currency: 'INR' } }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    // Audit log captures both AUTHORIZED and REJECTED with the assistant + reason.
+    const log = await commerce.shopability.checkoutLog(ctx, storeId);
+    expect(log.some((r) => r.status === 'AUTHORIZED' && r.channel === 'CLAUDE')).toBe(true);
+    expect(log.some((r) => r.status === 'REJECTED' && r.reason === 'missing_payment_mandate')).toBe(true);
+    expect(log.some((r) => r.reason === 'mandate_insufficient')).toBe(true);
   });
 });

@@ -32,8 +32,10 @@ describe.skipIf(!hasDb)('engagement automation', () => {
   const variants: string[] = [];
   const products: string[] = [];
 
-  async function customer(email: string, name: string) {
-    return prisma.customer.create({ data: { tenantId: ctx.tenantId, storeId, email, name } });
+  async function customer(email: string, name: string, consent = true) {
+    return prisma.customer.create({
+      data: { tenantId: ctx.tenantId, storeId, email, name, marketingConsent: consent, marketingConsentAt: consent ? new Date() : null },
+    });
   }
   async function paidOrder(customerId: string, variantId: string, amount: number, daysAgo: number) {
     const last = await prisma.order.aggregate({ where: { storeId }, _max: { number: true } });
@@ -135,5 +137,25 @@ describe.skipIf(!hasDb)('engagement automation', () => {
     const log = await commerce.engagement.listLog(ctx, storeId, { limit: 100 });
     expect(log.some((m) => m.status === 'SENT')).toBe(true);
     expect(log.some((m) => m.status === 'SUPPRESSED')).toBe(true);
+  });
+
+  it('skips customers without marketing consent (and the unsubscribed)', async () => {
+    const noConsent = await customer('noconsent@ex.com', 'No Consent', false);
+    const unsub = await customer('unsub@ex.com', 'Un Sub', true);
+    await commerce.customers.unsubscribe(storeId, 'unsub@ex.com');
+
+    const run = await commerce.engagement.run(ctx, storeId, { dryRun: true });
+    const byCustomer = new Map(run.messages.map((m: any) => [m.customerId, m]));
+    expect(byCustomer.get(noConsent.id)?.status).toBe('SKIPPED');
+    expect(byCustomer.get(noConsent.id)?.reason).toBe('no_consent');
+    expect(byCustomer.get(unsub.id)?.status).toBe('SKIPPED');
+    expect(byCustomer.get(unsub.id)?.reason).toBe('unsubscribed');
+
+    // Granting consent makes them reachable again; messages carry an opt-out footer.
+    await commerce.customers.setMarketingConsent(ctx, noConsent.id, true);
+    const after = await commerce.engagement.run(ctx, storeId, { dryRun: true });
+    const msg = after.messages.find((m: any) => m.customerId === noConsent.id);
+    expect(msg?.status).toBe('SENT');
+    expect(msg?.body.toLowerCase()).toMatch(/unsubscribe|opt out/); // opt-out footer present
   });
 });

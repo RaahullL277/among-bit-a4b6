@@ -32,6 +32,13 @@ The toggle gates the public surface assistants consume:
   assistant) is switched off.
 - `POST /agent/{storeId}/carts` and `POST /agent/{storeId}/checkout` — gated buy actions.
 
+### Agent checkout requires a payment mandate
+`POST /agent/{storeId}/checkout` must include a **delegated-payment mandate** — the buyer's
+authorization to pay up to a cap: `{ cartId, mandate: { ref, maxAmountMinor, currency } }`.
+A checkout with no mandate, a currency mismatch, or a cap below the cart total is **rejected**
+and audited. Every attempt is recorded with the assistant channel for revenue attribution
+(owner/partner view: `GET /shopability/agent-checkouts`).
+
 So "disable ChatGPT shopping" means ChatGPT gets `shoppable: false` from the manifest and a
 403 from the feed/checkout, while other assistants keep working.
 

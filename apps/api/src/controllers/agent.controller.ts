@@ -48,7 +48,7 @@ export class AgentController {
   @Post(':storeId/checkout')
   checkout(
     @Param('storeId') storeId: string,
-    @Body() body: { cartId: string; email?: string; redeemPoints?: number },
+    @Body() body: { cartId: string; email?: string; redeemPoints?: number; mandate?: { ref: string; maxAmountMinor: number; currency: string } },
     @Query('channel') channel?: string,
     @Headers('x-agent-channel') header?: string,
   ): Promise<unknown> {

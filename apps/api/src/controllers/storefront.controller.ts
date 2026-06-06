@@ -52,6 +52,17 @@ export class StorefrontController {
     return this.commerce.cohorts.track({ storeId, ...(body ?? {}) });
   }
 
+  // --- Marketing consent (public; newsletter opt-in + unsubscribe) ----------
+  @Post(':storeId/marketing-consent')
+  marketingOptIn(@Param('storeId') storeId: string, @Body() body: { email: string; name?: string }) {
+    return this.commerce.customers.optIn(storeId, body?.email, body?.name);
+  }
+
+  @Post(':storeId/unsubscribe')
+  unsubscribe(@Param('storeId') storeId: string, @Body() body: { email: string }) {
+    return this.commerce.customers.unsubscribe(storeId, body?.email);
+  }
+
   // --- Support chatbot (public) ---------------------------------------------
   @Get(':storeId/support/config')
   supportConfig(@Param('storeId') storeId: string) {

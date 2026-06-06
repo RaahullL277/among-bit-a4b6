@@ -107,6 +107,59 @@ export class CustomerService {
     return customer;
   }
 
+  // --- Marketing consent / opt-out ------------------------------------------
+
+  /** Record (or withdraw) promotional-marketing consent. Withdrawing also
+   * stamps an unsubscribe so the customer is excluded from engagement sends. */
+  async setMarketingConsent(ctx: TenantContext, id: string, consent: boolean) {
+    await this.get(ctx, id);
+    return this.prisma.customer.update({
+      where: { id },
+      data: {
+        marketingConsent: consent,
+        marketingConsentAt: consent ? new Date() : null,
+        unsubscribedAt: consent ? null : new Date(),
+      },
+    });
+  }
+
+  /** Public opt-in by email (newsletter/checkbox). Upserts a minimal customer. */
+  async optIn(storeId: string, email: string, name?: string) {
+    if (!email) throw new ValidationError('email is required.');
+    const store = await this.prisma.store.findUnique({ where: { id: storeId }, select: { tenantId: true } });
+    if (!store) throw new NotFoundError('Store', storeId);
+    const existing = await this.prisma.customer.findFirst({
+      where: { storeId, email: { equals: email, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.prisma.customer.update({
+        where: { id: existing.id },
+        data: { marketingConsent: true, marketingConsentAt: new Date(), unsubscribedAt: null, name: name ?? undefined },
+      });
+    } else {
+      await this.prisma.customer.create({
+        data: { tenantId: store.tenantId, storeId, email, name, marketingConsent: true, marketingConsentAt: new Date() },
+      });
+    }
+    return { optedIn: true };
+  }
+
+  /** Public unsubscribe by email (from a message footer / preferences page). */
+  async unsubscribe(storeId: string, email: string) {
+    if (!email) throw new ValidationError('email is required.');
+    const result = await this.prisma.customer.updateMany({
+      where: { storeId, email: { equals: email, mode: 'insensitive' } },
+      data: { marketingConsent: false, unsubscribedAt: new Date() },
+    });
+    return { unsubscribed: result.count > 0 };
+  }
+
+  /** True when the customer may receive promotional messages right now. */
+  static isReachableForMarketing(c: { marketingConsent: boolean; unsubscribedAt: Date | null }): boolean {
+    return c.marketingConsent && !c.unsubscribedAt;
+  }
+
   // --- List with per-customer stats + search + segment filter ---------------
 
   async list(ctx: TenantContext, storeId: string, opts: { search?: string; segment?: CustomerSegment } = {}) {
@@ -197,6 +250,8 @@ export class CustomerService {
         phone: customer.phone,
         tags: customer.tags,
         notes: customer.notes,
+        marketingConsent: customer.marketingConsent,
+        unsubscribedAt: customer.unsubscribedAt,
         createdAt: customer.createdAt,
       },
       segment: this.segment(stats),

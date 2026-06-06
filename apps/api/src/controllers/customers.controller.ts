@@ -60,4 +60,10 @@ export class CustomersController {
   update(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
     return this.commerce.customers.update(t, id, body);
   }
+
+  @Patch(':id/consent')
+  @Permissions('customers:write')
+  consent(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: { consent: boolean }) {
+    return this.commerce.customers.setMarketingConsent(t, id, Boolean(body?.consent));
+  }
 }

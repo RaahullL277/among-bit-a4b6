@@ -320,6 +320,15 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'set_customer_consent',
+    {
+      description: 'Record or withdraw a customer\'s marketing (promotional) consent. Withdrawing also unsubscribes them, excluding them from engagement sends. Transactional order notices are unaffected.',
+      inputSchema: { customerId: z.string(), consent: z.boolean() },
+    },
+    tool((ctx, a: any) => commerce.customers.setMarketingConsent(ctx, a.customerId, a.consent)),
+  );
+
+  server.registerTool(
     'customer_summary',
     {
       description: 'Store CRM summary: customer count, repeat rate, average lifetime value, and a segment breakdown.',

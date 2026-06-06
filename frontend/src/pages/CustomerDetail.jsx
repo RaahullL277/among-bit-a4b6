@@ -34,6 +34,18 @@ export default function CustomerDetail() {
   const [tagInput, setTagInput] = useState('');
   const [notes, setNotes] = useState(null);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
+
+  async function toggleConsent() {
+    setSavingConsent(true);
+    try {
+      const c = data.customer;
+      await api.customers.setConsent(id, !(c.marketingConsent && !c.unsubscribedAt));
+      reload();
+    } finally {
+      setSavingConsent(false);
+    }
+  }
 
   async function addTag(e) {
     e.preventDefault();
@@ -190,6 +202,24 @@ export default function CustomerDetail() {
                   <Button onClick={saveNotes} loading={savingNotes}>Save notes</Button>
                 </div>
               )}
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <div className="mb-1 text-xs font-medium text-slate-500">Marketing consent</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  {customer.unsubscribedAt ? (
+                    <span className="text-rose-600">Unsubscribed</span>
+                  ) : customer.marketingConsent ? (
+                    <span className="text-emerald-600">Opted in</span>
+                  ) : (
+                    <span className="text-slate-500">No consent</span>
+                  )}
+                  <span className="ml-2 text-xs text-slate-400">Gates promotional engagement (not order notices)</span>
+                </div>
+                <Button variant="secondary" onClick={toggleConsent} loading={savingConsent}>
+                  {customer.marketingConsent && !customer.unsubscribedAt ? 'Withdraw' : 'Grant consent'}
+                </Button>
+              </div>
             </div>
           </div>
         </Card>

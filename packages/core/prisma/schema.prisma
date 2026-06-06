@@ -459,6 +459,13 @@ model Store {
   seoSettings  SeoSettings?
   images       ImageAsset[]
   pricingRule  PricingRule?
+  behaviorEvents      BehaviorEvent[]
+  cohorts             Cohort[]
+  engagementCampaigns EngagementCampaign[]
+  engagementPolicy    EngagementPolicy?
+  engagementMessages  EngagementMessage[]
+  shopabilityConfig   ShopabilityConfig?
+  agentCheckouts      AgentCheckout[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -541,6 +548,11 @@ model Customer {
   acqSource   String?
   acqCampaign String?
   acqTerm     String?
+  // Marketing consent (gates promotional engagement, not transactional notices).
+  // Explicit opt-in required; an unsubscribe always overrides consent.
+  marketingConsent   Boolean   @default(false)
+  marketingConsentAt DateTime?
+  unsubscribedAt     DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -548,6 +560,9 @@ model Customer {
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
   subscriptions  Subscription[]
+  behaviorEvents     BehaviorEvent[]
+  cohortMemberships  CohortMembership[]
+  engagementMessages EngagementMessage[]
 
   @@index([tenantId])
   @@index([storeId])
@@ -1433,6 +1448,9 @@ model BehaviorEvent {
   term        String?
   createdAt   DateTime          @default(now())
 
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
   @@index([tenantId])
   @@index([storeId, type])
   @@index([customerId])
@@ -1453,6 +1471,7 @@ model Cohort {
   size      Int        @default(0)
   updatedAt DateTime   @updatedAt
 
+  store   Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
   members CohortMembership[]
 
   @@unique([storeId, key])
@@ -1467,7 +1486,8 @@ model CohortMembership {
   customerId String
   weight     Float  @default(1)
 
-  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  cohort   Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@unique([cohortId, customerId])
   @@index([customerId])
@@ -1490,6 +1510,8 @@ model EngagementCampaign {
   priority     Int                 @default(0) // higher wins cross-trigger dedup
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, trigger, channel])
   @@index([tenantId])
@@ -1515,6 +1537,8 @@ model EngagementPolicy {
   lastRunAt           DateTime? // last automated run (daily cadence guard)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 // Per-store "shopability": whether the catalog is exposed to external AI shopping
@@ -1531,7 +1555,33 @@ model ShopabilityConfig {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
   @@index([tenantId])
+}
+
+// Audit of agent-initiated checkouts. Records the delegated-payment mandate the
+// buyer's AI agent presented (authorization to pay up to a cap) and which
+// assistant drove the purchase — both for enforcement and revenue attribution.
+model AgentCheckout {
+  id             String        @id @default(cuid())
+  tenantId       String
+  storeId        String
+  cartId         String
+  orderId        String?
+  channel        AgentChannel?
+  mandateRef     String
+  maxAmountMinor Int
+  amountMinor    Int
+  currency       String
+  status         String // AUTHORIZED | REJECTED
+  reason         String?
+  createdAt      DateTime      @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([storeId, createdAt])
 }
 
 // Send log — the source of truth for frequency capping, dedup, and the audit UI.
@@ -1552,6 +1602,9 @@ model EngagementMessage {
   productIds  String[]             @default([]) // products featured in the message
   dryRun      Boolean              @default(false)
   createdAt   DateTime             @default(now())
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([storeId, status, createdAt])

@@ -22,6 +22,10 @@ export default function Shopability() {
     () => (selectedId ? api.shopability.get(selectedId) : Promise.resolve(null)),
     [selectedId],
   );
+  const { data: checkouts } = useAsync(
+    () => (selectedId ? api.shopability.agentCheckouts(selectedId) : Promise.resolve([])),
+    [selectedId],
+  );
 
   async function toggleMaster() {
     setBusy('master');
@@ -130,6 +134,40 @@ export default function Shopability() {
           <EndpointRow label="Manifest" url={manifestUrl} hint="Tells an assistant whether it may shop" />
           <EndpointRow label="Product feed" url={feedUrl} hint="Catalog for browsing (403 when disabled)" />
         </div>
+        <div className="border-t border-slate-50 px-5 py-2 text-xs text-slate-400">
+          Agent purchases require a delegated-payment mandate (the buyer's authorization to pay up to a cap); checkouts without one are rejected.
+        </div>
+      </Card>
+
+      {/* Agent-driven orders (attribution) */}
+      <Card>
+        <CardHeader title="Agent checkouts" subtitle="Purchases initiated by AI assistants — attribution & mandate audit" />
+        {(checkouts ?? []).length === 0 ? (
+          <div className="px-5 py-6 text-sm text-slate-400">No agent checkouts yet.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+                <th className="px-5 py-2">Assistant</th><th className="px-5 py-2">Status</th>
+                <th className="px-5 py-2">Amount</th><th className="px-5 py-2">Mandate</th><th className="px-5 py-2">When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(checkouts ?? []).map((c) => (
+                <tr key={c.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-5 py-2 font-medium text-slate-800">{c.channel ?? 'Generic'}</td>
+                  <td className="px-5 py-2">
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${c.status === 'AUTHORIZED' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{c.status}</span>
+                    {c.reason && <span className="ml-1.5 text-[11px] text-slate-400">{c.reason}</span>}
+                  </td>
+                  <td className="px-5 py-2 text-slate-600">₹{(c.amountMinor / 100).toFixed(0)}</td>
+                  <td className="px-5 py-2 text-xs text-slate-400">{c.mandateRef}</td>
+                  <td className="px-5 py-2 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString('en-IN')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
     </div>
   );
