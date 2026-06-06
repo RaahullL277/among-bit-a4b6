@@ -24,6 +24,8 @@ import { PagesController } from './controllers/pages.controller.js';
 import { TemplatesController } from './controllers/templates.controller.js';
 import { CohortsController } from './controllers/cohorts.controller.js';
 import { EngagementController } from './controllers/engagement.controller.js';
+import { ShopabilityController } from './controllers/shopability.controller.js';
+import { AgentController } from './controllers/agent.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
 import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { SubscriptionsController } from './controllers/subscriptions.controller.js';
@@ -62,6 +64,8 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     TemplatesController,
     CohortsController,
     EngagementController,
+    ShopabilityController,
+    AgentController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,

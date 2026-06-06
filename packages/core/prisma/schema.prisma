@@ -283,6 +283,16 @@ enum EngagementSendStatus {
   FAILED      // provider error
 }
 
+// External AI shopping assistants the store can be made shoppable through.
+enum AgentChannel {
+  CLAUDE
+  CHATGPT
+  GEMINI
+  PERPLEXITY
+  COPILOT
+  META_AI
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -1505,6 +1515,23 @@ model EngagementPolicy {
   lastRunAt           DateTime? // last automated run (daily cadence guard)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+// Per-store "shopability": whether the catalog is exposed to external AI shopping
+// assistants (Claude, ChatGPT, Gemini, …) via the public agent-commerce surface,
+// and which assistants specifically. Independent of the human storefront, so a
+// store can be open on the web but closed to agents (or the reverse).
+model ShopabilityConfig {
+  id              String         @id @default(cuid())
+  tenantId        String
+  storeId         String         @unique
+  enabled         Boolean        @default(true) // master agentic-commerce switch
+  enabledChannels AgentChannel[] @default([CLAUDE, CHATGPT, GEMINI, PERPLEXITY, COPILOT, META_AI])
+  agentNote       String? // optional guidance surfaced to AI agents in the manifest
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([tenantId])
 }
 
 // Send log — the source of truth for frequency capping, dedup, and the audit UI.

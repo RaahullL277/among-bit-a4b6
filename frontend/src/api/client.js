@@ -113,6 +113,11 @@ export const api = {
     schedule: (storeId) => request(`/cohorts/schedule?${qs({ storeId })}`),
     recompute: (storeId) => request('/cohorts/recompute', { method: 'POST', body: { storeId } }),
   },
+  shopability: {
+    get: (storeId) => request(`/shopability?${qs({ storeId })}`),
+    update: (body) => request('/shopability', { method: 'PUT', body }),
+    setChannel: (storeId, channel, enabled) => request('/shopability/channel', { method: 'PUT', body: { storeId, channel, enabled } }),
+  },
   engagement: {
     library: () => request('/engagement/library'),
     templates: (trigger, channel) => request(`/engagement/templates?${qs({ trigger, channel })}`),

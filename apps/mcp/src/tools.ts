@@ -475,6 +475,41 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.engagement.listLog(ctx, a.storeId, { limit: a.limit, includeDryRun: a.includeDryRun })),
   );
 
+  // --- Shopability (AI-assistant commerce on/off) ---------------------------
+  const AGENT_CHANNEL = z.enum(['CLAUDE', 'CHATGPT', 'GEMINI', 'PERPLEXITY', 'COPILOT', 'META_AI']);
+
+  server.registerTool(
+    'get_shopability',
+    {
+      description: 'Whether the store is shoppable by external AI assistants (Claude, ChatGPT, Gemini, Perplexity, Copilot, Meta AI), and which ones are enabled.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.shopability.get(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_shopability',
+    {
+      description: 'Enable/disable the store for AI-assistant shopping. Set the master switch (enabled), replace the set of allowed assistants (enabledChannels), and/or set a note shown to agents.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        enabledChannels: z.array(AGENT_CHANNEL).optional(),
+        agentNote: z.string().nullable().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.shopability.update(ctx, a.storeId, a)),
+  );
+
+  server.registerTool(
+    'set_shopability_channel',
+    {
+      description: 'Turn a single AI assistant\'s shopping on or off for the store (e.g. disable ChatGPT but keep Claude).',
+      inputSchema: { storeId: z.string(), channel: AGENT_CHANNEL, enabled: z.boolean() },
+    },
+    tool((ctx, a: any) => commerce.shopability.setChannel(ctx, a.storeId, a.channel, a.enabled)),
+  );
+
   // --- Orders ---------------------------------------------------------------
   server.registerTool(
     'list_orders',

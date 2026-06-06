@@ -15,6 +15,7 @@ import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import Cohorts from './pages/Cohorts';
 import Automation from './pages/Automation';
+import Shopability from './pages/Shopability';
 import Integrations from './pages/Integrations';
 import Notifications from './pages/Notifications';
 import Support from './pages/Support';
@@ -47,6 +48,7 @@ function AuthedApp() {
           <Route path="/customers/:id" element={<CustomerDetail />} />
           <Route path="/cohorts" element={<Cohorts />} />
           <Route path="/automation" element={<Automation />} />
+          <Route path="/shopability" element={<Shopability />} />
           <Route path="/integrations" element={<Integrations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/support" element={<Support />} />
