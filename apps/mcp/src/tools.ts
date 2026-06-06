@@ -935,6 +935,42 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.stock.setPolicy(ctx, a)),
   );
 
+  server.registerTool(
+    'receive_stock',
+    {
+      description: 'Receive a restock / purchase order: add units to a variant\'s on-hand inventory. Records a RECEIVE movement in the ledger.',
+      inputSchema: { variantId: z.string(), quantity: z.number().int().positive(), note: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.stock.receive(ctx, a)),
+  );
+
+  server.registerTool(
+    'adjust_stock',
+    {
+      description: 'Manually correct a variant\'s inventory by a signed delta (e.g. -2 for damage/shrinkage). Records an ADJUST movement.',
+      inputSchema: { variantId: z.string(), delta: z.number().int(), note: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.stock.adjust(ctx, a)),
+  );
+
+  server.registerTool(
+    'set_inventory',
+    {
+      description: 'Set a variant\'s absolute on-hand count (a stocktake / recount). Records the implied ADJUST movement.',
+      inputSchema: { variantId: z.string(), quantity: z.number().int().nonnegative(), note: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.stock.setInventory(ctx, a)),
+  );
+
+  server.registerTool(
+    'stock_ledger',
+    {
+      description: 'Inventory movement ledger for a store (optionally one variant): every change with reason (SALE/RETURN/CANCEL/RECEIVE/ADJUST), applied delta, resulting balance, and actor.',
+      inputSchema: { storeId: z.string(), variantId: z.string().optional(), limit: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.stock.ledger(ctx, a)),
+  );
+
   // --- Shipping -------------------------------------------------------------
   server.registerTool(
     'create_shipment',

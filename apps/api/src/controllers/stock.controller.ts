@@ -32,4 +32,35 @@ export class StockController {
   recompute() {
     return this.commerce.stock.recomputeAndAlert();
   }
+
+  // --- Manual stock adjustments + ledger ------------------------------------
+
+  @Post('stock/adjust')
+  @Permissions('products:write')
+  adjust(@Tenant() t: TenantContext, @Body() body: { variantId: string; delta: number; note?: string }) {
+    return this.commerce.stock.adjust(t, body);
+  }
+
+  @Post('stock/receive')
+  @Permissions('products:write')
+  receive(@Tenant() t: TenantContext, @Body() body: { variantId: string; quantity: number; note?: string }) {
+    return this.commerce.stock.receive(t, body);
+  }
+
+  @Put('stock/inventory')
+  @Permissions('products:write')
+  setInventory(@Tenant() t: TenantContext, @Body() body: { variantId: string; quantity: number; note?: string }) {
+    return this.commerce.stock.setInventory(t, body);
+  }
+
+  @Get('stock/ledger')
+  @Permissions('products:read')
+  ledger(
+    @Tenant() t: TenantContext,
+    @Query('storeId') storeId: string,
+    @Query('variantId') variantId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.commerce.stock.ledger(t, { storeId, variantId, limit: limit ? Number(limit) : undefined });
+  }
 }

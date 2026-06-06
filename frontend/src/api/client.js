@@ -245,6 +245,10 @@ export const api = {
     getPolicy: (storeId) => request(`/stock-policy?storeId=${encodeURIComponent(storeId)}`),
     setPolicy: (body) => request('/stock-policy', { method: 'PUT', body }),
     recompute: () => request('/stock/recompute', { method: 'POST' }),
+    setInventory: (body) => request('/stock/inventory', { method: 'PUT', body }),
+    adjust: (body) => request('/stock/adjust', { method: 'POST', body }),
+    receive: (body) => request('/stock/receive', { method: 'POST', body }),
+    ledger: (storeId, variantId) => request(`/stock/ledger?${qs({ storeId, variantId })}`),
   },
   carts: {
     list: (storeId, status) =>

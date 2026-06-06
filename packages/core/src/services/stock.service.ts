@@ -1,7 +1,16 @@
-import type { PrismaClient, StockStatus } from '@prisma/client';
+import type { PrismaClient, StockStatus, StockMovementReason } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
+import type { Actor } from '../authz.js';
 import { defaultStockScorer, type StockScorer } from '../stock/scorer.js';
 import type { NotificationService } from './notification.service.js';
+
+function actorKind(actor?: Actor): string {
+  return actor?.kind ?? 'system';
+}
+function actorId(actor?: Actor): string | undefined {
+  if (!actor) return undefined;
+  return actor.kind === 'user' ? actor.userId : actor.kind === 'partner' ? actor.partnerId : undefined;
+}
 
 const DEFAULT_POLICY = {
   enabled: true,
@@ -180,31 +189,72 @@ export class StockService {
     }
   }
 
+  /**
+   * Apply one inventory movement atomically (read-modify-write in a transaction)
+   * and append a ledger row capturing the applied delta, resulting balance,
+   * reason, and actor. `allowNegative=false` clamps tracked stock at 0.
+   */
+  private async move(args: {
+    tenantId: string;
+    storeId: string;
+    variantId: string;
+    delta?: number; // relative change
+    setTo?: number; // absolute target (overrides delta)
+    reason: StockMovementReason;
+    allowNegative?: boolean;
+    note?: string;
+    orderId?: string;
+    returnId?: string;
+    actor?: Actor;
+  }): Promise<number | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const v = await tx.productVariant.findUnique({ where: { id: args.variantId }, select: { inventory: true } });
+      if (!v) return null;
+      let balance = args.setTo != null ? args.setTo : v.inventory + (args.delta ?? 0);
+      if (!args.allowNegative && balance < 0) balance = 0;
+      const applied = balance - v.inventory;
+      if (applied !== 0) {
+        await tx.productVariant.update({ where: { id: args.variantId }, data: { inventory: balance } });
+      }
+      await tx.stockMovement.create({
+        data: {
+          tenantId: args.tenantId,
+          storeId: args.storeId,
+          variantId: args.variantId,
+          delta: applied,
+          balance,
+          reason: args.reason,
+          note: args.note,
+          orderId: args.orderId,
+          returnId: args.returnId,
+          actorKind: actorKind(args.actor),
+          actorId: actorId(args.actor),
+        },
+      });
+      return balance;
+    });
+  }
+
   /** Decrement stock for a paid order's items (idempotency is the caller's job). */
   async applyOrderSale(orderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { storeId: true, items: { select: { variantId: true, quantity: true } } } });
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { tenantId: true, storeId: true, items: { select: { variantId: true, quantity: true } } } });
     if (!order) return;
     const p = await this.fulfillmentPolicy(order.storeId);
     if (!p.trackInventory) return;
     for (const it of order.items) {
       if (!it.variantId) continue;
-      if (p.allowBackorder) {
-        await this.prisma.productVariant.update({ where: { id: it.variantId }, data: { inventory: { decrement: it.quantity } } });
-      } else {
-        // Clamp at 0 atomically so a race can't push tracked stock negative.
-        await this.prisma.$executeRaw`UPDATE "ProductVariant" SET inventory = GREATEST(inventory - ${it.quantity}, 0) WHERE id = ${it.variantId}`;
-      }
+      await this.move({ tenantId: order.tenantId, storeId: order.storeId, variantId: it.variantId, delta: -it.quantity, reason: 'SALE', allowNegative: p.allowBackorder, orderId });
     }
   }
 
   /** Return all of an order's items to stock (full cancellation of a paid order). */
   async restoreOrder(orderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { storeId: true, items: { select: { variantId: true, quantity: true } } } });
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { tenantId: true, storeId: true, items: { select: { variantId: true, quantity: true } } } });
     if (!order) return;
     const p = await this.fulfillmentPolicy(order.storeId);
     if (!p.trackInventory) return;
     for (const it of order.items) {
-      if (it.variantId) await this.prisma.productVariant.update({ where: { id: it.variantId }, data: { inventory: { increment: it.quantity } } });
+      if (it.variantId) await this.move({ tenantId: order.tenantId, storeId: order.storeId, variantId: it.variantId, delta: it.quantity, reason: 'CANCEL', allowNegative: true, orderId });
     }
   }
 
@@ -212,7 +262,7 @@ export class StockService {
   async restoreReturn(returnId: string) {
     const ret = await this.prisma.return.findUnique({
       where: { id: returnId },
-      select: { storeId: true, reason: true, items: { select: { quantity: true, orderItem: { select: { variantId: true } } } } },
+      select: { tenantId: true, storeId: true, reason: true, items: { select: { quantity: true, orderItem: { select: { variantId: true } } } } },
     });
     if (!ret) return;
     if (ret.reason === 'DAMAGED') return; // damaged goods aren't resaleable
@@ -220,8 +270,57 @@ export class StockService {
     if (!p.trackInventory) return;
     for (const ri of ret.items) {
       const variantId = ri.orderItem?.variantId;
-      if (variantId) await this.prisma.productVariant.update({ where: { id: variantId }, data: { inventory: { increment: ri.quantity } } });
+      if (variantId) await this.move({ tenantId: ret.tenantId, storeId: ret.storeId, variantId, delta: ri.quantity, reason: 'RETURN', allowNegative: true, returnId });
     }
+  }
+
+  // --- Manual stock adjustments (merchant / partner) ------------------------
+
+  private async resolveVariant(ctx: TenantContext, variantId: string) {
+    const v = await this.prisma.productVariant.findFirst({
+      where: { id: variantId, tenantId: ctx.tenantId },
+      select: { id: true, inventory: true, product: { select: { storeId: true } } },
+    });
+    if (!v) throw new NotFoundError('ProductVariant', variantId);
+    return { id: v.id, inventory: v.inventory, storeId: v.product.storeId };
+  }
+
+  /** Relative correction (e.g. -2 for damage). Backorder-aware clamping. */
+  async adjust(ctx: TenantContext, input: { variantId: string; delta: number; note?: string }) {
+    const v = await this.resolveVariant(ctx, input.variantId);
+    if (!Number.isFinite(input.delta) || input.delta === 0) throw new ValidationError('A non-zero delta is required.');
+    const p = await this.fulfillmentPolicy(v.storeId);
+    const inventory = await this.move({ tenantId: ctx.tenantId, storeId: v.storeId, variantId: v.id, delta: Math.round(input.delta), reason: 'ADJUST', allowNegative: p.allowBackorder, note: input.note, actor: ctx.actor });
+    return { variantId: v.id, inventory };
+  }
+
+  /** Set the absolute on-hand count (a recount). Records the implied delta. */
+  async setInventory(ctx: TenantContext, input: { variantId: string; quantity: number; note?: string }) {
+    const v = await this.resolveVariant(ctx, input.variantId);
+    const target = Math.round(input.quantity);
+    if (!Number.isFinite(target) || target < 0) throw new ValidationError('quantity must be a non-negative number.');
+    const inventory = await this.move({ tenantId: ctx.tenantId, storeId: v.storeId, variantId: v.id, setTo: target, reason: 'ADJUST', allowNegative: true, note: input.note, actor: ctx.actor });
+    return { variantId: v.id, inventory };
+  }
+
+  /** Receive a restock / purchase order (increment). */
+  async receive(ctx: TenantContext, input: { variantId: string; quantity: number; note?: string }) {
+    const v = await this.resolveVariant(ctx, input.variantId);
+    const qty = Math.round(input.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) throw new ValidationError('quantity must be a positive number.');
+    const inventory = await this.move({ tenantId: ctx.tenantId, storeId: v.storeId, variantId: v.id, delta: qty, reason: 'RECEIVE', allowNegative: true, note: input.note, actor: ctx.actor });
+    return { variantId: v.id, inventory };
+  }
+
+  /** The movement ledger for a store (optionally one variant). */
+  async ledger(ctx: TenantContext, input: { storeId: string; variantId?: string; limit?: number }) {
+    await this.assertStore(ctx, input.storeId);
+    return this.prisma.stockMovement.findMany({
+      where: { tenantId: ctx.tenantId, storeId: input.storeId, ...(input.variantId ? { variantId: input.variantId } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(input.limit ?? 100, 500),
+      select: { id: true, variantId: true, delta: true, balance: true, reason: true, note: true, orderId: true, returnId: true, actorKind: true, createdAt: true },
+    });
   }
 
   // --- Recompute + alert (worker job; not tenant-scoped) --------------------

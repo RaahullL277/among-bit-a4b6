@@ -13,6 +13,15 @@ quantity, so fast sellers surface before they run out.
 `get_stock_status` with `storeId` → red/amber/green health and days-of-cover for every
 variant, so you can see what needs reordering.
 
+## Adjust stock & the ledger
+- `receive_stock` (`variantId`, `quantity`) — add units from a restock / purchase order.
+- `adjust_stock` (`variantId`, `delta`) — relative correction, e.g. `-2` for damage/shrinkage.
+- `set_inventory` (`variantId`, `quantity`) — set the absolute on-hand count (a stocktake).
+- `stock_ledger` (`storeId`, optional `variantId`) — the full movement audit trail: every
+  change with its reason (SALE / RETURN / CANCEL / RECEIVE / ADJUST), applied delta,
+  resulting balance, and actor. Automated movements (sales/returns/cancels) show actor
+  `system`; manual ones record the user/partner who made them.
+
 ## Consumption & overselling
 Stock is **consumed when a sale is captured** (paid) and **returned** when a received
 return is restocked or a paid order is cancelled (damaged returns are not restocked).
