@@ -99,6 +99,12 @@ export const api = {
     create: (body) => request('/products', { method: 'POST', body }),
     update: (id, body) => request(`/products/${id}`, { method: 'PATCH', body }),
   },
+  listing: {
+    getConfig: (storeId) => request(`/listing/config?${qs({ storeId })}`),
+    setConfig: (body) => request('/listing/config', { method: 'PUT', body }),
+    draft: (body) => request('/listing/draft', { method: 'POST', body }),
+    publish: (body) => request('/listing/publish', { method: 'POST', body }),
+  },
   customers: {
     list: (storeId, search, segment) => request(`/customers?${qs({ storeId, search, segment })}`),
     summary: (storeId) => request(`/customers/summary?${qs({ storeId })}`),

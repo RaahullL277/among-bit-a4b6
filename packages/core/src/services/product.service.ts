@@ -6,6 +6,9 @@ export interface CreateProductInput {
   title: string;
   description?: string;
   status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  tags?: string[];
+  metaTitle?: string;
+  metaDescription?: string;
   variants?: VariantInput[];
 }
 
@@ -13,6 +16,7 @@ export interface VariantInput {
   title?: string;
   sku?: string;
   priceMinor: number;
+  compareAtMinor?: number;
   costMinor?: number;
   currency?: string;
   inventory?: number;
@@ -54,12 +58,16 @@ export class ProductService {
         title: input.title,
         description: input.description,
         status: input.status ?? 'DRAFT',
+        tags: input.tags ?? [],
+        metaTitle: input.metaTitle,
+        metaDescription: input.metaDescription,
         variants: {
           create: variants.map((v) => ({
             tenantId: ctx.tenantId,
             title: v.title ?? 'Default',
             sku: v.sku,
             priceMinor: v.priceMinor,
+            compareAtMinor: v.compareAtMinor,
             costMinor: v.costMinor ?? 0,
             currency: v.currency ?? 'INR',
             inventory: v.inventory ?? 0,

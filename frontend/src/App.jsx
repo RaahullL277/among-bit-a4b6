@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Stores from './pages/Stores';
 import Products from './pages/Products';
+import QuickList from './pages/QuickList';
 import Orders from './pages/Orders';
 import Carts from './pages/Carts';
 import Shipments from './pages/Shipments';
@@ -43,6 +44,7 @@ function AuthedApp() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/stores" element={<Stores />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/quick-list" element={<QuickList />} />
           <Route path="/stock" element={<Stock />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/carts" element={<Carts />} />

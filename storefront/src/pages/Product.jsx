@@ -89,7 +89,15 @@ export default function Product() {
         <div className="mb-4 flex h-48 items-center justify-center rounded-xl bg-stone-100 text-5xl">🛍️</div>
         <h1 className="text-xl font-semibold text-stone-900">{product.title}</h1>
         {product.description && <p className="mt-2 text-stone-600">{product.description}</p>}
-        <div className="mt-4 text-2xl font-semibold text-stone-900">{v ? money(v.priceMinor, v.currency) : '—'}</div>
+        <div className="mt-4 flex items-baseline gap-2">
+          <span className="text-2xl font-semibold text-stone-900">{v ? money(v.priceMinor, v.currency) : '—'}</span>
+          {v?.compareAtMinor > v?.priceMinor && (
+            <>
+              <span className="text-base text-stone-400 line-through">{money(v.compareAtMinor, v.currency)}</span>
+              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-semibold text-rose-700">{Math.round((1 - v.priceMinor / v.compareAtMinor) * 100)}% off</span>
+            </>
+          )}
+        </div>
 
         {subEnabled && v && (
           <div className="mt-4 space-y-2 rounded-xl border border-stone-200 p-3">

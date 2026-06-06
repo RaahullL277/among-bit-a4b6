@@ -50,7 +50,10 @@ export default function Home() {
               {p.description && <div className="mt-1 line-clamp-2 text-sm text-stone-500">{p.description}</div>}
             </Link>
             <div className="mt-4 flex items-center justify-between">
-              <span className="font-semibold text-stone-900">{v ? money(v.priceMinor, v.currency) : '—'}</span>
+              <span className="font-semibold text-stone-900">
+                {v ? money(v.priceMinor, v.currency) : '—'}
+                {v?.compareAtMinor > v?.priceMinor && <span className="ml-1.5 text-xs font-normal text-stone-400 line-through">{money(v.compareAtMinor, v.currency)}</span>}
+              </span>
               {v && (
                 <button
                   onClick={() => addToCart(v.id, 1)}

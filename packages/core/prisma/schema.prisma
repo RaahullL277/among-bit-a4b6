@@ -457,6 +457,7 @@ model Store {
   theme        StoreTheme?
   returns      Return[]
   returnPolicy ReturnPolicy?
+  listingAgentConfig ListingAgentConfig?
   loyaltyProgram LoyaltyProgram?
   subscriptions Subscription[]
   subscriptionSettings SubscriptionSettings?
@@ -498,6 +499,8 @@ model Product {
   title       String
   description String?
   status      ProductStatus @default(DRAFT)
+  // Free-form tags/keywords (set by the listing agent's content writer).
+  tags        String[]      @default([])
   // SEO overrides (fall back to store templates/title when unset).
   metaTitle       String?
   metaDescription String?
@@ -513,6 +516,30 @@ model Product {
   @@index([storeId])
 }
 
+// The customisable "harness" for the listing agent and its content-writer /
+// photo-enhancer sub-agents: a master prompt plus brand-voice/tone/rules and
+// photo preferences the store owner can tune. Used to generate product copy and
+// enhance photos when listing.
+model ListingAgentConfig {
+  id            String   @id @default(cuid())
+  tenantId      String
+  storeId       String   @unique
+  masterPrompt  String? // overrides the built-in master prompt template
+  brandVoice    String? // e.g. "friendly, premium, a little witty"
+  tone          String? // e.g. "concise", "playful", "luxurious"
+  categoryHint  String? // default product category, e.g. "apparel"
+  contentRules  String[] @default([]) // e.g. ["mention free shipping", "no superlatives"]
+  descWords     Int      @default(60) // target description length (words)
+  // Photo-enhancer preferences.
+  enhanceBackground Boolean @default(true)
+  squareCrop        Boolean @default(true)
+  autoAltText       Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
 model ProductVariant {
   id        String  @id @default(cuid())
   tenantId  String
@@ -521,6 +548,9 @@ model ProductVariant {
   sku       String?
   // Price is stored in the smallest currency unit (paise for INR).
   priceMinor Int
+  // Optional "was" price (MRP / list price) shown struck-through to advertise a
+  // discount; null = no discount. Always >= priceMinor when set.
+  compareAtMinor Int?
   // Unit cost (COGS) in minor units, used for margin analysis & repricing floors.
   costMinor Int     @default(0)
   currency  String  @default("INR")

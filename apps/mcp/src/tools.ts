@@ -232,6 +232,85 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.stores.get(ctx, a.storeId)),
   );
 
+  // --- Listing agent (photo → copy → price/discount/stock → publish) --------
+  server.registerTool(
+    'get_listing_config',
+    {
+      description: 'The listing agent\'s harness for a store: the master prompt, brand voice, tone, content rules, and photo-enhancement preferences.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.listing.getConfig(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_listing_config',
+    {
+      description: 'Customise the listing agent harness: override the master prompt, set brand voice / tone / default category, content rules, target description length, and photo prefs (background cleanup, square crop, auto alt-text).',
+      inputSchema: {
+        storeId: z.string(),
+        masterPrompt: z.string().nullable().optional(),
+        brandVoice: z.string().nullable().optional(),
+        tone: z.string().nullable().optional(),
+        categoryHint: z.string().nullable().optional(),
+        contentRules: z.array(z.string()).optional(),
+        descWords: z.number().int().optional(),
+        enhanceBackground: z.boolean().optional(),
+        squareCrop: z.boolean().optional(),
+        autoAltText: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.listing.setConfig(ctx, a)),
+  );
+
+  server.registerTool(
+    'enhance_product_photo',
+    {
+      description: 'Photo-enhancement sub-agent: clean up / crop a snapped product photo per the harness and return an enhanced image URL + alt text.',
+      inputSchema: { storeId: z.string(), imageUrl: z.string(), hint: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.listing.enhancePhoto(ctx, a)),
+  );
+
+  server.registerTool(
+    'write_product_content',
+    {
+      description: 'Content-writing sub-agent: generate a product title, benefit-led description, bullets, SEO meta, and tags from a short hint + price, in the store\'s brand voice.',
+      inputSchema: { storeId: z.string(), hint: z.string().optional(), priceMinor: z.number().int().optional() },
+    },
+    tool((ctx, a: any) => commerce.listing.writeContent(ctx, a)),
+  );
+
+  server.registerTool(
+    'draft_listing',
+    {
+      description: 'Listing agent: from a product photo (+ optional hint) run both sub-agents and return a ready-to-edit draft (enhanced photo + title/description/bullets/SEO/tags). The owner then sets price/discount/stock and calls publish_listing.',
+      inputSchema: { storeId: z.string(), imageUrl: z.string(), hint: z.string().optional(), category: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.listing.draft(ctx, a)),
+  );
+
+  server.registerTool(
+    'publish_listing',
+    {
+      description: 'Publish a listing as a live product: creates the product + variant (price, optional discount → struck-through "was" price, stock) and attaches the enhanced photo.',
+      inputSchema: {
+        storeId: z.string(),
+        imageUrl: z.string().optional(),
+        title: z.string(),
+        description: z.string().optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        alt: z.string().optional(),
+        priceMinor: z.number().int().nonnegative().describe('What the customer pays, in minor units (paise)'),
+        discountPercent: z.number().min(0).max(99).optional().describe('Shows a struck-through "was" price'),
+        stock: z.number().int().nonnegative().optional(),
+        status: z.enum(['DRAFT', 'ACTIVE']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.listing.publish(ctx, a)),
+  );
+
   // --- Products -------------------------------------------------------------
   server.registerTool(
     'create_product',
