@@ -736,6 +736,29 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'get_cart_recovery_policy',
+    {
+      description: 'Get the store\'s abandoned-cart recovery policy (when a cart is abandoned + the recovery message step delays).',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.carts.getPolicy(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_cart_recovery_policy',
+    {
+      description: 'Tune abandoned-cart recovery: minutes of inactivity before a cart is abandoned, and the delay (minutes) before each recovery message step.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        abandonAfterMinutes: z.number().int().positive().optional(),
+        stepDelaysMinutes: z.array(z.number().int().nonnegative()).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.carts.setPolicy(ctx, a)),
+  );
+
+  server.registerTool(
     'checkout_cart',
     {
       description: 'Check out a cart, creating an order + payment linked to it.',
@@ -778,6 +801,24 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.analytics.agentSales(ctx, a)),
   );
 
+  server.registerTool(
+    'get_analytics_revenue',
+    {
+      description: 'Revenue and order counts bucketed over time (day/week/month) for a date range.',
+      inputSchema: { ...rangeSchema, interval: z.enum(['day', 'week', 'month']).optional() },
+    },
+    tool((ctx, a: any) => commerce.analytics.revenueSeries(ctx, a)),
+  );
+
+  server.registerTool(
+    'get_analytics_funnel',
+    {
+      description: 'The cart → checkout → paid funnel with conversion rates over a date range.',
+      inputSchema: rangeSchema,
+    },
+    tool((ctx, a: any) => commerce.analytics.funnel(ctx, a)),
+  );
+
   // --- Stock ----------------------------------------------------------------
   server.registerTool(
     'get_stock_status',
@@ -786,6 +827,31 @@ export function registerTools(server: McpServer, session: Session) {
       inputSchema: { storeId: z.string() },
     },
     tool((ctx, a: any) => commerce.stock.getStockStatus(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'get_stock_policy',
+    {
+      description: 'Get the store\'s stock-health policy (days-of-cover thresholds, reorder point, velocity window).',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.stock.getPolicy(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_stock_policy',
+    {
+      description: 'Tune the stock-health policy: green/amber days-of-cover thresholds, reorder point, and the sales-velocity window used to compute cover.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        greenDays: z.number().int().positive().optional(),
+        amberDays: z.number().int().positive().optional(),
+        reorderPoint: z.number().int().nonnegative().optional(),
+        velocityWindowDays: z.number().int().positive().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.stock.setPolicy(ctx, a)),
   );
 
   // --- Shipping -------------------------------------------------------------
@@ -1084,6 +1150,55 @@ export function registerTools(server: McpServer, session: Session) {
       inputSchema: { storeId: z.string() },
     },
     tool((ctx, a: any) => commerce.images.optimizeAll(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'list_images',
+    {
+      description: 'List a store\'s image assets (optionally for one product), with optimization state and alt text.',
+      inputSchema: { storeId: z.string(), productId: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.images.list(ctx, { storeId: a.storeId, productId: a.productId })),
+  );
+
+  server.registerTool(
+    'get_image_savings',
+    {
+      description: 'Total bytes/percent saved by image optimization for a store (page-speed & SEO win).',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.images.savings(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_image_alt',
+    {
+      description: 'Set alt text for an image (accessibility + image SEO), or auto-generate it when generate=true.',
+      inputSchema: { imageId: z.string(), alt: z.string().optional(), generate: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => (a.generate ? commerce.images.generateAlt(ctx, a.imageId) : commerce.images.setAlt(ctx, a.imageId, a.alt ?? ''))),
+  );
+
+  // --- Partner access (client governs how much a partner may do) ------------
+  server.registerTool(
+    'get_partner_access',
+    {
+      description: 'Which partner (if any) manages this store and at what access level (MANAGE / VIEW / NONE).',
+      inputSchema: {},
+    },
+    tool((ctx) => commerce.partners.getAccessForTenant(ctx.tenantId)),
+  );
+
+  server.registerTool(
+    'set_partner_access',
+    {
+      description: 'Set how much the managing partner may do: MANAGE (full), VIEW (read-only), or NONE (revoke). Only the merchant may change this — a partner cannot change its own access.',
+      inputSchema: { accessLevel: z.enum(['MANAGE', 'VIEW', 'NONE']) },
+    },
+    tool((ctx, a: any) => {
+      if (ctx.actor?.kind === 'partner') throw new Error('A partner cannot change its own access level.');
+      return commerce.partners.setAccessForTenant(ctx.tenantId, a.accessLevel);
+    }),
   );
 
   // --- Pricing intelligence -------------------------------------------------
