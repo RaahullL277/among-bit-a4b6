@@ -1001,16 +1001,34 @@ export function registerTools(server: McpServer, session: Session) {
     'import_store',
     {
       description:
-        'Bootstrap/migrate a store: import products or customers from an existing Shopify, WooCommerce, or Dukaan store. Paste the export contents as `data` (a product/customer CSV, or JSON in the platform\'s own shape). Idempotent — products already present (by title/SKU) and customers (by email) are skipped. Use dryRun to preview the parse + counts before writing.',
+        'Bootstrap/migrate a store from a pasted export: import products, customers, historical orders, or an inventory sheet from Shopify, WooCommerce, or Dukaan. Paste the export contents as `data` (CSV, or JSON in the platform\'s own shape). Idempotent — products (by title/SKU), customers (by email), and orders (by source reference) already present are skipped. Use dryRun to preview, and updateExisting to refresh price/stock on products already present (matched by SKU).',
       inputSchema: {
         storeId: z.string(),
         source: z.enum(['SHOPIFY', 'WOOCOMMERCE', 'DUKAAN', 'GENERIC']),
-        kind: z.enum(['products', 'customers']).optional().describe('What the export contains (default products)'),
+        kind: z.enum(['products', 'customers', 'orders', 'inventory']).optional().describe('What the export contains (default products). "inventory" = a SKU+quantity stock sheet.'),
         data: z.string().describe('Raw export contents: CSV text or JSON'),
         dryRun: z.boolean().optional().describe('Preview only — parse + report without creating anything'),
+        updateExisting: z.boolean().optional().describe('For products: update existing items (by SKU) instead of skipping'),
       },
     },
     tool((ctx, a: any) => commerce.imports.run(ctx, a)),
+  );
+
+  server.registerTool(
+    'import_store_api',
+    {
+      description:
+        'Bootstrap/migrate by pulling LIVE from the source store\'s API instead of a pasted export. Shopify needs credentials { shop, accessToken }; WooCommerce needs { url, consumerKey, consumerSecret }. Same idempotency + dryRun as import_store.',
+      inputSchema: {
+        storeId: z.string(),
+        source: z.enum(['SHOPIFY', 'WOOCOMMERCE']),
+        kind: z.enum(['products', 'customers', 'orders']).optional(),
+        credentials: z.record(z.any()).describe('Shopify: { shop, accessToken } · WooCommerce: { url, consumerKey, consumerSecret }'),
+        dryRun: z.boolean().optional(),
+        updateExisting: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.imports.runFromApi(ctx, a)),
   );
 
   server.registerTool(
@@ -1076,6 +1094,15 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.legal.setStatus(ctx, a.storeId, a.type, a.status)),
   );
 
+  server.registerTool(
+    'list_legal_acceptances',
+    {
+      description: 'Buyer legal-policy acceptances captured at checkout (the consent trail): which policy versions each buyer agreed to, with order + email.',
+      inputSchema: { storeId: z.string(), limit: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.legal.listAcceptances(ctx, a.storeId, a.limit)),
+  );
+
   // --- Stock ----------------------------------------------------------------
   server.registerTool(
     'get_stock_status',
@@ -1134,6 +1161,7 @@ export function registerTools(server: McpServer, session: Session) {
         flatShippingMinor: z.number().int().nonnegative().optional(),
         freeShippingOverMinor: z.number().int().nonnegative().nullable().optional(),
         requireAddress: z.boolean().optional(),
+        requireLegalAcceptance: z.boolean().optional().describe('Require the buyer to accept published legal policies at checkout'),
       },
     },
     tool((ctx, a: any) => commerce.checkoutSettings.set(ctx, a)),

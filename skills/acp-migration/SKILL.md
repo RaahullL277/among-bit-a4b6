@@ -1,40 +1,42 @@
 ---
 name: acp-migration
-description: Use when the user wants to move/import/migrate an existing store onto the ACP platform via the Claude connector — bring products or customers over from Shopify, WooCommerce, or Dukaan (or a generic CSV/JSON). Triggers on "import my store", "migrate from Shopify", "move my WooCommerce products", "Dukaan export", "import products CSV", "bring my catalog over", "bootstrap my store from my old one". Drives import_store, list_imports, get_import.
+description: Use when the user wants to move/import/migrate an existing store onto the ACP platform via the Claude connector — bring products, customers, historical orders, or inventory over from Shopify, WooCommerce, or Dukaan (by pasting an export or connecting the source store's API). Triggers on "import my store", "migrate from Shopify", "move my WooCommerce products", "Dukaan export", "import products CSV", "import my orders", "sync my inventory", "connect my Shopify", "bring my catalog over", "bootstrap my store from my old one". Drives import_store, import_store_api, list_imports, get_import.
 ---
 
 # Store migration / bootstrap agent
 
-Move a merchant's catalog or customer list from an existing store onto their ACP store. The merchant exports a CSV (or JSON) from their current platform; you import it.
+Move a merchant's **products, customers, historical orders, or inventory** from an existing store onto their ACP store — either by pasting an export file or by pulling live from the source store's API.
+
+## Two ways in
+**A. Paste an export — `import_store`** (no credentials needed):
+- `data` = the raw export contents (CSV text or JSON).
+- `source` = `SHOPIFY` | `WOOCOMMERCE` | `DUKAAN` | `GENERIC`.
+
+**B. Connect the live API — `import_store_api`** (pulls directly):
+- `credentials` — Shopify: `{ shop, accessToken }`; WooCommerce: `{ url, consumerKey, consumerSecret }`.
+- `source` = `SHOPIFY` | `WOOCOMMERCE`.
+
+Both share these parameters:
+- `storeId` — target store (create one first if needed).
+- `kind` — `products` (default) · `customers` · `orders` · `inventory` (file-only; a SKU+quantity stock sheet).
+- `dryRun` — preview the parse + counts without writing. **Always preview first.**
+- `updateExisting` — for products, refresh price & stock on items already present (matched by SKU) instead of skipping.
+
+## What each kind does
+- **products** — creates products + variants (prices→paise, compare-at, inventory). Skips by title/SKU (or updates with `updateExisting`).
+- **customers** — creates customers (name/email/phone). Skips by email.
+- **orders** — imports historical orders as records (no re-charge): maps status, backdates the order date, links line items to existing variants by SKU and to customers by email. Skips by source reference (idempotent).
+- **inventory** — updates stock on existing variants matched by SKU (records a stock-ledger movement).
 
 ## Steps
-1. Make sure there's a target store (`create_store` / `launch_store` if needed).
-2. Ask the merchant to export from their current platform and paste the file contents:
-   - **Shopify** → Products CSV export (or Customers CSV).
-   - **WooCommerce** → Products CSV export (WooCommerce → Products → Export).
-   - **Dukaan** → product export CSV.
-   - **Generic** → any CSV with `title,price,sku,inventory,description,status`, or JSON in the platform's own shape (`[{ title, priceMinor, inventory, variants:[...] }]`).
-3. **Preview first:** call `import_store` with `dryRun:true` to parse and report counts + per-row outcomes without writing.
-4. **Import:** call `import_store` (no dryRun) to create the records.
-
-## `import_store` parameters
-- `storeId` — target store.
-- `source` — `SHOPIFY` | `WOOCOMMERCE` | `DUKAAN` | `GENERIC`.
-- `kind` — `products` (default) or `customers`.
-- `data` — the raw export contents (CSV text or JSON).
-- `dryRun` — preview only.
-
-## What it does
-- Parses the export into normalized products (with variants, prices in paise, compare-at, inventory) or customers (name/email/phone).
-- Creates them via the same services as manual entry, so everything (storefront, stock, invoicing) works immediately.
-- **Idempotent + resumable:** products already present (by title or SKU) and customers (by email) are **skipped**, so re-running after a partial import is safe.
-- Returns an `ImportJob` with `productsCreated/Skipped`, `customersCreated/Skipped`, `failed`, and a per-row `report`.
-
-## Review afterwards
-- `list_imports` / `get_import` show past runs and their per-row report.
-- Imported products land with their source status (active/draft). Set HSN/GST (`update_product`) and review pricing before going live.
+1. Ensure a target store exists.
+2. `dryRun:true` to preview parse + per-row outcomes.
+3. Run for real; check the returned `ImportJob` (`productsCreated/Skipped`, `customersCreated/Skipped`, `failed`, per-row `report`).
+4. `list_imports` / `get_import` review past runs.
 
 ## Tips
-- Shopify groups variant rows by Handle automatically — paste the whole CSV, including the variant/image rows.
-- Prices in CSVs are read as major units (e.g. `249.00` → ₹249.00); JSON may use `priceMinor` directly.
-- Large catalogs: the import runs synchronously and reports everything in one job.
+- Re-running is always safe — existing products (title/SKU), customers (email), and orders (source ref) are skipped.
+- A sensible order: products → inventory → customers → orders (so order lines can link to variants/customers).
+- Imported products land with their source status; set HSN/GST (`update_product`) and review pricing before going live.
+- Prices in CSVs are major units (`249.00` → ₹249.00); JSON may use `priceMinor` directly.
+- API import paginates and runs synchronously; very large catalogs are capped per run — re-run to continue (idempotent).

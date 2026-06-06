@@ -16,7 +16,7 @@ return policy (`LegalService`, `legal/templates.ts`). Surfaces: REST `/legal`,
 MCP (`generate_legal_policies`, `get_legal_policy`, `set_legal_policy`,
 `publish_legal_policy`, `list_legal_policies`), admin **Legal** page, storefront
 footer links + `/legal/:type` policy pages, `acp-legal` skill, tests.
-- [ ] (Follow-up) Optional buyer-acceptance capture at checkout (timestamp + policy version) — versioning is already in place to support it.
+- [x] (Follow-up) Buyer-acceptance capture at checkout — `LegalAcceptance` model + `requireLegalAcceptance` checkout gate; records the policy versions in force per order/email; storefront checkbox; `list_legal_acceptances`.
 
 ### 2. eKYC / merchant verification & payouts — ❌ not built (P0 for real go-live)
 Entirely absent — no `kyc` / `aadhaar` / `bankAccount` / `payout` / `ifsc` /
@@ -34,8 +34,9 @@ onto a store via the existing services. Idempotent + resumable (skip by
 title/SKU/email), `dryRun` preview, per-row report (`ImportJob`). Surfaces: REST
 `/imports`, MCP (`import_store`, `list_imports`, `get_import`), admin
 **Import / Migrate** wizard, `acp-migration` skill, tests with fixtures.
-- [ ] (Follow-up) Live API ingestion (Shopify Admin API / Woo REST) instead of CSV paste — needs per-source credentials.
-- [ ] (Follow-up) Import historical **orders** (currently products + customers).
+- [x] (Follow-up) Live API ingestion — `import_store_api` / `runFromApi` pulls from Shopify Admin API + WooCommerce REST (injectable fetch; paginated).
+- [x] (Follow-up) Historical **order** import — maps status, backdates, links lines to variants by SKU + customers by email, idempotent by source ref.
+- [x] (Follow-up) **Inventory** import — SKU→quantity stock sheet updates existing variants (ledger movement); plus `updateExisting` to refresh price/stock on product re-import.
 
 **Remaining priority:** eKYC (item 2) — as a stubbed-adapter slice (real
 verification needs live GSTN/PAN/bank credentials, like P0-1 payments).

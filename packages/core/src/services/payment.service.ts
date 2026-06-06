@@ -8,6 +8,7 @@ import type { LoyaltyService } from './loyalty.service.js';
 import type { StockService } from './stock.service.js';
 import type { CheckoutSettingsService } from './checkout-settings.service.js';
 import type { InvoiceService } from './invoice.service.js';
+import type { LegalService } from './legal.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -20,6 +21,10 @@ export interface CheckoutInput {
   /** Buyer contact + delivery address captured at checkout. */
   email?: string;
   shippingAddress?: Record<string, unknown>;
+  /** The buyer accepted the store's published legal policies (consent trail). */
+  acceptedLegal?: boolean;
+  /** Buyer IP for the acceptance record (optional). */
+  acceptanceIp?: string;
 }
 
 /**
@@ -36,6 +41,7 @@ export class PaymentService {
     private readonly stock?: StockService,
     private readonly checkoutSettings?: CheckoutSettingsService,
     private readonly invoices?: InvoiceService,
+    private readonly legal?: LegalService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -46,6 +52,12 @@ export class PaymentService {
       select: { id: true, currency: true },
     });
     if (!store) throw new NotFoundError('Store', input.storeId);
+
+    // Gate on legal-policy acceptance when the store requires it.
+    const settings = await this.checkoutSettings?.resolve(store.id);
+    if (settings?.requireLegalAcceptance && !input.acceptedLegal) {
+      throw new ValidationError('Please accept the store policies (terms & privacy) to place your order.');
+    }
 
     // Resolve variants — scoped to the tenant AND the order's store so a
     // multi-store tenant can't check out store B's variants through store A
@@ -150,6 +162,13 @@ export class PaymentService {
       where: { orderId: order.id },
       data: { providerRef: result.providerRef },
     });
+
+    // Record the buyer's legal-policy acceptance (consent trail), best-effort.
+    if (input.acceptedLegal) {
+      await this.legal
+        ?.recordAcceptance(store.id, { orderId: order.id, email: input.email, ip: input.acceptanceIp, tenantId: ctx.tenantId })
+        .catch(() => undefined);
+    }
 
     // Best-effort order-placed notification; never block checkout.
     await this.notifications?.notifyOrderEvent(ctx, order.id, 'ORDER_PLACED').catch(() => undefined);

@@ -18,7 +18,7 @@ export { StoreService, type CreateStoreInput, type UpdateStoreInput, type StoreT
 export { InvoiceService, renderInvoiceHtml } from './services/invoice.service.js';
 export { AccountingService } from './services/accounting.service.js';
 export { LegalService, type SetLegalInput } from './services/legal.service.js';
-export { StoreImportService, type RunImportInput } from './services/import.service.js';
+export { StoreImportService, type RunImportInput, type RunApiImportInput } from './services/import.service.js';
 export {
   ProductService,
   type CreateProductInput,

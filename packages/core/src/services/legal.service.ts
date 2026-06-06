@@ -152,6 +152,41 @@ export class LegalService {
     return out;
   }
 
+  // --- Buyer acceptance (checkout consent trail) ----------------------------
+
+  /**
+   * Record that a buyer accepted the store's published policies (snapshotting
+   * which versions were in force). Best-effort context: orderId/email/ip.
+   */
+  async recordAcceptance(storeId: string, opts: { orderId?: string; email?: string; ip?: string; tenantId?: string } = {}) {
+    const published = await this.prisma.legalPolicy.findMany({
+      where: { storeId, status: 'PUBLISHED' },
+      select: { type: true, version: true, tenantId: true },
+    });
+    if (!published.length) return null; // nothing published to accept
+    const tenantId = opts.tenantId ?? published[0].tenantId;
+    return this.prisma.legalAcceptance.create({
+      data: {
+        tenantId,
+        storeId,
+        orderId: opts.orderId,
+        email: opts.email,
+        ip: opts.ip,
+        policies: published.map((p) => ({ type: p.type, version: p.version })) as unknown as object,
+      },
+    });
+  }
+
+  /** Merchant audit: recent buyer acceptances for a store. */
+  async listAcceptances(ctx: TenantContext, storeId: string, limit = 200) {
+    await this.assertStore(ctx, storeId);
+    return this.prisma.legalAcceptance.findMany({
+      where: { tenantId: ctx.tenantId, storeId },
+      orderBy: { acceptedAt: 'desc' },
+      take: Math.min(limit, 1000),
+    });
+  }
+
   // --- Public (storefront) --------------------------------------------------
 
   /** Published policies for the storefront footer (title + type + slug). */

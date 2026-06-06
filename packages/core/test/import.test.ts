@@ -109,4 +109,80 @@ describe.skipIf(!hasDb)('store migration / import', () => {
     const p = (await commerce.products.list(ctx, storeId))[0];
     expect(p.variants[0].priceMinor).toBe(50000);
   });
+
+  it('imports historical orders, linking line items to variants by SKU', async () => {
+    const storeId = await freshStore('orders');
+    // A product with a matching SKU so the order line links to a real variant.
+    await commerce.products.create(ctx, { storeId, status: 'ACTIVE', title: 'Turmeric 200g', variants: [{ sku: 'TUR-200', priceMinor: 9000, inventory: 100 }] });
+    const ORDERS_CSV = `Name,Email,Financial Status,Created at,Total,Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku
+#1001,asha@example.com,paid,2024-01-15,236.00,2,Turmeric 200g,90.00,TUR-200
+#1001,,,,,1,Cardamom 100g,56.00,
+#1002,vijay@example.com,refunded,2024-02-01,99.00,1,Chilli,99.00,`;
+    const job = await commerce.imports.run(ctx, { storeId, source: 'SHOPIFY', kind: 'orders', data: ORDERS_CSV });
+    expect(job.productsCreated).toBe(2);
+    const orders = await commerce.orders.list(ctx, storeId);
+    const o1 = orders.find((o) => o.number != null && o.items?.length === 2)!;
+    expect(o1.totalMinor).toBe(23600);
+    expect(o1.status).toBe('PAID');
+    const turmericLine = o1.items.find((i) => i.title === 'Turmeric 200g')!;
+    expect(turmericLine.variantId).toBeTruthy(); // linked by SKU
+    expect(orders.find((o) => o.status === 'REFUNDED')).toBeTruthy();
+
+    // Idempotent by sourceRef.
+    const again = await commerce.imports.run(ctx, { storeId, source: 'SHOPIFY', kind: 'orders', data: ORDERS_CSV });
+    expect(again.productsSkipped).toBe(2);
+  });
+
+  it('applies an inventory sheet to existing variants by SKU', async () => {
+    const storeId = await freshStore('inv');
+    const p = await commerce.products.create(ctx, { storeId, status: 'ACTIVE', title: 'Pepper', variants: [{ sku: 'PEP-1', priceMinor: 5000, inventory: 3 }] });
+    const job = await commerce.imports.run(ctx, { storeId, source: 'GENERIC', kind: 'inventory', data: 'sku,quantity\nPEP-1,42\nGHOST-9,10' });
+    expect(job.productsCreated).toBe(1); // PEP-1 updated
+    expect(job.productsSkipped).toBe(1); // GHOST-9 not found
+    const refreshed = await commerce.products.get(ctx, p.id);
+    expect(refreshed.variants[0].inventory).toBe(42);
+  });
+
+  it('updates existing products when updateExisting is set', async () => {
+    const storeId = await freshStore('upd');
+    const p = await commerce.products.create(ctx, { storeId, status: 'ACTIVE', title: 'Clove', variants: [{ sku: 'CLV-1', priceMinor: 5000, inventory: 1 }] });
+    const data = JSON.stringify([{ title: 'Clove', variants: [{ sku: 'CLV-1', priceMinor: 7500, inventory: 25 }] }]);
+    const job = await commerce.imports.run(ctx, { storeId, source: 'GENERIC', data, updateExisting: true });
+    const refreshed = await commerce.products.get(ctx, p.id);
+    expect(refreshed.variants[0].priceMinor).toBe(7500);
+    expect(refreshed.variants[0].inventory).toBe(25);
+    expect((job.report as any[]).some((r) => r.status === 'updated')).toBe(true);
+  });
+
+  it('pulls live from a (mocked) Shopify Admin API', async () => {
+    const storeId = await freshStore('api-shopify');
+    const fakeFetch = async (url: any) => ({
+      ok: true,
+      json: async () =>
+        String(url).includes('/products.json')
+          ? { products: [{ title: 'API Saffron', status: 'active', variants: [{ sku: 'API-1', price: '12.00', inventory_quantity: 3 }] }] }
+          : { products: [] },
+    });
+    const job = await commerce.imports.runFromApi(ctx, { storeId, source: 'SHOPIFY', credentials: { shop: 'demo', accessToken: 'tok' } }, fakeFetch);
+    expect(job.status).toBe('COMPLETED');
+    expect(job.productsCreated).toBe(1);
+    const p = (await commerce.products.list(ctx, storeId))[0];
+    expect(p.title).toBe('API Saffron');
+    expect(p.variants[0].priceMinor).toBe(1200);
+  });
+
+  it('pulls live from a (mocked) WooCommerce REST API', async () => {
+    const storeId = await freshStore('api-woo');
+    const fakeFetch = async (url: any) => ({
+      ok: true,
+      json: async () =>
+        String(url).includes('/products')
+          ? [{ name: 'Woo Chilli', status: 'publish', sku: 'WOO-9', price: '8.50', stock_quantity: 12 }]
+          : [],
+    });
+    const job = await commerce.imports.runFromApi(ctx, { storeId, source: 'WOOCOMMERCE', credentials: { url: 'https://shop.example', consumerKey: 'ck', consumerSecret: 'cs' } }, fakeFetch);
+    expect(job.productsCreated).toBe(1);
+    const p = (await commerce.products.list(ctx, storeId))[0];
+    expect(p.variants[0].priceMinor).toBe(850);
+  });
 });

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { Commerce } from '../src/commerce.js';
-import type { TenantContext } from '../src/context.js';
+import { ValidationError, type TenantContext } from '../src/context.js';
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -68,6 +68,35 @@ describe.skipIf(!hasDb)('legal policies', () => {
     expect(edited.generated).toBe(false);
     expect(edited.version).toBe(before.version + 1);
     expect(edited.status).toBe('PUBLISHED');
+  });
+
+  it('gates checkout on legal acceptance and records the consent trail', async () => {
+    const store = await commerce.stores.create(ctx, { name: 'Consent Shop' });
+    await commerce.integrations.configure(ctx, { storeId: store.id, provider: 'RAZORPAY', credentials: { webhookSecret: 's' } });
+    await commerce.legal.generateAll(ctx, store.id, { publish: true });
+    await commerce.checkoutSettings.set(ctx, { storeId: store.id, requireLegalAcceptance: true });
+    const product = await commerce.products.create(ctx, { storeId: store.id, status: 'ACTIVE', title: 'Thing', variants: [{ priceMinor: 10000, inventory: 5 }] });
+    const variantId = product.variants[0].id;
+
+    // Without acceptance → blocked.
+    await expect(
+      commerce.payments.checkout(ctx, { storeId: store.id, items: [{ variantId, quantity: 1 }] }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    // With acceptance → succeeds and is recorded with the policy versions in force.
+    const { order } = await commerce.payments.checkout(ctx, {
+      storeId: store.id,
+      items: [{ variantId, quantity: 1 }],
+      email: 'buyer@example.com',
+      acceptedLegal: true,
+      acceptanceIp: '1.2.3.4',
+    });
+    const acceptances = await commerce.legal.listAcceptances(ctx, store.id);
+    expect(acceptances).toHaveLength(1);
+    expect(acceptances[0].orderId).toBe(order.id);
+    expect(acceptances[0].email).toBe('buyer@example.com');
+    expect(Array.isArray(acceptances[0].policies)).toBe(true);
+    expect((acceptances[0].policies as any[]).length).toBe(5);
   });
 
   it('hides unpublished policies from the storefront', async () => {

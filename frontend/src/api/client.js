@@ -141,6 +141,7 @@ export const api = {
     list: (storeId) => request(`/imports?${qs({ storeId })}`),
     get: (id) => request(`/imports/${id}`),
     run: (body) => request('/imports', { method: 'POST', body }),
+    runApi: (body) => request('/imports/api', { method: 'POST', body }),
   },
   products: {
     list: (storeId) => request(`/products?storeId=${encodeURIComponent(storeId)}`),

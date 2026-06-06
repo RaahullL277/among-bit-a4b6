@@ -35,6 +35,13 @@ export class LegalController {
     return this.commerce.legal.setStatus(t, body.storeId, body.type, body.status);
   }
 
+  /** Buyer legal-acceptance consent trail (declared before :type so it isn't shadowed). */
+  @Get('acceptances')
+  @Permissions('stores:read')
+  acceptances(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<unknown> {
+    return this.commerce.legal.listAcceptances(t, storeId);
+  }
+
   @Get(':type')
   @Permissions('stores:read')
   get(@Tenant() t: TenantContext, @Param('type') type: LegalPolicyType, @Query('storeId') storeId: string): Promise<unknown> {

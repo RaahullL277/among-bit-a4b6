@@ -16,10 +16,16 @@ export default function Cart() {
   const [redeem, setRedeem] = useState(false);
   const [quote, setQuote] = useState(null);
   const [address, setAddress] = useState(() => JSON.parse(localStorage.getItem('shopper.address') || 'null') || emptyAddress);
+  const [policies, setPolicies] = useState([]);
+  const [agree, setAgree] = useState(false);
 
   useEffect(() => {
     if (cartId) api.checkoutQuote(cartId).then(setQuote).catch(() => setQuote(null));
   }, [cartId, cart?.items?.length]);
+
+  useEffect(() => {
+    api.legalPolicies(STORE_ID).then(setPolicies).catch(() => setPolicies([]));
+  }, []);
 
   if (!cart || !cart.items?.length) {
     return (
@@ -50,7 +56,7 @@ export default function Cart() {
       const redeemPoints = redeem && rewards?.pointsBalance >= (rewards?.minRedeemPoints ?? 0) ? rewards.pointsBalance : undefined;
       const hasAddress = address.line1 || address.pincode;
       if (hasAddress) localStorage.setItem('shopper.address', JSON.stringify(address));
-      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined });
+      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, acceptedLegal: agree || undefined });
       clear();
       navigate('/confirmation', { state: res });
     } catch (e) {
@@ -125,6 +131,21 @@ export default function Cart() {
           <p className="mt-2 text-xs text-stone-400">You'll start earning points with this order.</p>
         )}
       </div>
+
+      {policies.length > 0 && (
+        <label className="mt-4 flex items-start gap-2 text-sm text-stone-600">
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5" />
+          <span>
+            I agree to the{' '}
+            {policies.map((p, i) => (
+              <span key={p.type}>
+                {i > 0 && (i === policies.length - 1 ? ' and ' : ', ')}
+                <Link to={`/legal/${p.slug}`} className="text-stone-900 underline">{p.title}</Link>
+              </span>
+            ))}.
+          </span>
+        </label>
+      )}
 
       {error && <p className="mt-3 text-rose-600">{error}</p>}
       <button

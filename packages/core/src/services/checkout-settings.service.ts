@@ -8,6 +8,7 @@ interface SettingsShape {
   flatShippingMinor: number;
   freeShippingOverMinor: number | null;
   requireAddress: boolean;
+  requireLegalAcceptance: boolean;
 }
 const DEFAULTS: SettingsShape = {
   taxBps: 0,
@@ -17,6 +18,8 @@ const DEFAULTS: SettingsShape = {
   freeShippingOverMinor: null,
   // Opt-in: stores selling physical goods turn this on to require a delivery address.
   requireAddress: false,
+  // Opt-in: require the buyer to accept the published legal policies at checkout.
+  requireLegalAcceptance: false,
 };
 
 export interface CheckoutQuote {
@@ -51,6 +54,7 @@ export class CheckoutSettingsService {
           flatShippingMinor: row.flatShippingMinor,
           freeShippingOverMinor: row.freeShippingOverMinor,
           requireAddress: row.requireAddress,
+          requireLegalAcceptance: row.requireLegalAcceptance,
         }
       : { ...DEFAULTS };
   }

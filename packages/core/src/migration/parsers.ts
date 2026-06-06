@@ -23,8 +23,31 @@ export interface ImportCustomer {
   phone?: string;
 }
 
+export interface ImportOrderItem {
+  title: string;
+  sku?: string;
+  quantity: number;
+  unitPriceMinor: number;
+}
+
+export interface ImportOrder {
+  /** External id/number used to de-duplicate (e.g. Shopify order name). */
+  sourceRef: string;
+  email?: string;
+  status: 'PENDING' | 'PAID' | 'FULFILLED' | 'CANCELLED' | 'REFUNDED';
+  createdAt?: string;
+  currency?: string;
+  totalMinor: number;
+  items: ImportOrderItem[];
+}
+
+export interface ImportInventoryRow {
+  sku: string;
+  quantity: number;
+}
+
 export type ImportSourceName = 'SHOPIFY' | 'WOOCOMMERCE' | 'DUKAAN' | 'GENERIC';
-export type ImportKind = 'products' | 'customers';
+export type ImportKind = 'products' | 'customers' | 'orders' | 'inventory';
 
 // --- CSV parsing (RFC-4180-ish: quotes, embedded commas/newlines) -----------
 
@@ -269,4 +292,118 @@ export function parseImportCustomers(_source: ImportSourceName, text: string): I
     return list.map((c: any) => ({ name: c.name, email: c.email, phone: c.phone })).filter((c: ImportCustomer) => c.email || c.phone || c.name);
   }
   return parseCustomers(text);
+}
+
+// --- Order status mapping ---------------------------------------------------
+
+/** Map an external order status string to our OrderStatus. */
+export function mapOrderStatus(source: ImportSourceName, raw: string): ImportOrder['status'] {
+  const s = String(raw ?? '').trim().toLowerCase();
+  if (['refunded', 'partially_refunded'].includes(s)) return 'REFUNDED';
+  if (['cancelled', 'canceled', 'voided'].includes(s)) return 'CANCELLED';
+  if (['fulfilled', 'completed', 'delivered', 'shipped'].includes(s)) return 'FULFILLED';
+  if (['paid', 'processing', 'on-hold'].includes(s)) return 'PAID';
+  return 'PENDING';
+}
+
+// --- Order parsers (text) ---------------------------------------------------
+
+/** Shopify orders CSV export (one row per line item, grouped by "Name"). */
+function parseShopifyOrders(text: string): ImportOrder[] {
+  const rows = csvToObjects(text);
+  const byName = new Map<string, ImportOrder>();
+  const order: string[] = [];
+  for (const r of rows) {
+    const name = pick(r, 'name', 'order', 'order name');
+    if (!name) continue;
+    if (!byName.has(name)) {
+      byName.set(name, {
+        sourceRef: name,
+        email: pick(r, 'email') || undefined,
+        status: mapOrderStatus('SHOPIFY', pick(r, 'financial status', 'fulfillment status', 'status')),
+        createdAt: pick(r, 'created at', 'paid at') || undefined,
+        currency: pick(r, 'currency') || undefined,
+        totalMinor: toMinor(pick(r, 'total')),
+        items: [],
+      });
+      order.push(name);
+    }
+    const o = byName.get(name)!;
+    const liName = pick(r, 'lineitem name', 'lineitem');
+    if (liName) {
+      o.items.push({
+        title: liName,
+        sku: pick(r, 'lineitem sku') || undefined,
+        quantity: Number(pick(r, 'lineitem quantity')) || 1,
+        unitPriceMinor: toMinor(pick(r, 'lineitem price')),
+      });
+    }
+  }
+  return order.map((n) => byName.get(n)!).map(deriveOrderTotal);
+}
+
+/** Generic JSON orders (the platform's own shape). */
+function parseJsonOrders(data: string): ImportOrder[] {
+  const arr = JSON.parse(data);
+  const list = Array.isArray(arr) ? arr : Array.isArray(arr.orders) ? arr.orders : [];
+  return list
+    .map((o: any, idx: number) => {
+      const items: ImportOrderItem[] = Array.isArray(o.items)
+        ? o.items.map((i: any) => ({
+            title: String(i.title ?? 'Item'),
+            sku: i.sku,
+            quantity: Number(i.quantity) || 1,
+            unitPriceMinor: i.unitPriceMinor != null ? Number(i.unitPriceMinor) : toMinor(i.price),
+          }))
+        : [];
+      return {
+        sourceRef: String(o.sourceRef ?? o.id ?? o.number ?? `json-${idx}`),
+        email: o.email,
+        status: o.status ? mapOrderStatus('GENERIC', o.status) : 'PAID',
+        createdAt: o.createdAt,
+        currency: o.currency,
+        totalMinor: o.totalMinor != null ? Number(o.totalMinor) : toMinor(o.total),
+        items,
+      } as ImportOrder;
+    })
+    .map(deriveOrderTotal);
+}
+
+/** Fall back to the line-item sum when no explicit total is present. */
+function deriveOrderTotal(o: ImportOrder): ImportOrder {
+  if (!o.totalMinor || o.totalMinor <= 0) {
+    o.totalMinor = o.items.reduce((s, i) => s + i.unitPriceMinor * i.quantity, 0);
+  }
+  return o;
+}
+
+export function parseOrders(source: ImportSourceName, text: string): ImportOrder[] {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return parseJsonOrders(trimmed);
+  switch (source) {
+    case 'SHOPIFY': return parseShopifyOrders(text);
+    // WooCommerce / Dukaan order CSVs vary widely; the generic Shopify-style
+    // grouping covers the common "Name,Email,...,Lineitem" export shape.
+    default: return parseShopifyOrders(text);
+  }
+}
+
+// --- Inventory parser (text) ------------------------------------------------
+
+/** A SKU->quantity stock sheet (CSV with sku + quantity/stock/inventory, or JSON). */
+export function parseInventory(text: string): ImportInventoryRow[] {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    const arr = JSON.parse(trimmed);
+    const list = Array.isArray(arr) ? arr : Array.isArray(arr.inventory) ? arr.inventory : [];
+    return list
+      .map((r: any) => ({ sku: String(r.sku ?? '').trim(), quantity: Number(r.quantity ?? r.inventory ?? r.stock) }))
+      .filter((r: ImportInventoryRow) => r.sku && Number.isFinite(r.quantity));
+  }
+  return csvToObjects(text)
+    .map((r) => ({
+      sku: pick(r, 'sku', 'variant sku').trim(),
+      quantity: Number(pick(r, 'quantity', 'stock', 'inventory', 'variant inventory qty', 'stock quantity')),
+    }))
+    .filter((r) => r.sku && Number.isFinite(r.quantity));
 }

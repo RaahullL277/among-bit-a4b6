@@ -120,10 +120,10 @@ export class Commerce {
     this.invoices = new InvoiceService(prisma, this.checkoutSettings);
     this.accounting = new AccountingService(prisma);
     this.legal = new LegalService(prisma);
-    this.imports = new StoreImportService(prisma, this.products, this.customers);
+    this.imports = new StoreImportService(prisma, this.products, this.customers, this.stock);
     this.orders = new OrderService(prisma, this.notifications, this.stock);
     this.loyalty = new LoyaltyService(prisma);
-    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices);
+    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices, this.legal);
     this.messaging = new MessagingService(prisma, this.integrations);
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);

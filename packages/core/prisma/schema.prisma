@@ -516,6 +516,7 @@ model Store {
   invoices            Invoice[]
   creditNotes         CreditNote[]
   legalPolicies       LegalPolicy[]
+  legalAcceptances    LegalAcceptance[]
   importJobs          ImportJob[]
 
   @@unique([tenantId, slug])
@@ -693,10 +694,14 @@ model Order {
   // Buyer contact + delivery address captured at checkout.
   email           String?
   shippingAddress Json?
-  // Sales-channel attribution. source: e.g. "agent" (AI assistant), null = web/direct.
+  // Sales-channel attribution. source: e.g. "agent" (AI assistant), "import"
+  // (migrated from another platform), null = web/direct.
   // agentChannel names the assistant when source = "agent".
   source       String?
   agentChannel AgentChannel?
+  // External reference when migrated from another platform (e.g. Shopify order id),
+  // used to de-duplicate historical-order imports.
+  sourceRef    String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -709,11 +714,13 @@ model Order {
   returns  Return[]
   invoice  Invoice?
   creditNotes CreditNote[]
+  legalAcceptances LegalAcceptance[]
 
   @@unique([storeId, number])
   @@index([tenantId])
   @@index([storeId])
   @@index([cartId])
+  @@index([storeId, sourceRef])
 }
 
 model OrderItem {
@@ -1015,6 +1022,8 @@ model CheckoutSettings {
   // Order subtotal (after discount) at/above which shipping is free; null = never.
   freeShippingOverMinor Int?
   requireAddress        Boolean  @default(true)
+  // When true, the buyer must accept the published legal policies to check out.
+  requireLegalAcceptance Boolean @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -2059,4 +2068,26 @@ model ImportJob {
 
   @@index([tenantId])
   @@index([storeId, createdAt])
+}
+
+// A buyer's acceptance of the store's legal policies at checkout. Records which
+// policy versions were in force when they agreed, for an auditable consent trail
+// (DPDP / consumer-protection). Linked to the order it was captured on.
+model LegalAcceptance {
+  id        String   @id @default(cuid())
+  tenantId  String
+  storeId   String
+  orderId   String?
+  email     String?
+  ip        String?
+  // Snapshot of the accepted policies: [{ type, version }].
+  policies  Json
+  acceptedAt DateTime @default(now())
+
+  store Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([storeId, acceptedAt])
+  @@index([orderId])
 }
