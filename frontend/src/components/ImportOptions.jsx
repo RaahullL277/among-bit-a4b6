@@ -123,8 +123,8 @@ const ImportOptions = ({ calendars, selectedCalendars, onToggleCalendar, onImpor
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {calendars
-                .filter(cal => selectedCalendars.includes(cal.id))
-                .map(calendar => (
+                .filter((cal) => selectedCalendars.includes(cal.id))
+                .map((calendar) => (
                   <div key={calendar.id} className="flex items-center space-x-3 p-2 bg-white/10 rounded border border-white/20">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: calendar.color }}></div>
                     <div className="flex-1">
@@ -132,8 +132,7 @@ const ImportOptions = ({ calendars, selectedCalendars, onToggleCalendar, onImpor
                       <div className="text-xs text-white/60">{calendar.eventCount} events</div>
                     </div>
                   </div>
-                ))
-              )}
+                ))}
             </div>
           )}
           

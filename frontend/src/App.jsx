@@ -5,6 +5,11 @@ import TaskManager from './pages/TaskManager';
 import CalendarSync from './pages/CalendarSync';
 import Collaboration from './pages/Collaboration';
 import Notifications from './pages/Notifications';
+import NudgeOpsDashboard from './pages/nudgeops/NudgeOpsDashboard';
+import CampaignCreator from './pages/nudgeops/CampaignCreator';
+import CampaignMonitor from './pages/nudgeops/CampaignMonitor';
+import ApprovalQueue from './pages/nudgeops/ApprovalQueue';
+import AnalyticsDashboard from './pages/nudgeops/AnalyticsDashboard';
 
 function App() {
   return (
@@ -16,6 +21,11 @@ function App() {
         <Route path="/calendar" element={<CalendarSync />} />
         <Route path="/collaboration" element={<Collaboration />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/nudgeops" element={<NudgeOpsDashboard />} />
+        <Route path="/nudgeops/campaigns/new" element={<CampaignCreator />} />
+        <Route path="/nudgeops/monitor" element={<CampaignMonitor />} />
+        <Route path="/nudgeops/approvals" element={<ApprovalQueue />} />
+        <Route path="/nudgeops/analytics" element={<AnalyticsDashboard />} />
       </Routes>
     </div>
   );
