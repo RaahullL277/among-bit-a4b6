@@ -144,6 +144,8 @@ export const api = {
     removePage: (id) => request(`/pages/${id}`, { method: 'DELETE' }),
     getTheme: (storeId) => request(`/theme?${qs({ storeId })}`),
     setTheme: (body) => request('/theme', { method: 'PUT', body }),
+    templates: (category) => request(`/templates?${qs({ category })}`),
+    applyTemplate: (body) => request('/templates/apply', { method: 'POST', body }),
   },
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),

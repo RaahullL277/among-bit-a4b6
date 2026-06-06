@@ -5,6 +5,9 @@ description: Use when the user wants to design their storefront, build pages wit
 
 # Store design & page builder
 
+## Fastest start: a template
+Call `list_store_templates` (optionally `category`: fashion / lifestyle / cosmetics / jewellery) to see 5 ready-made designs per vertical (theme + storefront layout). Apply one with `apply_store_template` (`storeId`, `templateId`) — it sets the theme and publishes a home page; the store's own products fill the grid. You can then tweak sections/theme below. `launch_store` also accepts a `templateId` to launch straight from a template.
+
 Pages are ordered lists of typed sections; the `home` slug is the storefront landing page.
 
 ## Theme

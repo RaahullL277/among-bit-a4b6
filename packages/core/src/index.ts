@@ -92,6 +92,8 @@ export {
   type LaunchStoreInput,
   type LaunchProductInput,
 } from './services/onboarding.service.js';
+export { TemplateService } from './services/template.service.js';
+export { STORE_TEMPLATES, type StoreTemplate, type StoreCategory } from './templates/store-templates.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,

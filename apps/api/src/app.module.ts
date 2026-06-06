@@ -21,6 +21,7 @@ import { MarketingController } from './controllers/marketing.controller.js';
 import { ReviewsController } from './controllers/reviews.controller.js';
 import { OffersController } from './controllers/offers.controller.js';
 import { PagesController } from './controllers/pages.controller.js';
+import { TemplatesController } from './controllers/templates.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
 import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { SubscriptionsController } from './controllers/subscriptions.controller.js';
@@ -56,6 +57,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     ReviewsController,
     OffersController,
     PagesController,
+    TemplatesController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,

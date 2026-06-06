@@ -6,6 +6,7 @@ import type { StoreService } from './store.service.js';
 import type { ProductService } from './product.service.js';
 import type { IntegrationService } from './integration.service.js';
 import type { PageService } from './page.service.js';
+import type { TemplateService } from './template.service.js';
 
 export interface CreateAccountInput {
   businessName: string;
@@ -29,6 +30,8 @@ export interface LaunchStoreInput {
   brandColor?: string;
   accentColor?: string;
   products?: LaunchProductInput[];
+  /** Start from a design template (fashion/lifestyle/cosmetics/jewellery). */
+  templateId?: string;
   /** Publish the storefront immediately (default true). */
   publish?: boolean;
 }
@@ -50,6 +53,7 @@ export class OnboardingService {
     private readonly products: ProductService,
     private readonly integrations: IntegrationService,
     private readonly pages: PageService,
+    private readonly templates?: TemplateService,
   ) {}
 
   /** Create a brand-new merchant workspace and return an API key to connect with. */
@@ -110,27 +114,30 @@ export class OnboardingService {
       created.push({ id: product.id, title: product.title });
     }
 
-    if (input.brandColor || input.accentColor) {
-      await this.pages
-        .setTheme(ctx, {
-          storeId: store.id,
-          primaryColor: input.brandColor,
-          accentColor: input.accentColor,
-          logoText: input.name,
-        })
-        .catch(() => undefined);
+    const publish = input.publish !== false;
+
+    // A design template provides the theme + home-page layout; explicit colors
+    // override the template's theme.
+    const tpl = input.templateId && this.templates ? this.templates.resolveForLaunch(input.templateId) : undefined;
+    const primaryColor = input.brandColor ?? tpl?.theme.primaryColor;
+    const accentColor = input.accentColor ?? tpl?.theme.accentColor;
+    if (primaryColor || accentColor) {
+      await this.pages.setTheme(ctx, { storeId: store.id, primaryColor, accentColor, logoText: input.name }).catch(() => undefined);
     }
 
-    const publish = input.publish !== false;
+    const sections = tpl
+      ? tpl.sections.map((s) => (s.type === 'hero' && input.tagline ? { ...s, data: { ...s.data, subheading: input.tagline } } : s))
+      : [
+          { id: 'hero', type: 'hero' as const, data: { heading: input.name, subheading: input.tagline ?? '', ctaLabel: 'Shop now', ctaHref: '/' } },
+          { id: 'grid', type: 'product_grid' as const, data: { title: 'Featured', mode: 'all' } },
+        ];
+
     const page = await this.pages.create(ctx, {
       storeId: store.id,
       slug: 'home',
       title: input.name,
       status: publish ? 'PUBLISHED' : 'DRAFT',
-      sections: [
-        { id: 'hero', type: 'hero', data: { heading: input.name, subheading: input.tagline ?? '', ctaLabel: 'Shop now', ctaHref: '/' } },
-        { id: 'grid', type: 'product_grid', data: { title: 'Featured', mode: 'all' } },
-      ],
+      sections,
     });
 
     return {

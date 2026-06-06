@@ -300,6 +300,61 @@ function ThemeCard({ storeId }) {
   );
 }
 
+const TEMPLATE_CATEGORIES = ['', 'fashion', 'lifestyle', 'cosmetics', 'jewellery'];
+
+// Ready-made store designs (theme + storefront layout) by vertical.
+function TemplatesCard({ storeId, onApplied }) {
+  const [category, setCategory] = useState('');
+  const [applying, setApplying] = useState(null);
+  const { data: templates, loading } = useAsync(() => api.design.templates(category || undefined), [category]);
+
+  async function apply(t) {
+    setApplying(t.id);
+    try {
+      await api.design.applyTemplate({ storeId, templateId: t.id });
+      onApplied?.();
+    } finally {
+      setApplying(null);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Start from a template"
+        subtitle="Apply a ready-made theme + storefront layout (your products fill the grid)."
+        action={
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs capitalize">
+            {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{c || 'All categories'}</option>)}
+          </select>
+        }
+      />
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          {templates?.map((t) => (
+            <div key={t.id} className="flex flex-col rounded-xl border border-slate-200 p-3">
+              <div className="flex h-14 overflow-hidden rounded-lg">
+                <div className="flex-1" style={{ background: t.theme.primaryColor }} />
+                <div className="w-1/3" style={{ background: t.theme.accentColor }} />
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-900">{t.name}</span>
+                <Badge>{t.category}</Badge>
+              </div>
+              <p className="mt-0.5 flex-1 text-xs text-slate-500">{t.description}</p>
+              <Button variant="secondary" className="mt-2" loading={applying === t.id} onClick={() => apply(t)}>
+                Apply template
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function Design() {
   const { selectedId, selectedStore } = useStores();
   const [selected, setSelected] = useState(null);
@@ -341,6 +396,8 @@ export default function Design() {
         <h1 className="text-lg font-semibold text-slate-900">Design</h1>
         <Button onClick={createPage} loading={creating}><Plus size={15} /> New page</Button>
       </div>
+
+      <TemplatesCard storeId={selectedId} onApplied={reload} />
 
       <ThemeCard storeId={selectedId} />
 

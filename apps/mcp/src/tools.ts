@@ -83,6 +83,7 @@ export function registerTools(server: McpServer, session: Session) {
         tagline: z.string().optional().describe('Hero subheading on the storefront'),
         brandColor: z.string().optional().describe('Hex, e.g. #1c1917'),
         accentColor: z.string().optional().describe('Hex, e.g. #4f46e5'),
+        templateId: z.string().optional().describe('Start from a design template (see list_store_templates), e.g. "jewellery-classic-gold"'),
         publish: z.boolean().optional().describe('Publish the storefront now (default true)'),
         products: z
           .array(
@@ -98,6 +99,24 @@ export function registerTools(server: McpServer, session: Session) {
       },
     },
     tool((ctx, a: any) => commerce.onboarding.launchStore(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_store_templates',
+    {
+      description: 'List ready-made store design templates (theme + storefront layout). Optionally filter by category: fashion, lifestyle, cosmetics, jewellery.',
+      inputSchema: { category: z.enum(['fashion', 'lifestyle', 'cosmetics', 'jewellery']).optional() },
+    },
+    async (a: any) => ok(commerce.templates.list(a?.category)),
+  );
+
+  server.registerTool(
+    'apply_store_template',
+    {
+      description: 'Apply a design template to a store: sets the theme and publishes a storefront home page (the store\'s own products fill the grid).',
+      inputSchema: { storeId: z.string(), templateId: z.string(), publish: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => commerce.templates.apply(ctx, a.storeId, a.templateId, { publish: a.publish })),
   );
 
   // --- Partner tools (only when connected as a partner) ---------------------
