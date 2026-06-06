@@ -41,6 +41,8 @@ import { ShopabilityService } from './services/shopability.service.js';
 import { CheckoutSettingsService } from './services/checkout-settings.service.js';
 import { InvoiceService } from './services/invoice.service.js';
 import { AccountingService } from './services/accounting.service.js';
+import { LegalService } from './services/legal.service.js';
+import { StoreImportService } from './services/import.service.js';
 import { AuditService } from './services/audit.service.js';
 import { AppService } from './services/app.service.js';
 import { ListingService } from './services/listing.service.js';
@@ -69,6 +71,8 @@ export class Commerce {
   readonly checkoutSettings: CheckoutSettingsService;
   readonly invoices: InvoiceService;
   readonly accounting: AccountingService;
+  readonly legal: LegalService;
+  readonly imports: StoreImportService;
   readonly storefront: StorefrontService;
   readonly analytics: AnalyticsService;
   readonly shipping: ShippingService;
@@ -115,6 +119,8 @@ export class Commerce {
     // generate the tax invoice + credit note.
     this.invoices = new InvoiceService(prisma, this.checkoutSettings);
     this.accounting = new AccountingService(prisma);
+    this.legal = new LegalService(prisma);
+    this.imports = new StoreImportService(prisma, this.products, this.customers);
     this.orders = new OrderService(prisma, this.notifications, this.stock);
     this.loyalty = new LoyaltyService(prisma);
     this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices);
@@ -122,7 +128,7 @@ export class Commerce {
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
-    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings, this.invoices);
+    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings, this.invoices, this.legal);
     this.analytics = new AnalyticsService(prisma);
     this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
     this.platformAuth = new PlatformAuthService(prisma);

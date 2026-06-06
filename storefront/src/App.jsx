@@ -14,6 +14,7 @@ import Subscriptions from './pages/Subscriptions';
 import Search from './pages/Search';
 import Track from './pages/Track';
 import Wishlist from './pages/Wishlist';
+import Legal from './pages/Legal';
 
 function Header({ storeName }) {
   const { itemCount } = useCart();
@@ -120,10 +121,31 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/track" element={<Track />} />
           <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/legal/:type" element={<Legal />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
       <ChatWidget />
     </CartProvider>
+  );
+}
+
+function Footer() {
+  const [policies, setPolicies] = useState([]);
+  useEffect(() => {
+    api.legalPolicies(STORE_ID).then(setPolicies).catch(() => setPolicies([]));
+  }, []);
+  return (
+    <footer className="mt-12 border-t border-stone-200 bg-white">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-6 text-xs text-stone-500">
+        <Link to="/track" className="hover:text-stone-800">Track order</Link>
+        <Link to="/returns" className="hover:text-stone-800">Returns</Link>
+        {policies.map((p) => (
+          <Link key={p.type} to={`/legal/${p.slug}`} className="hover:text-stone-800">{p.title}</Link>
+        ))}
+      </div>
+    </footer>
   );
 }

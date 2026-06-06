@@ -130,6 +130,18 @@ export const api = {
     pnl: (storeId, from, to) => request(`/accounting/pnl?${qs({ storeId, from, to })}`),
     downloadCsv: (storeId, from, to) => openDocument(`/accounting/sales-register.csv?${qs({ storeId, from, to })}`, 'text/csv'),
   },
+  legal: {
+    list: (storeId) => request(`/legal?${qs({ storeId })}`),
+    get: (storeId, type) => request(`/legal/${type}?${qs({ storeId })}`),
+    set: (body) => request('/legal', { method: 'PUT', body }),
+    generate: (body) => request('/legal/generate', { method: 'POST', body }),
+    setStatus: (body) => request('/legal/status', { method: 'POST', body }),
+  },
+  imports: {
+    list: (storeId) => request(`/imports?${qs({ storeId })}`),
+    get: (id) => request(`/imports/${id}`),
+    run: (body) => request('/imports', { method: 'POST', body }),
+  },
   products: {
     list: (storeId) => request(`/products?storeId=${encodeURIComponent(storeId)}`),
     create: (body) => request('/products', { method: 'POST', body }),

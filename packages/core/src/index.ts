@@ -17,6 +17,8 @@ export { ApiKeyService, type CreatedApiKey } from './services/api-key.service.js
 export { StoreService, type CreateStoreInput, type UpdateStoreInput, type StoreTaxIdentityInput } from './services/store.service.js';
 export { InvoiceService, renderInvoiceHtml } from './services/invoice.service.js';
 export { AccountingService } from './services/accounting.service.js';
+export { LegalService, type SetLegalInput } from './services/legal.service.js';
+export { StoreImportService, type RunImportInput } from './services/import.service.js';
 export {
   ProductService,
   type CreateProductInput,
@@ -200,4 +202,7 @@ export type {
   BillingInterval,
   PartnerAccessLevel,
   RepricingStrategy,
+  LegalPolicyType,
+  ImportSource,
+  ImportStatus,
 } from '@prisma/client';

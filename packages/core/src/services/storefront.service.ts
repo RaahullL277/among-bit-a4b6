@@ -8,6 +8,7 @@ import type { StockService } from './stock.service.js';
 import type { CheckoutSettingsService } from './checkout-settings.service.js';
 import type { InvoiceService } from './invoice.service.js';
 import { renderInvoiceHtml } from './invoice.service.js';
+import type { LegalService } from './legal.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -25,7 +26,22 @@ export class StorefrontService {
     private readonly stock?: StockService,
     private readonly checkoutSettings?: CheckoutSettingsService,
     private readonly invoices?: InvoiceService,
+    private readonly legal?: LegalService,
   ) {}
+
+  // --- Legal policies (storefront footer + policy pages) --------------------
+
+  /** Published legal policies for the storefront footer. */
+  async legalPolicies(storeId: string) {
+    await this.ctxForStore(storeId);
+    return (await this.legal?.publicList(storeId)) ?? [];
+  }
+
+  /** A single published legal policy (by type/slug) for the storefront. */
+  async legalPolicy(storeId: string, type: string) {
+    await this.ctxForStore(storeId);
+    return (await this.legal?.publicGet(storeId, type)) ?? null;
+  }
 
   /** Adds a buyer-safe `availability` (in_stock / low_stock / out_of_stock) to
    * each variant of the given products, without exposing exact counts to UIs. */

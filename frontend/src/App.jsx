@@ -12,6 +12,8 @@ import Carts from './pages/Carts';
 import Shipments from './pages/Shipments';
 import Returns from './pages/Returns';
 import Invoicing from './pages/Invoicing';
+import Legal from './pages/Legal';
+import ImportPage from './pages/Import';
 import Stock from './pages/Stock';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
@@ -52,6 +54,8 @@ function AuthedApp() {
           <Route path="/shipments" element={<Shipments />} />
           <Route path="/returns" element={<Returns />} />
           <Route path="/invoicing" element={<Invoicing />} />
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/import" element={<ImportPage />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/:id" element={<CustomerDetail />} />
           <Route path="/cohorts" element={<Cohorts />} />

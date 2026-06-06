@@ -996,6 +996,86 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.accounting.profitAndLoss(ctx, a)),
   );
 
+  // --- Store migration / bootstrap (Shopify, WooCommerce, Dukaan) -----------
+  server.registerTool(
+    'import_store',
+    {
+      description:
+        'Bootstrap/migrate a store: import products or customers from an existing Shopify, WooCommerce, or Dukaan store. Paste the export contents as `data` (a product/customer CSV, or JSON in the platform\'s own shape). Idempotent — products already present (by title/SKU) and customers (by email) are skipped. Use dryRun to preview the parse + counts before writing.',
+      inputSchema: {
+        storeId: z.string(),
+        source: z.enum(['SHOPIFY', 'WOOCOMMERCE', 'DUKAAN', 'GENERIC']),
+        kind: z.enum(['products', 'customers']).optional().describe('What the export contains (default products)'),
+        data: z.string().describe('Raw export contents: CSV text or JSON'),
+        dryRun: z.boolean().optional().describe('Preview only — parse + report without creating anything'),
+      },
+    },
+    tool((ctx, a: any) => commerce.imports.run(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_imports',
+    { description: 'List past store-import runs (source, status, created/skipped/failed counts).', inputSchema: { storeId: z.string().optional() } },
+    tool((ctx, a: any) => commerce.imports.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'get_import',
+    { description: 'Fetch one import run with its per-row report.', inputSchema: { id: z.string() } },
+    tool((ctx, a: any) => commerce.imports.get(ctx, a.id)),
+  );
+
+  // --- Legal policies (terms, privacy, shipping, refund, cookies) -----------
+  const LEGAL_TYPE = z.enum(['TERMS', 'PRIVACY', 'SHIPPING', 'REFUND', 'COOKIES']);
+
+  server.registerTool(
+    'list_legal_policies',
+    { description: 'List a store\'s legal policies (Terms, Privacy, Shipping, Refund, Cookies) with status + version.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.legal.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'get_legal_policy',
+    { description: 'Fetch one legal policy by type.', inputSchema: { storeId: z.string(), type: LEGAL_TYPE } },
+    tool((ctx, a: any) => commerce.legal.get(ctx, a.storeId, a.type)),
+  );
+
+  server.registerTool(
+    'generate_legal_policies',
+    {
+      description:
+        'Generate India/GST-aware legal policies from the store\'s seller identity + return policy. Omit `type` to generate all five (Terms, Privacy, Shipping, Refund, Cookies). Set publish:true to publish them on the storefront immediately. Set the seller tax identity + return policy first so the documents are accurate.',
+      inputSchema: { storeId: z.string(), type: LEGAL_TYPE.optional(), publish: z.boolean().optional() },
+    },
+    tool((ctx, a: any) =>
+      a.type ? commerce.legal.generate(ctx, a.storeId, a.type, { publish: a.publish }) : commerce.legal.generateAll(ctx, a.storeId, { publish: a.publish }),
+    ),
+  );
+
+  server.registerTool(
+    'set_legal_policy',
+    {
+      description: 'Create or edit a legal policy with your own title/body, and optionally publish it. Editing the body bumps its version.',
+      inputSchema: {
+        storeId: z.string(),
+        type: LEGAL_TYPE,
+        title: z.string().optional(),
+        body: z.string().optional(),
+        status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.legal.set(ctx, a)),
+  );
+
+  server.registerTool(
+    'publish_legal_policy',
+    {
+      description: 'Publish or unpublish a legal policy (controls whether it shows in the storefront footer).',
+      inputSchema: { storeId: z.string(), type: LEGAL_TYPE, status: z.enum(['DRAFT', 'PUBLISHED']) },
+    },
+    tool((ctx, a: any) => commerce.legal.setStatus(ctx, a.storeId, a.type, a.status)),
+  );
+
   // --- Stock ----------------------------------------------------------------
   server.registerTool(
     'get_stock_status',

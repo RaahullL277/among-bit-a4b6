@@ -63,6 +63,17 @@ export class StorefrontController {
     return this.commerce.storefront.removeFromWishlist(storeId, body?.email, body?.productId);
   }
 
+  // Published legal policies for the storefront footer + policy pages.
+  @Get(':storeId/legal')
+  legalPolicies(@Param('storeId') storeId: string) {
+    return this.commerce.storefront.legalPolicies(storeId);
+  }
+
+  @Get(':storeId/legal/:type')
+  legalPolicy(@Param('storeId') storeId: string, @Param('type') type: string) {
+    return this.commerce.storefront.legalPolicy(storeId, type);
+  }
+
   @Get(':storeId/products/:productId')
   product(@Param('storeId') storeId: string, @Param('productId') productId: string) {
     return this.commerce.storefront.getProduct(storeId, productId);

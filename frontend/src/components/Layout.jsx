@@ -32,6 +32,8 @@ import {
   LogOut,
   ShoppingBag,
   FileText,
+  Scale,
+  DownloadCloud,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStores } from '../context/StoreContext';
@@ -40,6 +42,7 @@ import { useStores } from '../context/StoreContext';
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/stores', label: 'Stores', icon: Store },
+  { to: '/import', label: 'Import / Migrate', icon: DownloadCloud, perm: 'products:write' },
   { to: '/design', label: 'Design', icon: Palette },
   { to: '/seo', label: 'SEO & Speed', icon: Search },
   { to: '/images', label: 'Images', icon: Image },
@@ -66,6 +69,7 @@ const nav = [
   { to: '/notifications', label: 'Notifications', icon: Bell, perm: 'notifications:write' },
   { to: '/support', label: 'Support', icon: MessageSquare },
   { to: '/team', label: 'Team', icon: UserCog, perm: 'members:manage' },
+  { to: '/legal', label: 'Legal', icon: Scale },
   { to: '/audit', label: 'Audit log', icon: ScrollText, perm: 'members:manage' },
   { to: '/settings', label: 'Settings', icon: Settings, perm: 'apikeys:manage' },
 ];

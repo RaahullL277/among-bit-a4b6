@@ -9,17 +9,14 @@ core capability gap · P2 = polish).
 
 ## Compliance, onboarding & migration (investigated 2026-06-06)
 
-### 1. Legal pages — Terms of Use & Privacy Policy — ❌ not built (P1)
-No legal-document model, generator, default templates, acceptance/consent
-tracking, or checkout/footer linkage exists today (`termsOfService` /
-`privacyPolicy` / `legalPage` return nothing). A merchant can only hand-author a
-page via the generic page builder (`StorePage` `rich_text`/`faq`), which is
-unmanaged free text and not linked anywhere by default.
-- [ ] `LegalPolicy` model (type: TERMS / PRIVACY / SHIPPING / REFUND / COOKIES), per store, versioned.
-- [ ] India/GST-aware default templates + a generator (seed from store + seller tax identity).
-- [ ] Auto-link in the storefront footer + checkout; optional buyer-acceptance capture (timestamp/version).
-- [ ] Surfaces: REST `/legal`, MCP (`set_legal_policy`, `get_legal_policy`, `generate_legal_policy`), admin page, storefront pages, `acp-legal` skill, tests.
-- Pattern reference: `ReturnPolicy` (`return.service.ts`) is the proven first-class-policy template.
+### 1. Legal pages — Terms of Use & Privacy Policy — ✅ BUILT
+`LegalPolicy` model (TERMS / PRIVACY / SHIPPING / REFUND / COOKIES), versioned per
+store. India/GST-aware template generator seeded from the seller tax identity +
+return policy (`LegalService`, `legal/templates.ts`). Surfaces: REST `/legal`,
+MCP (`generate_legal_policies`, `get_legal_policy`, `set_legal_policy`,
+`publish_legal_policy`, `list_legal_policies`), admin **Legal** page, storefront
+footer links + `/legal/:type` policy pages, `acp-legal` skill, tests.
+- [ ] (Follow-up) Optional buyer-acceptance capture at checkout (timestamp + policy version) — versioning is already in place to support it.
 
 ### 2. eKYC / merchant verification & payouts — ❌ not built (P0 for real go-live)
 Entirely absent — no `kyc` / `aadhaar` / `bankAccount` / `payout` / `ifsc` /
@@ -30,25 +27,26 @@ invoice print identity** and are never verified. No payout/settlement model.
 - [ ] Gate go-live / payouts on VERIFIED; verify against the existing `gstin`/`pan` fields.
 - [ ] Surfaces: REST `/kyc`, MCP tools, admin onboarding step, platform-operator review queue, skill, tests.
 
-### 3. Bootstrap / migration agent (Shopify, WooCommerce, Dukaan) — ❌ not built (P1)
-No importers, CSV/bulk import, or migration tooling. `OnboardingService` only
-provisions a fresh store with inline products. The only related artifact is a
-**stub** "Review Importer" marketplace catalog entry (`app.service.ts`, metadata
-only, no runtime).
-- [ ] `StoreImportService` with per-source adapters: Shopify (CSV + Admin API), WooCommerce (REST), Dukaan (export).
-- [ ] Map imported products / variants / customers / orders onto existing `products.create` / `customers.create` / order creation; idempotent, resumable, with an import report (created/skipped/failed).
-- [ ] MCP `import_store` tool so an agent can drive "move my Shopify store over" conversationally; admin "Import" wizard; `acp-migration` skill; tests with sample fixtures.
-- [ ] Decide credential handling (file upload / CSV vs API keys) per source.
+### 3. Bootstrap / migration agent (Shopify, WooCommerce, Dukaan) — ✅ BUILT
+`StoreImportService` + `migration/parsers.ts` import **products or customers**
+from Shopify / WooCommerce / Dukaan CSV exports (and a generic CSV/JSON shape)
+onto a store via the existing services. Idempotent + resumable (skip by
+title/SKU/email), `dryRun` preview, per-row report (`ImportJob`). Surfaces: REST
+`/imports`, MCP (`import_store`, `list_imports`, `get_import`), admin
+**Import / Migrate** wizard, `acp-migration` skill, tests with fixtures.
+- [ ] (Follow-up) Live API ingestion (Shopify Admin API / Woo REST) instead of CSV paste — needs per-source credentials.
+- [ ] (Follow-up) Import historical **orders** (currently products + customers).
 
-**Suggested order:** migration agent + legal pages first (high activation, no
-external credentials needed); eKYC as a stubbed-adapter slice (real verification
-needs live GSTN/PAN/bank credentials, like P0-1 payments).
+**Remaining priority:** eKYC (item 2) — as a stubbed-adapter slice (real
+verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 
 ---
 
 ## Already shipped (for context)
 - **Returns & cancellation policy** — ✅ first-class, enforced (`ReturnPolicy` + `ReturnService`); storefront-visible; refunds + GST credit notes.
 - **GST invoicing & accounting (items 1–4)** — ✅ seller tax identity, HSN/GST on products, tax invoice on capture (CGST/SGST/IGST by place of supply), credit notes on refund (tax-inclusive), sales register CSV + P&L-lite. See `AUDIT.md`.
+- **Legal pages** — ✅ Terms/Privacy/Shipping/Refund/Cookies generator + storefront pages (item 1 above).
+- **Store migration/bootstrap agent** — ✅ Shopify/WooCommerce/Dukaan import (item 3 above).
 
 ## Known roadmap (from AUDIT.md)
 - [ ] P0-1: real Razorpay / GoKwik / WhatsApp / Delhivery / Resend / Msg91 / ESP adapters (stubs today; need live credentials).
