@@ -102,13 +102,14 @@ export class Commerce {
     this.marketing = new MarketingService(prisma, this.integrations);
     this.customers = new CustomerService(prisma, this.marketing);
     this.notifications = new NotificationService(prisma, this.integrations);
-    this.orders = new OrderService(prisma, this.notifications);
+    // Stock is constructed early so the sale/return paths can consume + restore it.
+    this.stock = new StockService(prisma, this.notifications);
+    this.orders = new OrderService(prisma, this.notifications, this.stock);
     this.loyalty = new LoyaltyService(prisma);
-    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty);
+    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock);
     this.messaging = new MessagingService(prisma, this.integrations);
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
-    this.stock = new StockService(prisma, this.notifications);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
     this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions);
     this.analytics = new AnalyticsService(prisma);
@@ -120,7 +121,7 @@ export class Commerce {
     this.customerSupport = new CustomerSupportService(prisma);
     this.reviews = new ReviewService(prisma);
     this.pages = new PageService(prisma);
-    this.returns = new ReturnService(prisma, this.payments, this.notifications);
+    this.returns = new ReturnService(prisma, this.payments, this.notifications, this.stock);
     this.seo = new SeoService(prisma);
     this.images = new ImageService(prisma);
     this.partnerAuth = new PartnerAuthService(prisma);

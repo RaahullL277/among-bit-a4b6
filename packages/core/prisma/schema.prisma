@@ -948,6 +948,12 @@ model StockPolicy {
   reorderPoint       Int      @default(0)
   // Trailing window (days) used to compute sales velocity.
   velocityWindowDays Int      @default(30)
+  // Whether stock is consumed by sales + enforced at checkout. Off = untracked
+  // (digital / made-to-order): no decrement, no oversell block.
+  trackInventory     Boolean  @default(true)
+  // When tracking, allow checkout beyond available stock (inventory may go
+  // negative = backorder) instead of blocking the order.
+  allowBackorder     Boolean  @default(false)
   updatedAt          DateTime @updatedAt
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)

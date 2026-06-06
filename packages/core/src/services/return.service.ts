@@ -2,6 +2,7 @@ import type { PrismaClient, ReturnReason, ReturnStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
+import type { StockService } from './stock.service.js';
 
 export interface ReturnItemInput {
   orderItemId: string;
@@ -59,6 +60,7 @@ export class ReturnService {
     private readonly prisma: PrismaClient,
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
+    private readonly stock?: StockService,
   ) {}
 
   private money(minor: number, currency: string) {
@@ -246,12 +248,15 @@ export class ReturnService {
 
     const ctx: TenantContext = { tenantId: order.tenantId };
     let refunded = false;
-    if (order.status === 'PAID' && order.payment?.status === 'CAPTURED') {
+    const wasPaid = order.status === 'PAID';
+    if (wasPaid && order.payment?.status === 'CAPTURED') {
       await this.payments.refund(ctx, order.id); // full refund
       refunded = true;
     }
     // Refund may have set the order to REFUNDED; mark it cancelled (the buyer's intent).
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+    // A paid order consumed stock at capture — return it on cancellation.
+    if (wasPaid) await this.stock?.restoreOrder(order.id).catch(() => undefined);
     await this.notifications.notifyOrderEvent(ctx, order.id, 'ORDER_STATUS_CHANGED').catch(() => undefined);
 
     return { cancelled: true, refunded, orderNumber: order.number };
@@ -391,7 +396,10 @@ export class ReturnService {
   async markReceived(ctx: TenantContext, id: string) {
     const row = await this.load(ctx, id);
     this.assertTransition(row.status, 'RECEIVED');
-    return this.prisma.return.update({ where: { id }, data: { status: 'RECEIVED' } });
+    const updated = await this.prisma.return.update({ where: { id }, data: { status: 'RECEIVED' } });
+    // Returned items are back in the warehouse → restock (skips damaged goods).
+    await this.stock?.restoreReturn(id).catch(() => undefined);
+    return updated;
   }
 
   async cancel(ctx: TenantContext, id: string) {

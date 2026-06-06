@@ -5,6 +5,7 @@ import type { IntegrationService } from './integration.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { MarketingService } from './marketing.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
+import type { StockService } from './stock.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -27,6 +28,7 @@ export class PaymentService {
     private readonly notifications?: NotificationService,
     private readonly marketing?: MarketingService,
     private readonly loyalty?: LoyaltyService,
+    private readonly stock?: StockService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -56,8 +58,12 @@ export class PaymentService {
         title: variant.title,
         quantity: item.quantity,
         unitPriceMinor: variant.priceMinor,
+        available: variant.inventory,
       };
     });
+
+    // Overselling guard (respects the store's track-inventory / backorder policy).
+    await this.stock?.assertCanFulfill(store.id, lineItems);
     const subtotalMinor = lineItems.reduce((sum, li) => sum + li.unitPriceMinor * li.quantity, 0);
     // Clamp any offer discount to the subtotal so the charged total never goes negative.
     const discountMinor = Math.max(0, Math.min(Math.round(input.discountMinor ?? 0), subtotalMinor));
@@ -219,11 +225,16 @@ export class PaymentService {
     const orderStatus =
       status === 'CAPTURED' ? 'PAID' : status === 'REFUNDED' ? 'REFUNDED' : status === 'FAILED' ? 'CANCELLED' : undefined;
     if (orderStatus) {
+      // Capture the prior status so capture side-effects run exactly once.
+      const prior = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+      const wasPaid = prior?.status === 'PAID' || prior?.status === 'FULFILLED';
       const order = await this.prisma.order.update({
         where: { id: orderId },
         data: { status: orderStatus },
       });
-      if (orderStatus === 'PAID') {
+      if (orderStatus === 'PAID' && !wasPaid) {
+        // Consume inventory for the sale (respects the store's tracking policy).
+        await this.stock?.applyOrderSale(orderId).catch(() => undefined);
         // Attribute a paid order back to its cart (recovered if it was abandoned).
         if (order.cartId) {
           const cart = await this.prisma.cart.findUnique({

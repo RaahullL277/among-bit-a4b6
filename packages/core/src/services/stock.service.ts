@@ -1,5 +1,5 @@
 import type { PrismaClient, StockStatus } from '@prisma/client';
-import { NotFoundError, type TenantContext } from '../context.js';
+import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { defaultStockScorer, type StockScorer } from '../stock/scorer.js';
 import type { NotificationService } from './notification.service.js';
 
@@ -9,6 +9,8 @@ const DEFAULT_POLICY = {
   amberDays: 5,
   reorderPoint: 0,
   velocityWindowDays: 30,
+  trackInventory: true,
+  allowBackorder: false,
 };
 
 export interface VariantStock {
@@ -130,6 +132,8 @@ export class StockService {
       amberDays?: number;
       reorderPoint?: number;
       velocityWindowDays?: number;
+      trackInventory?: boolean;
+      allowBackorder?: boolean;
     },
   ) {
     await this.assertStore(ctx, input.storeId);
@@ -139,12 +143,85 @@ export class StockService {
       amberDays: input.amberDays ?? DEFAULT_POLICY.amberDays,
       reorderPoint: input.reorderPoint ?? DEFAULT_POLICY.reorderPoint,
       velocityWindowDays: input.velocityWindowDays ?? DEFAULT_POLICY.velocityWindowDays,
+      trackInventory: input.trackInventory ?? DEFAULT_POLICY.trackInventory,
+      allowBackorder: input.allowBackorder ?? DEFAULT_POLICY.allowBackorder,
     };
     return this.prisma.stockPolicy.upsert({
       where: { storeId: input.storeId },
       create: { tenantId: ctx.tenantId, storeId: input.storeId, ...data },
       update: data,
     });
+  }
+
+  // --- Fulfillment policy + inventory movement ------------------------------
+
+  /** The store's stock-consumption policy (tracking + backorder). */
+  async fulfillmentPolicy(storeId: string): Promise<{ trackInventory: boolean; allowBackorder: boolean }> {
+    const row = await this.prisma.stockPolicy.findUnique({ where: { storeId }, select: { trackInventory: true, allowBackorder: true } });
+    return { trackInventory: row?.trackInventory ?? DEFAULT_POLICY.trackInventory, allowBackorder: row?.allowBackorder ?? DEFAULT_POLICY.allowBackorder };
+  }
+
+  /**
+   * Overselling guard for checkout: throws when an item exceeds available stock,
+   * unless the store doesn't track inventory or allows backorder. `available` is
+   * the current inventory the caller already resolved for each variant.
+   */
+  async assertCanFulfill(storeId: string, items: { variantId: string; title: string; quantity: number; available: number }[]) {
+    const p = await this.fulfillmentPolicy(storeId);
+    if (!p.trackInventory || p.allowBackorder) return;
+    for (const it of items) {
+      if (it.quantity > it.available) {
+        throw new ValidationError(
+          it.available <= 0
+            ? `"${it.title}" is out of stock.`
+            : `Only ${it.available} of "${it.title}" left in stock (you requested ${it.quantity}).`,
+        );
+      }
+    }
+  }
+
+  /** Decrement stock for a paid order's items (idempotency is the caller's job). */
+  async applyOrderSale(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { storeId: true, items: { select: { variantId: true, quantity: true } } } });
+    if (!order) return;
+    const p = await this.fulfillmentPolicy(order.storeId);
+    if (!p.trackInventory) return;
+    for (const it of order.items) {
+      if (!it.variantId) continue;
+      if (p.allowBackorder) {
+        await this.prisma.productVariant.update({ where: { id: it.variantId }, data: { inventory: { decrement: it.quantity } } });
+      } else {
+        // Clamp at 0 atomically so a race can't push tracked stock negative.
+        await this.prisma.$executeRaw`UPDATE "ProductVariant" SET inventory = GREATEST(inventory - ${it.quantity}, 0) WHERE id = ${it.variantId}`;
+      }
+    }
+  }
+
+  /** Return all of an order's items to stock (full cancellation of a paid order). */
+  async restoreOrder(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { storeId: true, items: { select: { variantId: true, quantity: true } } } });
+    if (!order) return;
+    const p = await this.fulfillmentPolicy(order.storeId);
+    if (!p.trackInventory) return;
+    for (const it of order.items) {
+      if (it.variantId) await this.prisma.productVariant.update({ where: { id: it.variantId }, data: { inventory: { increment: it.quantity } } });
+    }
+  }
+
+  /** Return the received items of a return to stock (skips non-resaleable / damaged). */
+  async restoreReturn(returnId: string) {
+    const ret = await this.prisma.return.findUnique({
+      where: { id: returnId },
+      select: { storeId: true, reason: true, items: { select: { quantity: true, orderItem: { select: { variantId: true } } } } },
+    });
+    if (!ret) return;
+    if (ret.reason === 'DAMAGED') return; // damaged goods aren't resaleable
+    const p = await this.fulfillmentPolicy(ret.storeId);
+    if (!p.trackInventory) return;
+    for (const ri of ret.items) {
+      const variantId = ri.orderItem?.variantId;
+      if (variantId) await this.prisma.productVariant.update({ where: { id: variantId }, data: { inventory: { increment: ri.quantity } } });
+    }
   }
 
   // --- Recompute + alert (worker job; not tenant-scoped) --------------------

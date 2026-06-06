@@ -35,6 +35,8 @@ function StockPolicy({ storeId }) {
         amberDays: Number(policy.amberDays),
         reorderPoint: Number(policy.reorderPoint),
         velocityWindowDays: Number(policy.velocityWindowDays),
+        trackInventory: policy.trackInventory,
+        allowBackorder: policy.allowBackorder,
       });
       setForm(null);
       reload();
@@ -65,6 +67,16 @@ function StockPolicy({ storeId }) {
         <Field label="🟠 Amber ≥ days"><Input type="number" value={policy.amberDays} onChange={set('amberDays')} /></Field>
         <Field label="Reorder point"><Input type="number" value={policy.reorderPoint} onChange={set('reorderPoint')} /></Field>
         <Field label="Velocity window (d)"><Input type="number" value={policy.velocityWindowDays} onChange={set('velocityWindowDays')} /></Field>
+      </div>
+      <div className="space-y-2 border-t border-slate-100 pt-3">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={policy.trackInventory} onChange={(e) => setForm({ ...policy, trackInventory: e.target.checked })} />
+          Track inventory — consume stock on sale &amp; block overselling
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={policy.allowBackorder} disabled={!policy.trackInventory} onChange={(e) => setForm({ ...policy, allowBackorder: e.target.checked })} />
+          Allow backorders — accept orders beyond available stock (stock can go negative)
+        </label>
       </div>
       <ErrorBanner message={error} />
       <Button type="submit" loading={saving}>

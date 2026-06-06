@@ -920,9 +920,11 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'set_stock_policy',
     {
-      description: 'Tune the stock-health policy: green/amber days-of-cover thresholds, reorder point, and the sales-velocity window used to compute cover.',
+      description: 'Tune the stock policy: green/amber days-of-cover thresholds, reorder point, sales-velocity window, and inventory consumption — trackInventory (consume + enforce stock on sale) and allowBackorder (let orders exceed stock instead of blocking).',
       inputSchema: {
         storeId: z.string(),
+        trackInventory: z.boolean().optional(),
+        allowBackorder: z.boolean().optional(),
         enabled: z.boolean().optional(),
         greenDays: z.number().int().positive().optional(),
         amberDays: z.number().int().positive().optional(),

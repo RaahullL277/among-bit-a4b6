@@ -13,8 +13,17 @@ quantity, so fast sellers surface before they run out.
 `get_stock_status` with `storeId` → red/amber/green health and days-of-cover for every
 variant, so you can see what needs reordering.
 
+## Consumption & overselling
+Stock is **consumed when a sale is captured** (paid) and **returned** when a received
+return is restocked or a paid order is cancelled (damaged returns are not restocked).
+By default, checkout is **blocked** when an item exceeds available stock.
+
 ## Policy
 `get_stock_policy` / `set_stock_policy` with `storeId` tune:
+- `trackInventory` — consume stock on sale + enforce it at checkout (default on). Turn off
+  for digital / made-to-order goods (no decrement, no oversell block).
+- `allowBackorder` — accept orders beyond available stock (inventory may go negative)
+  instead of blocking the checkout.
 - `greenDays` / `amberDays` — days-of-cover thresholds for healthy vs. low.
 - `reorderPoint` — quantity at/below which a variant is flagged regardless of velocity.
 - `velocityWindowDays` — the recent window used to estimate sales velocity.
