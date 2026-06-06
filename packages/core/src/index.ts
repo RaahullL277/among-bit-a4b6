@@ -74,6 +74,8 @@ export {
 } from './services/subscription.service.js';
 export { SeoService, type SeoSettingsInput } from './services/seo.service.js';
 export { ImageService, type CreateImageInput } from './services/image.service.js';
+export { PartnerAuthService, type PartnerContext, type PartnerSessionResult } from './services/partner-auth.service.js';
+export { PartnerService, type CreatePartnerInput, type AddClientInput } from './services/partner.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,

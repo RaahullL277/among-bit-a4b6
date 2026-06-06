@@ -245,6 +245,7 @@ model Tenant {
   memberships   Membership[]
   invites       Invite[]
   plan          TenantPlan?
+  partnerClient PartnerClient?
 }
 
 // Plan tier + feature flags/limits for a tenant, set by platform billing staff.
@@ -1226,4 +1227,63 @@ model ImageAsset {
   @@index([tenantId])
   @@index([storeId])
   @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Partner / agency dashboard
+// ---------------------------------------------------------------------------
+
+// An agency/reseller that manages client stores and earns commission on their
+// GMV. Separate identity plane (magic-link), like platform staff.
+model Partner {
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  // The partner's commission on client GMV, in percent.
+  commissionPercent Int      @default(10)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  clients  PartnerClient[]
+  sessions PartnerSession[]
+}
+
+// Links a partner to a client tenant, with the recurring fee the client pays
+// and the next renewal date (drives the "upcoming renewals" view).
+model PartnerClient {
+  id              String    @id @default(cuid())
+  partnerId       String
+  tenantId        String    @unique
+  monthlyFeeMinor Int       @default(0)
+  renewsAt        DateTime?
+  createdAt       DateTime  @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+model PartnerSession {
+  id         String    @id @default(cuid())
+  partnerId  String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+model PartnerMagicLinkToken {
+  id         String    @id @default(cuid())
+  email      String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
 }

@@ -4,3 +4,4 @@ packages:
   - "frontend"
   - "storefront"
   - "platform"
+  - "partner"

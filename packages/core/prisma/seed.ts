@@ -98,6 +98,25 @@ async function main() {
     update: { role: 'SUPER_ADMIN' },
   });
 
+  // A demo partner/agency with this tenant as a client, so the partner portal
+  // has data on first login.
+  const partnerEmail = 'partner@agency.example';
+  const partner = await prisma.partner.upsert({
+    where: { email: partnerEmail },
+    create: { email: partnerEmail, name: 'Demo Agency', commissionPercent: 20 },
+    update: {},
+  });
+  await prisma.partnerClient.upsert({
+    where: { tenantId: tenant.id },
+    create: {
+      partnerId: partner.id,
+      tenantId: tenant.id,
+      monthlyFeeMinor: 499900,
+      renewsAt: new Date(Date.now() + 12 * 86_400_000),
+    },
+    update: {},
+  });
+
   const output = {
     tenantId: tenant.id,
     apiKey: apiKey.raw,
@@ -111,6 +130,7 @@ async function main() {
   console.log('\n✅ Seed complete.\n');
   console.log('  Owner login email (magic link):    ', ownerEmail);
   console.log('  Platform admin login email:        ', platformEmail);
+  console.log('  Partner portal login email:        ', partnerEmail);
   console.log('  API key (store this — shown once):', apiKey.raw);
   console.log('  Store id:                          ', store.id);
   console.log('  Sample variant id:                 ', masala.variants[0].id);

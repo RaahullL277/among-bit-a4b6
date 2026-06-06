@@ -28,6 +28,7 @@ import { SeoController } from './controllers/seo.controller.js';
 import { ShipmentsController } from './controllers/shipments.controller.js';
 import { PlatformAuthController } from './controllers/platform-auth.controller.js';
 import { PlatformController } from './controllers/platform.controller.js';
+import { PartnerController } from './controllers/partner.controller.js';
 import { ApiKeysController } from './controllers/api-keys.controller.js';
 import { WebhooksController } from './controllers/webhooks.controller.js';
 
@@ -60,6 +61,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     ShipmentsController,
     PlatformAuthController,
     PlatformController,
+    PartnerController,
     ApiKeysController,
     WebhooksController,
   ],

@@ -22,6 +22,7 @@ apps/worker     Background jobs (abandoned-cart recovery, stock recompute/alerts
 frontend/       Merchant admin console (React + Vite + Tailwind) over the REST API
 storefront/     Public buyer storefront (browse → cart → checkout) over the public API
 platform/       Platform-operator console (cross-tenant back-office) over /platform/*
+partner/        Partner/agency portal (client analytics + earnings) over /partner/*
 ```
 
 - **Multi-tenant:** every row carries a `tenantId`; the service layer scopes all queries by the
@@ -116,6 +117,12 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   **plan/billing flags** (tier + store limit + feature flags, with the store limit enforced), an
   action audit log, and a **support chatbot** that answers operator questions over platform data.
   Distinct from per-merchant RBAC.
+- **Partner / agency portal** — a *third* auth plane (partners log in via magic link) where an
+  agency sees a dashboard across **only its own client stores**: aggregate GMV + orders, **commission
+  earnings** (a configurable % of client GMV), recurring **MRR**, and **upcoming renewals**, plus
+  per-client breakdowns. Operators provision partners and assign client tenants (with a monthly fee +
+  renewal date) from the platform console. Partner endpoints `/partner/*`; operator management under
+  `/platform/partners`.
 
 ## Prerequisites
 
@@ -155,6 +162,9 @@ pnpm store:dev        # http://localhost:5174
 
 # 5e. Run the platform-operator console (sign in as the seeded platform admin)
 pnpm platform:dev     # http://localhost:5175
+
+# 5f. Run the partner/agency portal (sign in as the seeded partner)
+pnpm partner:dev      # http://localhost:5176
 ```
 
 The **storefront** is unauthenticated and store-scoped: a public API surface (`/storefront/*`,

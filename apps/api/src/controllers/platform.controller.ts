@@ -122,4 +122,29 @@ export class PlatformController {
   audit(@Query('limit') limit?: string) {
     return this.commerce.platform.listAudit({ limit: limit ? Number(limit) : undefined });
   }
+
+  // --- Partner program (operator manages partners + client assignments) ------
+  @Get('partners')
+  @PlatformPermissions('platform:tenants:read')
+  listPartners() {
+    return this.commerce.partners.listPartners();
+  }
+
+  @Post('partners')
+  @PlatformPermissions('platform:tenants:write')
+  createPartner(@Body() body: { name: string; email: string; commissionPercent?: number }) {
+    return this.commerce.partners.createPartner(body);
+  }
+
+  @Post('partners/:id/clients')
+  @PlatformPermissions('platform:tenants:write')
+  addPartnerClient(@Param('id') id: string, @Body() body: { tenantId: string; monthlyFeeMinor?: number; renewsAt?: string }) {
+    return this.commerce.partners.addClient(id, body);
+  }
+
+  @Delete('partners/:id/clients/:clientId')
+  @PlatformPermissions('platform:tenants:write')
+  removePartnerClient(@Param('id') id: string, @Param('clientId') clientId: string) {
+    return this.commerce.partners.removeClient(id, clientId);
+  }
 }
