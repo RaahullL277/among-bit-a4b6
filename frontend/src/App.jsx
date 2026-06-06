@@ -17,6 +17,7 @@ import Cohorts from './pages/Cohorts';
 import Automation from './pages/Automation';
 import Shopability from './pages/Shopability';
 import Integrations from './pages/Integrations';
+import Apps from './pages/Apps';
 import Notifications from './pages/Notifications';
 import Support from './pages/Support';
 import Reviews from './pages/Reviews';
@@ -53,6 +54,7 @@ function AuthedApp() {
           <Route path="/automation" element={<Automation />} />
           <Route path="/shopability" element={<Shopability />} />
           <Route path="/integrations" element={<Integrations />} />
+          <Route path="/apps" element={<Apps />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/support" element={<Support />} />
           <Route path="/reviews" element={<Reviews />} />

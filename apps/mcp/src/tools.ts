@@ -1201,6 +1201,40 @@ export function registerTools(server: McpServer, session: Session) {
     }),
   );
 
+  // --- App marketplace ------------------------------------------------------
+  server.registerTool(
+    'list_app_catalog',
+    { description: 'Browse the app marketplace: published apps a merchant can install (name, developer, category, requested scopes).', inputSchema: {} },
+    tool(() => commerce.apps.catalog()),
+  );
+
+  server.registerTool(
+    'list_installed_apps',
+    { description: 'List the apps installed on this account, with their granted scopes and enabled state.', inputSchema: {} },
+    tool((ctx) => commerce.apps.listInstalled(ctx)),
+  );
+
+  server.registerTool(
+    'install_app',
+    {
+      description: 'Install a marketplace app by id or slug, granting the scopes it requests.',
+      inputSchema: { appId: z.string(), config: z.record(z.any()).optional() },
+    },
+    tool((ctx, a: any) => commerce.apps.install(ctx, a.appId, a.config)),
+  );
+
+  server.registerTool(
+    'uninstall_app',
+    { description: 'Uninstall an app from this account.', inputSchema: { appId: z.string() } },
+    tool((ctx, a: any) => commerce.apps.uninstall(ctx, a.appId)),
+  );
+
+  server.registerTool(
+    'set_app_enabled',
+    { description: 'Enable or disable an installed app without uninstalling it.', inputSchema: { appId: z.string(), enabled: z.boolean() } },
+    tool((ctx, a: any) => commerce.apps.setEnabled(ctx, a.appId, a.enabled)),
+  );
+
   // --- Audit trail ----------------------------------------------------------
   server.registerTool(
     'list_audit_log',

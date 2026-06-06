@@ -147,4 +147,23 @@ export class PlatformController {
   removePartnerClient(@Param('id') id: string, @Param('clientId') clientId: string) {
     return this.commerce.partners.removeClient(id, clientId);
   }
+
+  // --- App marketplace catalog (operator-curated) ---------------------------
+  @Get('apps')
+  @PlatformPermissions('platform:tenants:read')
+  listApps() {
+    return this.commerce.apps.catalog();
+  }
+
+  @Post('apps')
+  @PlatformPermissions('platform:tenants:write')
+  publishApp(@Body() body: any) {
+    return this.commerce.apps.publish(body);
+  }
+
+  @Post('apps/seed')
+  @PlatformPermissions('platform:tenants:write')
+  seedApps() {
+    return this.commerce.apps.seedCatalog();
+  }
 }

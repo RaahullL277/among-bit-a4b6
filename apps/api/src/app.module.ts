@@ -4,6 +4,7 @@ import { AuthGuard } from './auth/auth.guard.js';
 import { RateLimitMiddleware } from './common/rate-limit.middleware.js';
 import { AuditInterceptor } from './common/audit.interceptor.js';
 import { AuditController } from './controllers/audit.controller.js';
+import { AppsController } from './controllers/apps.controller.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { MembersController } from './controllers/members.controller.js';
 import { HealthController } from './controllers/health.controller.js';
@@ -70,6 +71,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     ShopabilityController,
     AgentController,
     AuditController,
+    AppsController,
     ReturnsController,
     LoyaltyController,
     SubscriptionsController,

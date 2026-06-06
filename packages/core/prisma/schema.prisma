@@ -682,7 +682,11 @@ model App {
   name        String
   slug        String   @unique
   description String?
-  scopes      String[] @default([])
+  developer   String?
+  category    String?
+  scopes      String[] @default([]) // permissions the app requests at install
+  webhookUrl  String? // where the app receives events (delivery is a stub for now)
+  published   Boolean  @default(true) // visible in the merchant catalog
   createdAt   DateTime @default(now())
 
   installations AppInstallation[]
@@ -714,6 +718,8 @@ model AppInstallation {
   id        String   @id @default(cuid())
   tenantId  String
   appId     String
+  enabled   Boolean  @default(true)
+  scopes    String[] @default([]) // scopes granted to the app at install time
   config    Json?
   createdAt DateTime @default(now())
 

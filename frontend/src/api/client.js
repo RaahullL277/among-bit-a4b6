@@ -256,6 +256,13 @@ export const api = {
   audit: {
     list: (params) => request(`/audit?${qs(params ?? {})}`),
   },
+  apps: {
+    catalog: () => request('/apps/catalog'),
+    installed: () => request('/apps/installed'),
+    install: (id, config) => request(`/apps/${id}/install`, { method: 'POST', body: { config } }),
+    setEnabled: (id, enabled) => request(`/apps/${id}`, { method: 'PATCH', body: { enabled } }),
+    uninstall: (id) => request(`/apps/${id}/install`, { method: 'DELETE' }),
+  },
   apiKeys: {
     list: () => request('/api-keys'),
     create: (body) => request('/api-keys', { method: 'POST', body }),
