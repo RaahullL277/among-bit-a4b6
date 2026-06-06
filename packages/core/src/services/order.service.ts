@@ -1,9 +1,18 @@
 import type { OrderStatus, PrismaClient } from '@prisma/client';
-import { NotFoundError, type TenantContext } from '../context.js';
+import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { NotificationService } from './notification.service.js';
 import type { StockService } from './stock.service.js';
 
 const orderInclude = { items: true, payment: true, customer: true } as const;
+
+// Allowed merchant-driven order status transitions (CANCELLED/REFUNDED are terminal).
+const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ['PAID', 'CANCELLED'],
+  PAID: ['FULFILLED', 'CANCELLED', 'REFUNDED'],
+  FULFILLED: ['REFUNDED', 'CANCELLED'],
+  CANCELLED: [],
+  REFUNDED: [],
+};
 
 export class OrderService {
   constructor(
@@ -31,6 +40,11 @@ export class OrderService {
 
   async updateStatus(ctx: TenantContext, id: string, status: OrderStatus) {
     const before = await this.get(ctx, id);
+    // Enforce a state machine so illegal moves (e.g. PAID→PENDING, REFUNDED→PAID)
+    // are rejected; a same-status call is a no-op.
+    if (status !== before.status && !ORDER_TRANSITIONS[before.status].includes(status)) {
+      throw new ValidationError(`Cannot move an order from ${before.status} to ${status}.`);
+    }
     const order = await this.prisma.order.update({
       where: { id },
       data: { status },
