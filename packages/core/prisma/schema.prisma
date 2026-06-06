@@ -251,14 +251,16 @@ enum BehaviorEventType {
   LAND        // landed on the store (carries acquisition attribution)
   VIEW        // viewed a product
   CLICK       // clicked a product/CTA
+  SEARCH      // searched the store (carries the query)
   ADD_TO_CART // added a product to cart
   PURCHASE    // bought (also derived from orders)
 }
 
 // How a cohort was formed.
 enum CohortKind {
-  BEHAVIORAL  // soft-clustered (fuzzy c-means) over behaviour + attribution
-  ACQUISITION // grouped by a Meta campaign or Google search term
+  BEHAVIORAL    // soft-clustered (fuzzy c-means) over behaviour + attribution
+  ACQUISITION   // grouped by a Meta campaign or Google search term
+  SEARCH_INTENT // grouped by what shoppers searched for on the store
 }
 
 // Lifecycle/merchandising moment an engagement automation reacts to. Each has a
@@ -454,6 +456,7 @@ model Store {
   pages        StorePage[]
   theme        StoreTheme?
   returns      Return[]
+  returnPolicy ReturnPolicy?
   loyaltyProgram LoyaltyProgram?
   subscriptions Subscription[]
   subscriptionSettings SubscriptionSettings?
@@ -1213,6 +1216,27 @@ model ReturnItem {
   @@index([returnId])
 }
 
+// Per-store return & cancellation policy the system enforces (window, eligible
+// reasons, restocking fee, auto-approval, and the buyer self-cancel window).
+model ReturnPolicy {
+  id                       String         @id @default(cuid())
+  tenantId                 String
+  storeId                  String         @unique
+  enabled                  Boolean        @default(true) // accept returns at all
+  returnWindowDays         Int            @default(30) // 0 = no time limit
+  eligibleReasons          ReturnReason[] @default([DAMAGED, WRONG_ITEM, NOT_AS_DESCRIBED, NO_LONGER_NEEDED, OTHER])
+  restockingFeePercent     Int            @default(0) // deducted from the refund
+  autoApprove              Boolean        @default(false) // approve in-policy requests automatically
+  // Buyer self-cancellation.
+  cancelEnabled            Boolean        @default(true)
+  cancelWindowHours        Int            @default(24) // 0 = no time limit
+  allowCancelAfterShipment Boolean        @default(false)
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
 // ---------------------------------------------------------------------------
 // Loyalty / rewards (LoyaltyLion-style)
 // ---------------------------------------------------------------------------
@@ -1495,6 +1519,7 @@ model BehaviorEvent {
   medium      String?
   campaign    String?
   term        String?
+  query       String? // on-site search query (for SEARCH events)
   createdAt   DateTime          @default(now())
 
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)

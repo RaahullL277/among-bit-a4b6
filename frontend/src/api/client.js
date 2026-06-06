@@ -196,6 +196,8 @@ export const api = {
     reject: (id, note) => request(`/returns/${id}/reject`, { method: 'POST', body: { note } }),
     receive: (id) => request(`/returns/${id}/receive`, { method: 'POST' }),
     refund: (id, amountMinor) => request(`/returns/${id}/refund`, { method: 'POST', body: { amountMinor } }),
+    getPolicy: (storeId) => request(`/returns/policy?${qs({ storeId })}`),
+    setPolicy: (body) => request('/returns/policy', { method: 'PUT', body }),
   },
   loyalty: {
     getProgram: (storeId) => request(`/loyalty/program?${qs({ storeId })}`),

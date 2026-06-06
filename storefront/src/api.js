@@ -30,6 +30,8 @@ export const api = {
   search: (id, q) => req(`/storefront/${id}/search?q=${encodeURIComponent(q)}`),
   trackOrder: (id, number, email) =>
     req(`/storefront/${id}/track?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
+  returnPolicy: (id) => req(`/storefront/${id}/return-policy`),
+  cancelOrder: (id, body) => req(`/storefront/${id}/cancel-order`, { method: 'POST', body }),
   wishlist: (id, email) => req(`/storefront/${id}/wishlist?email=${encodeURIComponent(email)}`),
   addWishlist: (id, body) => req(`/storefront/${id}/wishlist`, { method: 'POST', body }),
   removeWishlist: (id, body) => req(`/storefront/${id}/wishlist/remove`, { method: 'POST', body }),

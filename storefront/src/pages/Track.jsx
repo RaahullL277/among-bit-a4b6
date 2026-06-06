@@ -15,10 +15,12 @@ export default function Track() {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [notice, setNotice] = useState('');
 
   async function lookup(e) {
     e.preventDefault();
-    setError(''); setOrder(null); setLoading(true);
+    setError(''); setNotice(''); setOrder(null); setLoading(true);
     try {
       const o = await api.trackOrder(STORE_ID, number.trim(), email.trim());
       if (!o) setError('No order found for that number and email.');
@@ -29,6 +31,24 @@ export default function Track() {
       setLoading(false);
     }
   }
+
+  async function cancel() {
+    if (!window.confirm('Cancel this order? If it was paid, you’ll be refunded.')) return;
+    setCancelling(true); setError(''); setNotice('');
+    try {
+      const r = await api.cancelOrder(STORE_ID, { number: order.number, email: email.trim() });
+      setNotice(r.refunded ? 'Order cancelled — a refund has been issued.' : 'Order cancelled.');
+      const o = await api.trackOrder(STORE_ID, order.number, email.trim());
+      setOrder(o);
+    } catch (e) {
+      setError(e.message || 'Could not cancel this order.');
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  // Optimistic hint; the server enforces the cancellation window/policy.
+  const cancellable = order && ['PENDING', 'PAID'].includes(order.status) && !order.shipment;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -42,6 +62,7 @@ export default function Track() {
       </form>
 
       {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+      {notice && <p className="mt-4 text-sm text-emerald-600">{notice}</p>}
 
       {order && (
         <div className="mt-6 rounded-xl border border-stone-200 p-5">
@@ -77,6 +98,16 @@ export default function Track() {
               <div className="mt-1 text-stone-400">Not shipped yet — we’ll email you tracking when it’s on the way.</div>
             )}
           </div>
+
+          {cancellable && (
+            <button
+              onClick={cancel}
+              disabled={cancelling}
+              className="mt-4 w-full rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel this order'}
+            </button>
+          )}
         </div>
       )}
     </div>

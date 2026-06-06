@@ -1017,6 +1017,34 @@ export function registerTools(server: McpServer, session: Session) {
 
   // --- Returns / RMA --------------------------------------------------------
   server.registerTool(
+    'get_return_policy',
+    {
+      description: 'The store\'s return & cancellation policy: return window, eligible reasons, restocking fee, auto-approval, and the buyer self-cancel window.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.returns.getPolicy(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_return_policy',
+    {
+      description: 'Configure the return & cancellation policy the system enforces: return window (days), eligible reasons, restocking fee %, auto-approve, and the buyer self-cancel window (hours) / whether cancellation is allowed after shipment.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        returnWindowDays: z.number().int().nonnegative().optional(),
+        eligibleReasons: z.array(z.enum(['DAMAGED', 'WRONG_ITEM', 'NOT_AS_DESCRIBED', 'NO_LONGER_NEEDED', 'OTHER'])).optional(),
+        restockingFeePercent: z.number().int().min(0).max(100).optional(),
+        autoApprove: z.boolean().optional(),
+        cancelEnabled: z.boolean().optional(),
+        cancelWindowHours: z.number().int().nonnegative().optional(),
+        allowCancelAfterShipment: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.returns.setPolicy(ctx, a)),
+  );
+
+  server.registerTool(
     'list_returns',
     {
       description: 'List returns/RMAs, optionally filtered by store or status.',

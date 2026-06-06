@@ -25,6 +25,7 @@ export interface TrackEventInput {
   medium?: string;
   campaign?: string;
   term?: string;
+  query?: string;
 }
 
 interface Feat {
@@ -35,6 +36,8 @@ interface Feat {
   views: number;
   clicks: number;
   carts: number;
+  searches: number;
+  searchTerms: string[]; // distinct on-site search queries (normalized)
   distinctViewed: number;
   orders: number;
   spendMinor: number;
@@ -141,6 +144,7 @@ export class CohortService {
         medium: input.medium,
         campaign: input.campaign,
         term: input.term,
+        query: input.query ? input.query.trim().slice(0, 120) : undefined,
       },
     });
     return { tracked: true, customerId: customerId ?? null };
@@ -169,19 +173,26 @@ export class CohortService {
     // Behaviour events grouped per customer.
     const events = await this.prisma.behaviorEvent.findMany({
       where: { storeId, customerId: { in: ids } },
-      select: { customerId: true, type: true, productId: true, source: true },
+      select: { customerId: true, type: true, productId: true, source: true, query: true },
     });
-    const ev = new Map<string, { views: number; clicks: number; carts: number; products: Set<string>; source?: string }>();
+    type Agg = { views: number; clicks: number; carts: number; searches: number; products: Set<string>; queries: Set<string>; source?: string };
+    const ev = new Map<string, Agg>();
     for (const e of events) {
       if (!e.customerId) continue;
-      const r = ev.get(e.customerId) ?? { views: 0, clicks: 0, carts: 0, products: new Set<string>() };
+      const r = ev.get(e.customerId) ?? { views: 0, clicks: 0, carts: 0, searches: 0, products: new Set<string>(), queries: new Set<string>() };
       if (e.type === 'VIEW') r.views++;
       else if (e.type === 'CLICK') r.clicks++;
       else if (e.type === 'ADD_TO_CART') r.carts++;
+      else if (e.type === 'SEARCH') {
+        r.searches++;
+        const q = this.normalizeQuery(e.query);
+        if (q) r.queries.add(q);
+      }
       if (e.productId) r.products.add(e.productId);
       if (!r.source && e.source) r.source = e.source;
       ev.set(e.customerId, r);
     }
+    const emptyAgg: Agg = { views: 0, clicks: 0, carts: 0, searches: 0, products: new Set(), queries: new Set() };
 
     // Order stats per customer.
     const grouped = await this.prisma.order.groupBy({
@@ -194,7 +205,7 @@ export class CohortService {
     const ord = new Map(grouped.map((g) => [g.customerId!, { orders: g._count, spend: g._sum.totalMinor ?? 0, last: g._max.createdAt ?? null }]));
 
     return customers.map((c) => {
-      const e = ev.get(c.id) ?? { views: 0, clicks: 0, carts: 0, products: new Set<string>() };
+      const e = ev.get(c.id) ?? emptyAgg;
       const o = ord.get(c.id) ?? { orders: 0, spend: 0, last: null as Date | null };
       const source = this.channel(c.acqSource ?? e.source);
       const recencyDays = o.last ? (Date.now() - o.last.getTime()) / DAY_MS : 365;
@@ -205,6 +216,7 @@ export class CohortService {
         e.views,
         e.clicks,
         e.carts,
+        e.searches, // on-site search intent
         e.products.size,
         source === 'meta' ? 1 : 0,
         source === 'google' ? 1 : 0,
@@ -218,6 +230,8 @@ export class CohortService {
         views: e.views,
         clicks: e.clicks,
         carts: e.carts,
+        searches: e.searches,
+        searchTerms: [...e.queries],
         distinctViewed: e.products.size,
         orders: o.orders,
         spendMinor: o.spend,
@@ -305,7 +319,7 @@ export class CohortService {
     // Reset existing cohorts for the store (memberships cascade).
     await this.prisma.cohort.deleteMany({ where: { tenantId: ctx.tenantId, storeId } });
 
-    const cohorts: { key: string; kind: 'BEHAVIORAL' | 'ACQUISITION'; label: string; signature: any; members: { customerId: string; weight: number }[] }[] = [];
+    const cohorts: { key: string; kind: 'BEHAVIORAL' | 'ACQUISITION' | 'SEARCH_INTENT'; label: string; signature: any; members: { customerId: string; weight: number }[] }[] = [];
 
     // 1) Behavioural micro-cohorts via fuzzy c-means.
     if (feats.length >= MIN_FOR_CLUSTERING) {
@@ -355,6 +369,24 @@ export class CohortService {
       });
     }
 
+    // 3) Search-intent cohorts (what shoppers searched for on the store).
+    const search = new Map<string, Set<string>>();
+    for (const f of feats) {
+      for (const q of f.searchTerms) {
+        (search.get(q) ?? search.set(q, new Set()).get(q)!).add(f.customerId);
+      }
+    }
+    for (const [q, members] of search) {
+      if (members.size < ACQ_MIN_SIZE) continue;
+      cohorts.push({
+        key: `search:${q}`,
+        kind: 'SEARCH_INTENT',
+        label: `Searched "${q}"`,
+        signature: { query: q, size: members.size },
+        members: [...members].map((customerId) => ({ customerId, weight: 1 })),
+      });
+    }
+
     // Persist.
     for (const c of cohorts) {
       await this.prisma.cohort.create({
@@ -372,7 +404,13 @@ export class CohortService {
     }
     // Mark the recompute time so the scheduled cadence (manual or worker) advances.
     await this.prisma.store.update({ where: { id: storeId }, data: { cohortsRecomputedAt: new Date() } });
-    return { cohorts: cohorts.length, behavioral: cohorts.filter((c) => c.kind === 'BEHAVIORAL').length, acquisition: cohorts.filter((c) => c.kind === 'ACQUISITION').length, customers: feats.length };
+    return {
+      cohorts: cohorts.length,
+      behavioral: cohorts.filter((c) => c.kind === 'BEHAVIORAL').length,
+      acquisition: cohorts.filter((c) => c.kind === 'ACQUISITION').length,
+      searchIntent: cohorts.filter((c) => c.kind === 'SEARCH_INTENT').length,
+      customers: feats.length,
+    };
   }
 
   // --- Scheduled recompute (cadence by daily visitor volume) ----------------
@@ -436,6 +474,12 @@ export class CohortService {
       recomputed++;
     }
     return { scanned: stores.length, recomputed };
+  }
+
+  private normalizeQuery(q: string | null | undefined): string | null {
+    if (!q) return null;
+    const s = q.trim().toLowerCase().replace(/\s+/g, ' ');
+    return s.length >= 2 ? s.slice(0, 60) : null;
   }
 
   private channelName(source: string) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
+import { trackSearch } from '../track';
 
 export default function Search() {
   const [params] = useSearchParams();
@@ -11,6 +12,7 @@ export default function Search() {
   useEffect(() => {
     if (!q.trim()) { setResults([]); return; }
     setLoading(true);
+    trackSearch(q); // feed search-intent cohorts
     api.search(STORE_ID, q).then(setResults).catch(() => setResults([])).finally(() => setLoading(false));
   }, [q]);
 

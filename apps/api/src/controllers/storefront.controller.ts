@@ -137,7 +137,7 @@ export class StorefrontController {
     return this.commerce.pages.renderPage(storeId, slug);
   }
 
-  // --- Returns (public) -----------------------------------------------------
+  // --- Returns & cancellation (public) --------------------------------------
   @Get(':storeId/order-lookup')
   orderLookup(
     @Param('storeId') storeId: string,
@@ -145,6 +145,16 @@ export class StorefrontController {
     @Query('email') email: string,
   ): Promise<any> {
     return this.commerce.storefront.lookupOrder(storeId, Number(number), email);
+  }
+
+  @Get(':storeId/return-policy')
+  returnPolicy(@Param('storeId') storeId: string): Promise<any> {
+    return this.commerce.returns.publicPolicy(storeId);
+  }
+
+  @Post(':storeId/cancel-order')
+  cancelOrder(@Param('storeId') storeId: string, @Body() body: { number: number; email: string }) {
+    return this.commerce.returns.cancelOrderByCustomer(storeId, Number(body?.number), body?.email);
   }
 
   @Post(':storeId/returns')

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, money, STORE_ID } from '../api';
 
 const REASONS = [
@@ -20,6 +20,17 @@ export default function Returns() {
   const [error, setError] = useState('');
   const [done, setDone] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [policy, setPolicy] = useState(null);
+
+  useEffect(() => {
+    api.returnPolicy(STORE_ID).then((p) => {
+      setPolicy(p);
+      const first = REASONS.find(([v]) => p.eligibleReasons.includes(v));
+      if (first) setReason(first[0]);
+    }).catch(() => undefined);
+  }, []);
+
+  const eligibleReasons = REASONS.filter(([v]) => !policy || policy.eligibleReasons.includes(v));
 
   async function lookup(e) {
     e.preventDefault();
@@ -85,7 +96,13 @@ export default function Returns() {
   return (
     <div className="mx-auto max-w-lg">
       <h1 className="text-xl font-semibold text-stone-900">Start a return</h1>
-      <p className="mt-1 text-sm text-stone-500">Look up your order to request a return or refund.</p>
+      <p className="mt-1 text-sm text-stone-500">
+        Look up your order to request a return or refund.
+        {policy?.returnsEnabled === false
+          ? ' (Returns are currently not accepted — please contact support.)'
+          : policy?.returnWindowDays > 0 && ` Returns accepted within ${policy.returnWindowDays} days of purchase.`}
+        {policy?.restockingFeePercent > 0 && ` A ${policy.restockingFeePercent}% restocking fee applies.`}
+      </p>
 
       <form onSubmit={lookup} className="mt-5 flex gap-2">
         <input
@@ -136,7 +153,7 @@ export default function Returns() {
           <label className="block text-sm">
             <span className="text-stone-600">Reason</span>
             <select value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
-              {REASONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {eligibleReasons.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
 

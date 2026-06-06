@@ -27,7 +27,7 @@ The platform **also recomputes automatically** on a cadence chosen per store fro
 `customer_recommendations` with `customerId` → products that peers in the same cohorts bought (excluding what they already own). Use this to drive targeted upsell — e.g. a WhatsApp/email to a HOT customer with their top recommendation (see **acp-notifications**), or a win-back to COLD customers.
 
 ## Feeding the model
-Acquisition attribution comes from `utm_source` / `utm_campaign` / `utm_term` on store links (the storefront captures them on landing). Behaviour events (view/add-to-cart) are tracked automatically; purchases come from orders.
+Acquisition attribution comes from `utm_source` / `utm_campaign` / `utm_term` on store links (the storefront captures them on landing). Behaviour events (view/add-to-cart/**search**) are tracked automatically; purchases come from orders. **On-site search** is both a clustering signal and forms **search-intent cohorts** (`Searched "blue shirt"`) — grouping shoppers by what they looked for, separately from the Google/acquisition term that brought them in.
 
 ## Tips
 - A customer in multiple cohorts is expected and useful — they may be both "High-value buyers · Meta" and the "Meta · Summer Sale" acquisition cohort.

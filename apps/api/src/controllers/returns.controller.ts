@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { getCommerce, type RequestReturnInput, type ReturnStatus, type TenantContext } from '@acp/core';
 import { Tenant } from '../common/tenant.decorator.js';
 import { Permissions } from '../common/permissions.decorator.js';
@@ -23,6 +23,18 @@ export class ReturnsController {
   @Permissions('orders:read')
   counts(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<any> {
     return this.commerce.returns.counts(t, storeId);
+  }
+
+  @Get('policy')
+  @Permissions('orders:read')
+  getPolicy(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<any> {
+    return this.commerce.returns.getPolicy(t, storeId);
+  }
+
+  @Put('policy')
+  @Permissions('orders:write')
+  setPolicy(@Tenant() t: TenantContext, @Body() body: any): Promise<any> {
+    return this.commerce.returns.setPolicy(t, body);
   }
 
   @Get(':id')

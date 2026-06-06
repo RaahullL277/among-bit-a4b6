@@ -5,7 +5,7 @@ import { useStores } from '../context/StoreContext';
 import { useAsync } from '../hooks/useAsync';
 import { Button, Card, CardHeader, Spinner, ErrorBanner, Badge, EmptyState, formatMoney } from '../components/ui';
 
-const KIND_BADGE = { BEHAVIORAL: 'bg-indigo-100 text-indigo-700', ACQUISITION: 'bg-emerald-100 text-emerald-700' };
+const KIND_BADGE = { BEHAVIORAL: 'bg-indigo-100 text-indigo-700', ACQUISITION: 'bg-emerald-100 text-emerald-700', SEARCH_INTENT: 'bg-amber-100 text-amber-700' };
 const CADENCE_BADGE = { DAILY: 'bg-rose-100 text-rose-700', WEEKLY: 'bg-amber-100 text-amber-700', MONTHLY: 'bg-slate-100 text-slate-600' };
 const CADENCE_LABEL = { DAILY: 'Nightly', WEEKLY: 'Weekly', MONTHLY: 'Monthly' };
 
@@ -36,7 +36,7 @@ export default function Cohorts() {
     setMsg('');
     try {
       const r = await api.cohorts.recompute(selectedId);
-      setMsg(`Recomputed ${r.cohorts} cohorts (${r.behavioral} behavioural, ${r.acquisition} acquisition) across ${r.customers} customers.`);
+      setMsg(`Recomputed ${r.cohorts} cohorts (${r.behavioral} behavioural, ${r.acquisition} acquisition, ${r.searchIntent ?? 0} search-intent) across ${r.customers} customers.`);
       reload();
       reloadSchedule();
     } finally {
@@ -53,7 +53,7 @@ export default function Cohorts() {
   }
 
   const behavioral = (cohorts ?? []).filter((c) => c.kind === 'BEHAVIORAL');
-  const acquisition = (cohorts ?? []).filter((c) => c.kind === 'ACQUISITION');
+  const acquisition = (cohorts ?? []).filter((c) => c.kind === 'ACQUISITION' || c.kind === 'SEARCH_INTENT');
 
   return (
     <div className="space-y-6">
@@ -116,9 +116,9 @@ export default function Cohorts() {
           </Card>
 
           <Card>
-            <CardHeader title="Acquisition cohorts" subtitle="By Meta campaign / Google search term" />
+            <CardHeader title="Acquisition & intent cohorts" subtitle="By Meta campaign / Google term, and by on-site search" />
             {acquisition.length === 0 ? (
-              <EmptyState icon={Users} title="No acquisition cohorts">Add utm_source / utm_campaign / utm_term to your store links.</EmptyState>
+              <EmptyState icon={Users} title="No acquisition or search cohorts">Add utm_source / utm_campaign / utm_term to your links, and shoppers’ on-site searches will form intent cohorts.</EmptyState>
             ) : (
               <table className="w-full text-sm">
                 <tbody>

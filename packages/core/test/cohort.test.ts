@@ -111,6 +111,25 @@ describe.skipIf(!hasDb)('cohort intelligence', () => {
     expect(ids).not.toContain(products[0]); // already owned → excluded
   });
 
+  it('forms search-intent cohorts from on-site searches', async () => {
+    // Four customers all search for "blue shirt" (case/spacing-insensitive).
+    for (let i = 0; i < 4; i++) {
+      const c = await customer(`searcher-${i}@ex.com`, 'google');
+      await commerce.cohorts.track({ storeId, type: 'SEARCH', email: c.email!, query: i % 2 ? 'Blue  Shirt' : 'blue shirt' });
+    }
+    const res = await commerce.cohorts.recompute(ctx, storeId);
+    expect(res.searchIntent).toBeGreaterThanOrEqual(1);
+    const list = await commerce.cohorts.list(ctx, storeId);
+    const search = list.find((c) => c.kind === 'SEARCH_INTENT');
+    expect(search?.label).toContain('blue shirt');
+    expect(search?.size).toBeGreaterThanOrEqual(4); // normalized → one cohort
+
+    // The cohort is queryable for a member.
+    const member = await prisma.customer.findFirst({ where: { storeId, email: 'searcher-0@ex.com' } });
+    const info = await commerce.cohorts.forCustomer(ctx, member!.id);
+    expect(info.cohorts.some((c) => c.kind === 'SEARCH_INTENT')).toBe(true);
+  });
+
   it('picks recompute cadence by daily-visitor volume', () => {
     expect(commerce.cohorts.cadence(15000)).toEqual({ cadence: 'DAILY', intervalDays: 1 });
     expect(commerce.cohorts.cadence(10000)).toEqual({ cadence: 'DAILY', intervalDays: 1 });

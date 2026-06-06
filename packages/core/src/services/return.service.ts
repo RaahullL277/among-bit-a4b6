@@ -23,6 +23,21 @@ const returnInclude = {
   order: { select: { number: true, currency: true } },
 } as const;
 
+const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
+const ALL_REASONS: ReturnReason[] = ['DAMAGED', 'WRONG_ITEM', 'NOT_AS_DESCRIBED', 'NO_LONGER_NEEDED', 'OTHER'];
+const POLICY_DEFAULTS = {
+  enabled: true,
+  returnWindowDays: 30,
+  eligibleReasons: ALL_REASONS,
+  restockingFeePercent: 0,
+  autoApprove: false,
+  cancelEnabled: true,
+  cancelWindowHours: 24,
+  allowCancelAfterShipment: false,
+};
+type ReturnPolicyShape = typeof POLICY_DEFAULTS;
+
 // Allowed status transitions for a return.
 const TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
   REQUESTED: ['APPROVED', 'REJECTED', 'CANCELLED'],
@@ -50,6 +65,64 @@ export class ReturnService {
     return `${(minor / 100).toFixed(2)} ${currency}`;
   }
 
+  // --- Policy (return & cancellation rules) ---------------------------------
+
+  private async assertStore(ctx: TenantContext, storeId: string) {
+    const store = await this.prisma.store.findFirst({ where: { id: storeId, tenantId: ctx.tenantId }, select: { id: true } });
+    if (!store) throw new NotFoundError('Store', storeId);
+  }
+
+  /** Effective policy for a store (row, or built-in defaults). */
+  private async resolvePolicy(storeId: string): Promise<ReturnPolicyShape> {
+    const row = await this.prisma.returnPolicy.findUnique({ where: { storeId } });
+    return row
+      ? {
+          enabled: row.enabled,
+          returnWindowDays: row.returnWindowDays,
+          eligibleReasons: row.eligibleReasons,
+          restockingFeePercent: row.restockingFeePercent,
+          autoApprove: row.autoApprove,
+          cancelEnabled: row.cancelEnabled,
+          cancelWindowHours: row.cancelWindowHours,
+          allowCancelAfterShipment: row.allowCancelAfterShipment,
+        }
+      : { ...POLICY_DEFAULTS };
+  }
+
+  async getPolicy(ctx: TenantContext, storeId: string) {
+    await this.assertStore(ctx, storeId);
+    const row = await this.prisma.returnPolicy.findUnique({ where: { storeId } });
+    return row ?? { storeId, ...POLICY_DEFAULTS, isDefault: true };
+  }
+
+  async setPolicy(ctx: TenantContext, input: { storeId: string } & Partial<ReturnPolicyShape>) {
+    await this.assertStore(ctx, input.storeId);
+    const { storeId, ...rest } = input;
+    if (rest.restockingFeePercent != null && (rest.restockingFeePercent < 0 || rest.restockingFeePercent > 100)) {
+      throw new ValidationError('restockingFeePercent must be between 0 and 100.');
+    }
+    if (rest.eligibleReasons) rest.eligibleReasons = rest.eligibleReasons.filter((r) => ALL_REASONS.includes(r));
+    return this.prisma.returnPolicy.upsert({
+      where: { storeId },
+      create: { tenantId: ctx.tenantId, storeId, ...POLICY_DEFAULTS, ...rest },
+      update: rest,
+    });
+  }
+
+  /** Buyer-facing policy (what the storefront shows: window, reasons, cancellation). */
+  async publicPolicy(storeId: string) {
+    const p = await this.resolvePolicy(storeId);
+    return {
+      returnsEnabled: p.enabled,
+      returnWindowDays: p.returnWindowDays,
+      eligibleReasons: p.eligibleReasons,
+      restockingFeePercent: p.restockingFeePercent,
+      cancelEnabled: p.cancelEnabled,
+      cancelWindowHours: p.cancelWindowHours,
+      allowCancelAfterShipment: p.allowCancelAfterShipment,
+    };
+  }
+
   // --- Create ---------------------------------------------------------------
 
   async request(ctx: TenantContext, input: RequestReturnInput) {
@@ -60,6 +133,18 @@ export class ReturnService {
     if (!order) throw new NotFoundError('Order', input.orderId);
     if (!['PAID', 'FULFILLED'].includes(order.status)) {
       throw new ValidationError('Only a paid order can be returned.');
+    }
+
+    // Enforce the store's return policy.
+    const policy = await this.resolvePolicy(order.storeId);
+    if (!policy.enabled) throw new ValidationError('This store does not accept returns.');
+    if (policy.returnWindowDays > 0) {
+      const deadline = order.createdAt.getTime() + policy.returnWindowDays * DAY_MS;
+      if (Date.now() > deadline) throw new ValidationError(`The ${policy.returnWindowDays}-day return window has closed for this order.`);
+    }
+    const reason = input.reason ?? 'OTHER';
+    if (!policy.eligibleReasons.includes(reason)) {
+      throw new ValidationError('That return reason is not accepted by this store.');
     }
 
     // Resolve the returned lines: explicit selection, or the whole order.
@@ -90,7 +175,8 @@ export class ReturnService {
           orderId: order.id,
           customerId: order.customerId,
           number,
-          reason: input.reason ?? 'OTHER',
+          status: policy.autoApprove ? 'APPROVED' : 'REQUESTED',
+          reason,
           comment: input.comment,
           evidenceVideoUrl: input.evidenceVideoUrl,
           refundMinor,
@@ -110,7 +196,65 @@ export class ReturnService {
       })
       .catch(() => undefined);
 
+    // Auto-approved by policy → tell the customer they can ship it back.
+    if (policy.autoApprove) {
+      const withCustomer = await this.load(ctx, created.id);
+      await this.notifyCustomer(ctx, withCustomer, 'RETURN_APPROVED').catch(() => undefined);
+    }
+
     return created;
+  }
+
+  // --- Buyer self-cancellation ----------------------------------------------
+
+  /** Whether an order is cancellable by the buyer right now (display hint). */
+  cancelEligibility(
+    order: { status: string; createdAt: Date; shipment?: unknown | null },
+    policy: ReturnPolicyShape,
+    now = Date.now(),
+  ): { ok: boolean; reason?: string } {
+    if (!policy.cancelEnabled) return { ok: false, reason: 'cancellation_disabled' };
+    if (!['PENDING', 'PAID'].includes(order.status)) return { ok: false, reason: 'not_cancellable_status' };
+    if (order.shipment && !policy.allowCancelAfterShipment) return { ok: false, reason: 'already_shipped' };
+    if (policy.cancelWindowHours > 0 && now - order.createdAt.getTime() > policy.cancelWindowHours * HOUR_MS) {
+      return { ok: false, reason: 'cancel_window_closed' };
+    }
+    return { ok: true };
+  }
+
+  /** Public storefront path: a buyer cancels their own order (number + email).
+   * Refunds automatically when the order was already paid. */
+  async cancelOrderByCustomer(storeId: string, orderNumber: number, email: string) {
+    if (!orderNumber || !email) throw new ValidationError('Order number and email are required.');
+    const order = await this.prisma.order.findFirst({
+      where: { storeId, number: Number(orderNumber), customer: { email: { equals: email, mode: 'insensitive' } } },
+      include: { payment: true, shipment: { select: { id: true } } },
+    });
+    if (!order) throw new NotFoundError('Order', `#${orderNumber}`);
+    const policy = await this.resolvePolicy(storeId);
+
+    const elig = this.cancelEligibility(order, policy);
+    if (!elig.ok) {
+      const messages: Record<string, string> = {
+        cancellation_disabled: 'Online cancellation isn’t available for this store — please contact support.',
+        not_cancellable_status: 'This order can no longer be cancelled.',
+        already_shipped: 'Your order has already shipped and can’t be cancelled.',
+        cancel_window_closed: `The ${policy.cancelWindowHours}-hour cancellation window has closed.`,
+      };
+      throw new ValidationError(messages[elig.reason!] ?? 'This order can’t be cancelled.');
+    }
+
+    const ctx: TenantContext = { tenantId: order.tenantId };
+    let refunded = false;
+    if (order.status === 'PAID' && order.payment?.status === 'CAPTURED') {
+      await this.payments.refund(ctx, order.id); // full refund
+      refunded = true;
+    }
+    // Refund may have set the order to REFUNDED; mark it cancelled (the buyer's intent).
+    await this.prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+    await this.notifications.notifyOrderEvent(ctx, order.id, 'ORDER_STATUS_CHANGED').catch(() => undefined);
+
+    return { cancelled: true, refunded, orderNumber: order.number };
   }
 
   /** Public storefront path: verify the order by number + email, then create. */
@@ -256,11 +400,16 @@ export class ReturnService {
     return this.prisma.return.update({ where: { id }, data: { status: 'CANCELLED' } });
   }
 
-  /** Refund the return through the payment adapter and close it out. */
+  /** Refund the return through the payment adapter and close it out. A
+   * restocking fee (per the store policy) is deducted unless the merchant
+   * passes an explicit amount. */
   async refund(ctx: TenantContext, id: string, amountMinor?: number) {
     const row = await this.load(ctx, id);
     this.assertTransition(row.status, 'REFUNDED');
-    const amount = amountMinor ?? row.refundMinor ?? row.order.totalMinor;
+    const gross = row.refundMinor ?? row.order.totalMinor;
+    const policy = await this.resolvePolicy(row.storeId);
+    const net = policy.restockingFeePercent > 0 ? Math.round(gross * (1 - policy.restockingFeePercent / 100)) : gross;
+    const amount = amountMinor ?? Math.max(1, net);
     const result = await this.payments.refund(ctx, row.orderId, amount);
     const updated = await this.prisma.return.update({
       where: { id },

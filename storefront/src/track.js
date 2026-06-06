@@ -43,18 +43,24 @@ export function trackLand() {
 }
 
 export function track(type, productId) {
-  send(type, productId);
+  send(type, { productId });
+}
+
+// On-site search → feeds search-intent cohort intelligence.
+export function trackSearch(query) {
+  if (!query || !query.trim()) return;
+  send('SEARCH', { query: query.trim() });
 }
 
 // Identify the visitor by email (stitches prior anonymous events + first-touch).
 export function identify(email, type = 'CLICK') {
   if (!email) return;
-  send(type, undefined, email);
+  send(type, { email });
 }
 
-function send(type, productId, email) {
+function send(type, { productId, email, query } = {}) {
   const a = attribution() || {};
   api
-    .track(STORE_ID, { type, productId, email, anonymousId: anonId(), source: a.source, medium: a.medium, campaign: a.campaign, term: a.term })
+    .track(STORE_ID, { type, productId, email, query, anonymousId: anonId(), source: a.source, medium: a.medium, campaign: a.campaign, term: a.term })
     .catch(() => undefined);
 }
