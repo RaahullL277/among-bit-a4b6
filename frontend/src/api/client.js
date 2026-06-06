@@ -113,6 +113,18 @@ export const api = {
     schedule: (storeId) => request(`/cohorts/schedule?${qs({ storeId })}`),
     recompute: (storeId) => request('/cohorts/recompute', { method: 'POST', body: { storeId } }),
   },
+  engagement: {
+    library: () => request('/engagement/library'),
+    templates: (trigger, channel) => request(`/engagement/templates?${qs({ trigger, channel })}`),
+    campaigns: (storeId) => request(`/engagement/campaigns?${qs({ storeId })}`),
+    setCampaign: (body) => request('/engagement/campaigns', { method: 'PUT', body }),
+    setupDefaults: (storeId, channel) => request('/engagement/setup-defaults', { method: 'POST', body: { storeId, channel } }),
+    getPolicy: (storeId) => request(`/engagement/policy?${qs({ storeId })}`),
+    setPolicy: (body) => request('/engagement/policy', { method: 'PUT', body }),
+    preview: (body) => request('/engagement/preview', { method: 'POST', body }),
+    run: (storeId, dryRun, triggers) => request('/engagement/run', { method: 'POST', body: { storeId, dryRun, triggers } }),
+    log: (storeId, limit) => request(`/engagement/log?${qs({ storeId, limit })}`),
+  },
   orders: {
     list: (storeId) => request(storeId ? `/orders?storeId=${encodeURIComponent(storeId)}` : '/orders'),
     get: (id) => request(`/orders/${id}`),

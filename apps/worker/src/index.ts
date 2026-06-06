@@ -42,6 +42,13 @@ async function tick() {
       // eslint-disable-next-line no-console
       console.log(`[worker] subscriptions: ${subs.orders} orders generated, ${subs.failed} failed`);
     }
+    // Engagement automations: once-daily per opted-in store, respecting quiet
+    // hours and the temperature frequency caps.
+    const engagement = await commerce.engagement.runDueEngagement();
+    if (engagement.ran) {
+      // eslint-disable-next-line no-console
+      console.log(`[worker] engagement: ran ${engagement.ran}/${engagement.scanned} stores, ${engagement.sent} messages sent`);
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[worker] job failed:', err);

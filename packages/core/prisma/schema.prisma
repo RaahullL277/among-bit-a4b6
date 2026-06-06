@@ -261,6 +261,28 @@ enum CohortKind {
   ACQUISITION // grouped by a Meta campaign or Google search term
 }
 
+// Lifecycle/merchandising moment an engagement automation reacts to. Each has a
+// library of 5 ready-to-use templates per channel.
+enum EngagementTrigger {
+  NEW_IN_STOCK      // freshly added products
+  BEST_SELLING      // top sellers / social proof
+  SLOW_MOVING       // ageing stock that needs a nudge
+  LOW_STOCK         // scarcity / "almost gone"
+  BACK_IN_STOCK     // a product the shopper wanted is available again
+  DISCOUNT          // a running offer / promo code
+  FESTIVE_DISCOUNT  // festive-season campaign (Diwali, etc.)
+  ABANDONED_CART    // recover a left-behind cart
+  COHORT_OFFER      // cohort-based, hyper-personalised product offer
+}
+
+// Outcome of an engagement send decision (drives the frequency/fatigue caps).
+enum EngagementSendStatus {
+  SENT        // delivered (or simulated in dry-run)
+  SUPPRESSED  // held back by frequency cap / cross-cohort dedup
+  SKIPPED     // no reachable address or channel not configured
+  FAILED      // provider error
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -1439,4 +1461,72 @@ model CohortMembership {
 
   @@unique([cohortId, customerId])
   @@index([customerId])
+}
+
+// A configured engagement automation: one trigger on one channel. `templateKey`
+// optionally pins a specific template variant; when null the hyper-personalisation
+// agent rotates/selects the best of the 5 variants per customer. Audience can be
+// narrowed by customer temperature and/or a specific cohort.
+model EngagementCampaign {
+  id           String              @id @default(cuid())
+  tenantId     String
+  storeId      String
+  trigger      EngagementTrigger
+  channel      NotificationChannel
+  enabled      Boolean             @default(true)
+  templateKey  String? // pin a variant; null = auto/rotate
+  temperatures String[]            @default([]) // HOT/WARM/COLD filter; empty = all
+  cohortKey    String? // restrict to a cohort (esp. COHORT_OFFER)
+  priority     Int                 @default(0) // higher wins cross-trigger dedup
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([storeId, trigger, channel])
+  @@index([tenantId])
+  @@index([storeId, enabled])
+}
+
+// Per-store messaging-frequency policy. The frequency-adjustment agent caps how
+// many promotional touches a customer gets per rolling 7 days by temperature
+// (HOT shoppers tolerate more, COLD far fewer), and a per-day cap plus a minimum
+// gap stop over-messaging customers who match many cohorts/campaigns at once.
+model EngagementPolicy {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  storeId             String   @unique
+  enabled             Boolean  @default(true)
+  hotMaxPer7Days      Int      @default(4)
+  warmMaxPer7Days     Int      @default(2)
+  coldMaxPer7Days     Int      @default(1)
+  perCustomerDailyCap Int      @default(1) // cross-cohort: at most N messages/day total
+  minHoursBetween     Int      @default(20) // minimum gap between any two messages
+  quietStartHour      Int      @default(21) // local-ish quiet window start (no sends)
+  quietEndHour        Int      @default(8) // quiet window end
+  lastRunAt           DateTime? // last automated run (daily cadence guard)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// Send log — the source of truth for frequency capping, dedup, and the audit UI.
+model EngagementMessage {
+  id          String               @id @default(cuid())
+  tenantId    String
+  storeId     String
+  customerId  String?
+  trigger     EngagementTrigger
+  channel     NotificationChannel
+  templateKey String
+  temperature String? // HOT/WARM/COLD at send time
+  to          String
+  body        String
+  status      EngagementSendStatus
+  reason      String? // suppression/skip/failure reason
+  providerRef String?
+  productIds  String[]             @default([]) // products featured in the message
+  dryRun      Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+
+  @@index([tenantId])
+  @@index([storeId, status, createdAt])
+  @@index([customerId, createdAt])
 }

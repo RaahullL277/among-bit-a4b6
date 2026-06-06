@@ -374,6 +374,107 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.cohorts.recommendations(ctx, a.customerId, a.limit)),
   );
 
+  // --- Engagement automation ------------------------------------------------
+  const ENG_TRIGGER = z.enum([
+    'NEW_IN_STOCK', 'BEST_SELLING', 'SLOW_MOVING', 'LOW_STOCK', 'BACK_IN_STOCK',
+    'DISCOUNT', 'FESTIVE_DISCOUNT', 'ABANDONED_CART', 'COHORT_OFFER',
+  ]);
+  const ENG_CHANNEL = z.enum(['EMAIL', 'SMS', 'WHATSAPP']);
+
+  server.registerTool(
+    'list_engagement_templates',
+    {
+      description: 'List the engagement template library (5 variants per channel) for triggers like new-in-stock, low-stock, back-in-stock, discounts, festive, abandoned-cart and cohort offers. Filter by trigger/channel.',
+      inputSchema: { trigger: ENG_TRIGGER.optional(), channel: ENG_CHANNEL.optional() },
+    },
+    tool(async (_ctx, a: any) => commerce.engagement.listTemplates({ trigger: a.trigger, channel: a.channel })),
+  );
+
+  server.registerTool(
+    'setup_engagement_defaults',
+    {
+      description: 'Turn on a recommended set of engagement automations (every trigger enabled on one channel) plus a default frequency policy.',
+      inputSchema: { storeId: z.string(), channel: ENG_CHANNEL.optional() },
+    },
+    tool((ctx, a: any) => commerce.engagement.setupDefaults(ctx, a.storeId, a.channel)),
+  );
+
+  server.registerTool(
+    'configure_engagement_campaign',
+    {
+      description: 'Create/update one engagement automation (a trigger on a channel). Optionally pin a templateKey, narrow by temperatures (HOT/WARM/COLD) or a cohortKey, set priority, and enable/disable.',
+      inputSchema: {
+        storeId: z.string(),
+        trigger: ENG_TRIGGER,
+        channel: ENG_CHANNEL,
+        enabled: z.boolean().optional(),
+        templateKey: z.string().optional(),
+        temperatures: z.array(z.enum(['HOT', 'WARM', 'COLD'])).optional(),
+        cohortKey: z.string().optional(),
+        priority: z.number().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.engagement.setCampaign(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_engagement_campaigns',
+    { description: 'List a store\'s configured engagement automations.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.engagement.listCampaigns(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'get_engagement_policy',
+    { description: 'Get the messaging-frequency policy (per-temperature 7-day caps, daily cap, min gap, quiet hours).', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.engagement.getPolicy(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_engagement_policy',
+    {
+      description: 'Tune the frequency-adjustment agent: how many promo messages HOT/WARM/COLD customers get per 7 days, the per-day cap, minimum hours between sends, and the quiet-hours window.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        hotMaxPer7Days: z.number().optional(),
+        warmMaxPer7Days: z.number().optional(),
+        coldMaxPer7Days: z.number().optional(),
+        perCustomerDailyCap: z.number().optional(),
+        minHoursBetween: z.number().optional(),
+        quietStartHour: z.number().optional(),
+        quietEndHour: z.number().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.engagement.setPolicy(ctx, a)),
+  );
+
+  server.registerTool(
+    'preview_engagement_message',
+    {
+      description: 'Preview the hyper-personalised message a customer would receive for a trigger/channel (picks a template variant by their temperature, fills name + cohort recommendations). No send.',
+      inputSchema: { storeId: z.string(), customerId: z.string(), trigger: ENG_TRIGGER, channel: ENG_CHANNEL, templateKey: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.engagement.preview(ctx, a)),
+  );
+
+  server.registerTool(
+    'run_engagement',
+    {
+      description: 'Run engagement automations for a store. Builds audiences for each enabled trigger, dedups so each customer gets only their single highest-priority message, applies temperature frequency caps, and sends (or simulates with dryRun). Returns sent/suppressed/skipped counts.',
+      inputSchema: { storeId: z.string(), dryRun: z.boolean().optional(), triggers: z.array(ENG_TRIGGER).optional() },
+    },
+    tool((ctx, a: any) => commerce.engagement.run(ctx, a.storeId, { dryRun: a.dryRun, triggers: a.triggers })),
+  );
+
+  server.registerTool(
+    'engagement_log',
+    {
+      description: 'Recent engagement send log (sent/suppressed/skipped with reasons) — the audit trail for the frequency caps and dedup.',
+      inputSchema: { storeId: z.string(), limit: z.number().optional(), includeDryRun: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => commerce.engagement.listLog(ctx, a.storeId, { limit: a.limit, includeDryRun: a.includeDryRun })),
+  );
+
   // --- Orders ---------------------------------------------------------------
   server.registerTool(
     'list_orders',
