@@ -81,6 +81,12 @@ export {
   type PricingRuleInput,
   type AddCompetitorInput,
 } from './services/pricing.service.js';
+export {
+  OnboardingService,
+  type CreateAccountInput,
+  type LaunchStoreInput,
+  type LaunchProductInput,
+} from './services/onboarding.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,

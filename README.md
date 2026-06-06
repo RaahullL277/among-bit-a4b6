@@ -206,23 +206,44 @@ Key endpoints: `POST /stores`, `GET /stores`, `POST /products`, `GET /products?s
 `POST /payments/checkout`, `POST /webhooks/:provider`, `POST /messaging/send`,
 `POST /integrations`, `POST /api-keys`, `PATCH /orders/:id/status`.
 
-## MCP server — agentic usage
+## MCP connector — build & launch a store with Claude
 
-The repo ships `.mcp.json` so Claude Code auto-discovers the server. Build it and set your key:
+The MCP server is a **connector**: add it to Claude (Desktop/Code/web) and anyone can build and launch
+a store conversationally. The repo ships `.mcp.json` so Claude Code auto-discovers it; build it once:
 
 ```bash
 pnpm --filter @acp/mcp build
-export ACP_API_KEY=$(node -e "console.log(require('./.acp-seed.json').apiKey)")
 ```
 
-Then in Claude Code you can say *"create a store called Spice Route and add a product"* and it will
-call `create_store` / `create_product`. Available tools include `create_store`, `list_stores`,
-`get_store`, `create_product`, `update_product`, `list_products`, `create_customer`, `list_orders`,
-`get_order`, `update_order_status`, `checkout`, `configure_payment_provider`, `configure_whatsapp`,
-`send_whatsapp_message`, and `create_api_key`.
+The connector credential (`ACP_CREDENTIAL`, or `ACP_API_KEY` / `ACP_PARTNER_TOKEN`) decides the mode —
+**it's optional**:
 
-The server also supports a Streamable-HTTP transport for remote/partner clients:
-`MCP_TRANSPORT=http pnpm --filter @acp/mcp start` (per-request `Authorization: Bearer <key>`).
+- **New user (no credential)** — onboarding mode. The agent calls `create_account` (creates a workspace
+  + returns an API key) and can then `launch_store` in the same session. Say *"sign me up and launch a
+  tea store with three products"* and it stands up a live storefront.
+- **Merchant (`sk_…` API key)** — manage an existing store: every catalog/order/marketing/pricing tool
+  is available.
+- **Partner (`pts_…` token)** — agency mode. `list_clients` → `use_client(tenantId)` to pick a client,
+  then build/manage **that client's** store (subject to the MANAGE/VIEW access the client granted).
+  `partner_dashboard` shows GMV, earnings, and renewals.
+
+The headline tool is **`launch_store`** — one call creates the store, configures a (stubbed) payment
+provider, adds active products, applies a theme, and publishes a storefront home page, returning the
+**live storefront URL**. `whoami` explains the current session and what to do next.
+
+```bash
+# Onboard a brand-new store with no credential set:
+unset ACP_CREDENTIAL && pnpm --filter @acp/mcp build
+# …then in Claude: "Create an account for hello@acme.com and launch a store called Acme with 2 products."
+
+# Or manage the seeded demo store:
+export ACP_CREDENTIAL=$(node -e "console.log(require('./.acp-seed.json').apiKey)")
+```
+
+All tools are thin wrappers over the same `@acp/core` services the REST API and dashboards use, so the
+agent and a human get identical behavior. The server also supports a Streamable-HTTP transport for
+remote clients: `MCP_TRANSPORT=http pnpm --filter @acp/mcp start` (per-request `Authorization: Bearer
+<credential>`).
 
 ## Merchant admin console (`frontend/`)
 

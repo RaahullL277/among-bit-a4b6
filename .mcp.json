@@ -5,7 +5,8 @@
       "args": ["apps/mcp/dist/index.js"],
       "env": {
         "MCP_TRANSPORT": "stdio",
-        "ACP_API_KEY": "${ACP_API_KEY}"
+        "_comment": "Credential is OPTIONAL. Leave ACP_CREDENTIAL blank to onboard a brand-new store (the agent calls create_account, then launch_store). Set an API key (sk_...) to manage an existing store as a merchant, or a partner token (pts_...) to build/manage client stores as a partner.",
+        "ACP_CREDENTIAL": "${ACP_CREDENTIAL}"
       }
     }
   }

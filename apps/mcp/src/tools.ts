@@ -1,21 +1,25 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getCommerce, type TenantContext } from '@acp/core';
+import type { Session } from './server.js';
 
 /**
- * Registers every commerce tool on an MCP server. Each tool is a thin wrapper
+ * Registers the commerce tools on an MCP server. Each tool is a thin wrapper
  * over the same @acp/core service layer the REST API uses — so an agent and a
- * dashboard drive identical behavior. `getContext` resolves the TenantContext
- * for the authenticated caller (from the API key).
+ * dashboard drive identical behavior. The `session` resolves the effective
+ * tenant context (a merchant's own store, or a partner's chosen client), and
+ * also gates the onboarding + partner tools.
  */
-export function registerTools(
-  server: McpServer,
-  getContext: () => Promise<TenantContext>,
-) {
+export function registerTools(server: McpServer, session: Session) {
   const commerce = getCommerce();
+  const getContext = () => session.tenantContext();
 
   const ok = (data: unknown) => ({
     content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
+  });
+  const fail = (err: unknown) => ({
+    isError: true,
+    content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }],
   });
 
   // Wraps a handler with context resolution + uniform error reporting.
@@ -23,15 +27,120 @@ export function registerTools(
     <A>(handler: (ctx: TenantContext, args: A) => Promise<unknown>) =>
     async (args: A) => {
       try {
-        const ctx = await getContext();
-        return ok(await handler(ctx, args));
+        return ok(await handler(await getContext(), args));
       } catch (err) {
-        return {
-          isError: true,
-          content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }],
-        };
+        return fail(err);
       }
     };
+
+  // --- Connector onboarding (works with no credential) ----------------------
+  server.registerTool(
+    'whoami',
+    { description: 'Describe the current connector session (merchant, partner, or new user) and what to do next.', inputSchema: {} },
+    async () => {
+      const hint =
+        session.kind === 'merchant'
+          ? 'You are connected as a merchant. Use launch_store or create_store/create_product to build.'
+          : session.kind === 'partner'
+            ? 'You are connected as a partner. Use list_clients + use_client to pick a client, then build for them.'
+            : 'No account yet. Call create_account to start, then launch_store.';
+      return ok({ session: session.kind, hint });
+    },
+  );
+
+  server.registerTool(
+    'create_account',
+    {
+      description:
+        'Create a brand-new merchant workspace (for a user with no account yet). Returns an API key to set as the connector credential; you can also keep building in this same session right away.',
+      inputSchema: {
+        businessName: z.string().describe('The store/company name'),
+        ownerEmail: z.string().describe('Owner email (used for login + alerts)'),
+        ownerName: z.string().optional(),
+      },
+    },
+    async (a: any) => {
+      try {
+        if (session.kind === 'partner') throw new Error('Partners build for clients — use list_clients + use_client instead of create_account.');
+        const res = await commerce.onboarding.createAccount(a);
+        session.adopt({ tenantId: res.tenantId }); // continue building in this session
+        return ok(res);
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    'launch_store',
+    {
+      description:
+        'Build AND launch a complete shoppable store in one call: store + stubbed payment + active products + a published storefront page + theme. Returns the live storefront URL.',
+      inputSchema: {
+        name: z.string(),
+        currency: z.string().optional().describe('ISO currency, defaults to INR'),
+        country: z.string().optional(),
+        tagline: z.string().optional().describe('Hero subheading on the storefront'),
+        brandColor: z.string().optional().describe('Hex, e.g. #1c1917'),
+        accentColor: z.string().optional().describe('Hex, e.g. #4f46e5'),
+        publish: z.boolean().optional().describe('Publish the storefront now (default true)'),
+        products: z
+          .array(
+            z.object({
+              title: z.string(),
+              description: z.string().optional(),
+              priceMinor: z.number().int().nonnegative().describe('Price in minor units (paise for INR)'),
+              costMinor: z.number().int().optional(),
+              inventory: z.number().int().optional(),
+            }),
+          )
+          .optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.onboarding.launchStore(ctx, a)),
+  );
+
+  // --- Partner tools (only when connected as a partner) ---------------------
+  if (session.kind === 'partner') {
+    server.registerTool(
+      'partner_dashboard',
+      { description: 'Your partner dashboard: client GMV, commission earnings, MRR, and upcoming renewals.', inputSchema: {} },
+      async () => {
+        try {
+          return ok(await commerce.partners.dashboard(session.partner!.partnerId));
+        } catch (err) {
+          return fail(err);
+        }
+      },
+    );
+    server.registerTool(
+      'list_clients',
+      { description: 'List the client stores you manage (with GMV, earnings, and your access level).', inputSchema: {} },
+      async () => {
+        try {
+          return ok(await commerce.partners.clients(session.partner!.partnerId));
+        } catch (err) {
+          return fail(err);
+        }
+      },
+    );
+    server.registerTool(
+      'use_client',
+      {
+        description: 'Choose which client store to build/manage. Subsequent tools act on this client (subject to the access level the client granted you).',
+        inputSchema: { tenantId: z.string().describe('The client tenantId from list_clients') },
+      },
+      async (a: any) => {
+        try {
+          session.setActiveClient(a.tenantId);
+          const ctx = await session.tenantContext();
+          return ok({ activeClient: a.tenantId, permissions: ctx.actor?.permissions ?? [], message: 'Now managing this client store.' });
+        } catch (err) {
+          return fail(err);
+        }
+      },
+    );
+  }
 
   const variantShape = z.object({
     title: z.string().optional(),

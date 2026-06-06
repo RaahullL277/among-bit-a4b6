@@ -12,13 +12,15 @@ config();
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { buildServer, contextResolver } from './server.js';
+import { buildServer, resolveSession } from './server.js';
 
 async function startStdio() {
-  // Claude Code launches this over stdio; the API key comes from the env.
-  const server = buildServer(contextResolver(process.env.ACP_API_KEY));
+  // Claude launches this over stdio; the credential (merchant API key `sk_…`,
+  // partner token `pts_…`, or nothing for onboarding) comes from the env.
+  const cred = process.env.ACP_API_KEY ?? process.env.ACP_CREDENTIAL ?? process.env.ACP_PARTNER_TOKEN;
+  const server = buildServer(await resolveSession(cred));
   await server.connect(new StdioServerTransport());
-  console.error('🤖 ACP MCP server ready (stdio)');
+  console.error('🤖 ACP MCP connector ready (stdio)');
 }
 
 async function startHttp() {
@@ -36,7 +38,7 @@ async function startHttp() {
 
     // Stateless: a fresh server+transport per request keeps tenants isolated.
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    const server = buildServer(contextResolver(rawKey));
+    const server = buildServer(await resolveSession(rawKey));
     res.on('close', () => {
       void transport.close();
       void server.close();
