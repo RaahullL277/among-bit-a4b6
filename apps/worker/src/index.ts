@@ -30,6 +30,12 @@ async function tick() {
       // eslint-disable-next-line no-console
       console.log(`[worker] stock: ${stock.scanned} scanned, ${stock.alerts} alerts sent`);
     }
+    // Free stock held by pending orders that never paid within the TTL.
+    const expired = await commerce.stock.releaseExpiredReservations();
+    if (expired.released) {
+      // eslint-disable-next-line no-console
+      console.log(`[worker] reservations: released ${expired.released} expired holds`);
+    }
     // Cohort recompute, cadence per store by daily-visitor volume (nightly ≥10k,
     // weekly ≥1k, monthly otherwise).
     const cohorts = await commerce.cohorts.runDueRecomputes();

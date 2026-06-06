@@ -255,8 +255,10 @@ export class ReturnService {
     }
     // Refund may have set the order to REFUNDED; mark it cancelled (the buyer's intent).
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
-    // A paid order consumed stock at capture — return it on cancellation.
+    // A paid order consumed stock at capture (restore it); an unpaid one only held
+    // a reservation (release it).
     if (wasPaid) await this.stock?.restoreOrder(order.id).catch(() => undefined);
+    else await this.stock?.releaseReservations(order.id).catch(() => undefined);
     await this.notifications.notifyOrderEvent(ctx, order.id, 'ORDER_STATUS_CHANGED').catch(() => undefined);
 
     return { cancelled: true, refunded, orderNumber: order.number };

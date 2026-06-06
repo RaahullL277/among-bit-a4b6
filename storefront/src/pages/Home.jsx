@@ -48,6 +48,8 @@ export default function Home() {
                 </div>
               )}
               {p.description && <div className="mt-1 line-clamp-2 text-sm text-stone-500">{p.description}</div>}
+              {v?.availability === 'out_of_stock' && <span className="mt-1 inline-block rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500">Out of stock</span>}
+              {v?.availability === 'low_stock' && <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Low stock</span>}
             </Link>
             <div className="mt-4 flex items-center justify-between">
               <span className="font-semibold text-stone-900">

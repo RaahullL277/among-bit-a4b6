@@ -1,6 +1,8 @@
-import type { PrismaClient, StockStatus, StockMovementReason } from '@prisma/client';
+import type { Prisma, PrismaClient, StockStatus, StockMovementReason } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { Actor } from '../authz.js';
+
+const LOW_STOCK_AT = 5; // available at/below this reads as "low stock" to buyers
 import { defaultStockScorer, type StockScorer } from '../stock/scorer.js';
 import type { NotificationService } from './notification.service.js';
 
@@ -29,6 +31,8 @@ export interface VariantStock {
   title: string;
   sku: string | null;
   inventory: number;
+  reserved: number;
+  available: number;
   dailyVelocity: number;
   daysOfCover: number | null;
   status: StockStatus;
@@ -116,6 +120,8 @@ export class StockService {
         title: v.title,
         sku: v.sku,
         inventory: v.inventory,
+        reserved: v.reserved,
+        available: v.inventory - v.reserved,
         dailyVelocity,
         daysOfCover: score.daysOfCover,
         status: score.status,
@@ -321,6 +327,86 @@ export class StockService {
       take: Math.min(input.limit ?? 100, 500),
       select: { id: true, variantId: true, delta: true, balance: true, reason: true, note: true, orderId: true, returnId: true, actorKind: true, createdAt: true },
     });
+  }
+
+  // --- Reservations (race-safe hold between checkout and capture) -----------
+
+  /** Buyer-facing availability for a variant (track-aware). */
+  availabilityOf(v: { inventory: number; reserved: number }, trackInventory: boolean): 'in_stock' | 'low_stock' | 'out_of_stock' {
+    if (!trackInventory) return 'in_stock';
+    const available = v.inventory - v.reserved;
+    if (available <= 0) return 'out_of_stock';
+    if (available <= LOW_STOCK_AT) return 'low_stock';
+    return 'in_stock';
+  }
+
+  /**
+   * Reserve stock for a pending order inside the caller's checkout transaction.
+   * Without backorder, each item is held with an atomic conditional update that
+   * only succeeds when `inventory - reserved >= quantity` — closing the
+   * checkout→capture race. Throws when an item can't be held.
+   */
+  async reserve(
+    tx: Prisma.TransactionClient,
+    args: { tenantId: string; storeId: string; orderId: string; items: { variantId: string; title: string; quantity: number }[]; allowBackorder: boolean },
+  ) {
+    for (const it of args.items) {
+      if (args.allowBackorder) {
+        await tx.productVariant.update({ where: { id: it.variantId }, data: { reserved: { increment: it.quantity } } });
+      } else {
+        const held = await tx.$executeRaw`UPDATE "ProductVariant" SET reserved = reserved + ${it.quantity} WHERE id = ${it.variantId} AND (inventory - reserved) >= ${it.quantity}`;
+        if (held === 0) {
+          const v = await tx.productVariant.findUnique({ where: { id: it.variantId }, select: { inventory: true, reserved: true } });
+          const available = Math.max(0, (v?.inventory ?? 0) - (v?.reserved ?? 0));
+          throw new ValidationError(
+            available <= 0 ? `"${it.title}" is out of stock.` : `Only ${available} of "${it.title}" left in stock (you requested ${it.quantity}).`,
+          );
+        }
+      }
+      await tx.stockReservation.create({ data: { tenantId: args.tenantId, storeId: args.storeId, orderId: args.orderId, variantId: it.variantId, quantity: it.quantity, status: 'ACTIVE' } });
+    }
+  }
+
+  private async closeReservations(orderId: string, status: 'CONSUMED' | 'RELEASED') {
+    const rows = await this.prisma.stockReservation.findMany({ where: { orderId, status: 'ACTIVE' } });
+    for (const r of rows) {
+      await this.prisma.$transaction([
+        this.prisma.stockReservation.update({ where: { id: r.id }, data: { status } }),
+        this.prisma.productVariant.update({ where: { id: r.variantId }, data: { reserved: { decrement: r.quantity } } }),
+      ]);
+    }
+  }
+
+  /** Capture: the hold becomes a real sale (inventory is decremented separately). */
+  async consumeReservations(orderId: string) {
+    await this.closeReservations(orderId, 'CONSUMED');
+  }
+
+  /** Cancel / fail / expiry of an unpaid order: free the held stock. */
+  async releaseReservations(orderId: string) {
+    await this.closeReservations(orderId, 'RELEASED');
+  }
+
+  /**
+   * Worker job: release holds from pending orders that never paid within the TTL
+   * and cancel those orders, so abandoned checkouts don't tie up stock forever.
+   */
+  async releaseExpiredReservations(now: Date = new Date(), ttlHours = 24): Promise<{ released: number }> {
+    const cutoff = new Date(now.getTime() - ttlHours * 3_600_000);
+    const stale = await this.prisma.stockReservation.findMany({
+      where: { status: 'ACTIVE', createdAt: { lt: cutoff } },
+      select: { orderId: true },
+      distinct: ['orderId'],
+    });
+    let released = 0;
+    for (const { orderId } of stale) {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+      if (order?.status !== 'PENDING') continue; // captured/cancelled paths already handled it
+      await this.releaseReservations(orderId);
+      await this.prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+      released++;
+    }
+    return { released };
   }
 
   // --- Recompute + alert (worker job; not tenant-scoped) --------------------

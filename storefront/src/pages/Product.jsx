@@ -98,6 +98,8 @@ export default function Product() {
             </>
           )}
         </div>
+        {v?.availability === 'out_of_stock' && <p className="mt-1 text-sm font-medium text-rose-600">Out of stock</p>}
+        {v?.availability === 'low_stock' && <p className="mt-1 text-sm font-medium text-amber-600">Low stock — order soon</p>}
 
         {subEnabled && v && (
           <div className="mt-4 space-y-2 rounded-xl border border-stone-200 p-3">
@@ -138,14 +140,14 @@ export default function Product() {
           ) : (
             <>
               <button
-                disabled={adding}
+                disabled={adding || v?.availability === 'out_of_stock'}
                 onClick={() => add(false)}
                 className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium hover:bg-stone-50 disabled:opacity-60"
               >
-                Add to cart
+                {v?.availability === 'out_of_stock' ? 'Sold out' : 'Add to cart'}
               </button>
               <button
-                disabled={adding}
+                disabled={adding || v?.availability === 'out_of_stock'}
                 onClick={() => add(true)}
                 className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60"
               >

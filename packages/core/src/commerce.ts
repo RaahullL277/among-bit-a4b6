@@ -111,7 +111,7 @@ export class Commerce {
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
-    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions);
+    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock);
     this.analytics = new AnalyticsService(prisma);
     this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
     this.platformAuth = new PlatformAuthService(prisma);

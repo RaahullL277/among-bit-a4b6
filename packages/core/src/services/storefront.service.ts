@@ -4,6 +4,7 @@ import type { ProductService } from './product.service.js';
 import type { CartService } from './cart.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
 import type { SubscriptionService } from './subscription.service.js';
+import type { StockService } from './stock.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -18,7 +19,22 @@ export class StorefrontService {
     private readonly carts: CartService,
     private readonly loyalty: LoyaltyService,
     private readonly subscriptions: SubscriptionService,
+    private readonly stock?: StockService,
   ) {}
+
+  /** Adds a buyer-safe `availability` (in_stock / low_stock / out_of_stock) to
+   * each variant of the given products, without exposing exact counts to UIs. */
+  private async withAvailability(storeId: string, products: any[]): Promise<any[]> {
+    const track = (await this.stock?.fulfillmentPolicy(storeId))?.trackInventory ?? true;
+    const label = (v: any) =>
+      this.stock?.availabilityOf({ inventory: v.inventory ?? 0, reserved: v.reserved ?? 0 }, track) ??
+      ((v.inventory ?? 0) - (v.reserved ?? 0) > 0 ? 'in_stock' : 'out_of_stock');
+    return products.map((p) => ({
+      ...p,
+      availability: (p.variants ?? []).some((v: any) => label(v) !== 'out_of_stock') ? 'in_stock' : 'out_of_stock',
+      variants: (p.variants ?? []).map((v: any) => ({ ...v, availability: label(v) })),
+    }));
+  }
 
   private async ctxForStore(storeId: string): Promise<{ ctx: TenantContext; store: any }> {
     const store = await this.prisma.store.findUnique({
@@ -46,7 +62,7 @@ export class StorefrontService {
   async listProducts(storeId: string) {
     const { ctx } = await this.ctxForStore(storeId);
     const all = await this.products.list(ctx, storeId);
-    return all.filter((p) => p.status === 'ACTIVE');
+    return this.withAvailability(storeId, all.filter((p) => p.status === 'ACTIVE'));
   }
 
   async getProduct(storeId: string, productId: string) {
@@ -55,7 +71,7 @@ export class StorefrontService {
     if (product.storeId !== storeId || product.status !== 'ACTIVE') {
       throw new NotFoundError('Product', productId);
     }
-    return product;
+    return (await this.withAvailability(storeId, [product]))[0];
   }
 
   /** Full-text-ish product search (title/description) over active products. */
@@ -75,13 +91,18 @@ export class StorefrontService {
       include: { variants: { orderBy: { priceMinor: 'asc' }, take: 1 } },
       take: 50,
     });
-    return products.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      priceMinor: p.variants[0]?.priceMinor ?? null,
-      currency: p.variants[0]?.currency ?? 'INR',
-    }));
+    const track = (await this.stock?.fulfillmentPolicy(storeId))?.trackInventory ?? true;
+    return products.map((p) => {
+      const v = p.variants[0];
+      return {
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        priceMinor: v?.priceMinor ?? null,
+        currency: v?.currency ?? 'INR',
+        availability: v ? this.stock?.availabilityOf({ inventory: v.inventory, reserved: v.reserved }, track) ?? 'in_stock' : 'out_of_stock',
+      };
+    });
   }
 
   /** Order status + shipment tracking for a buyer (by order number + email). */

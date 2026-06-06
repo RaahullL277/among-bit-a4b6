@@ -58,12 +58,11 @@ export class PaymentService {
         title: variant.title,
         quantity: item.quantity,
         unitPriceMinor: variant.priceMinor,
-        available: variant.inventory,
       };
     });
 
-    // Overselling guard (respects the store's track-inventory / backorder policy).
-    await this.stock?.assertCanFulfill(store.id, lineItems);
+    // Stock-consumption policy for the reservation/overselling guard below.
+    const fulfillment = (await this.stock?.fulfillmentPolicy(store.id)) ?? { trackInventory: true, allowBackorder: false };
     const subtotalMinor = lineItems.reduce((sum, li) => sum + li.unitPriceMinor * li.quantity, 0);
     // Clamp any offer discount to the subtotal so the charged total never goes negative.
     const discountMinor = Math.max(0, Math.min(Math.round(input.discountMinor ?? 0), subtotalMinor));
@@ -81,7 +80,7 @@ export class PaymentService {
       });
       const number = (last._max.number ?? 0) + 1;
 
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           tenantId: ctx.tenantId,
           storeId: store.id,
@@ -112,6 +111,13 @@ export class PaymentService {
         },
         include: { items: true, payment: true },
       });
+
+      // Hold stock for the pending order (atomic, race-safe). Throwing here
+      // rolls back the whole order — so an oversold checkout never persists.
+      if (fulfillment.trackInventory) {
+        await this.stock!.reserve(tx, { tenantId: ctx.tenantId, storeId: store.id, orderId: created.id, items: lineItems, allowBackorder: fulfillment.allowBackorder });
+      }
+      return created;
     });
 
     const result = await adapter.createOrder({
@@ -232,8 +238,13 @@ export class PaymentService {
         where: { id: orderId },
         data: { status: orderStatus },
       });
+      if (orderStatus === 'CANCELLED' && !wasPaid) {
+        // Payment failed on an unpaid order → free its held stock.
+        await this.stock?.releaseReservations(orderId).catch(() => undefined);
+      }
       if (orderStatus === 'PAID' && !wasPaid) {
-        // Consume inventory for the sale (respects the store's tracking policy).
+        // The reservation becomes a real sale: release the hold, consume inventory.
+        await this.stock?.consumeReservations(orderId).catch(() => undefined);
         await this.stock?.applyOrderSale(orderId).catch(() => undefined);
         // Attribute a paid order back to its cart (recovered if it was abandoned).
         if (order.cartId) {

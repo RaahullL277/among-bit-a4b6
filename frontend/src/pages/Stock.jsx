@@ -141,7 +141,8 @@ export default function Stock() {
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
                 <th className="px-5 py-3 font-medium">Product</th>
-                <th className="px-5 py-3 font-medium">Inventory</th>
+                <th className="px-5 py-3 font-medium">On hand</th>
+                <th className="px-5 py-3 font-medium">Available</th>
                 <th className="px-5 py-3 font-medium">Sales/day</th>
                 <th className="px-5 py-3 font-medium">Days cover</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -155,6 +156,10 @@ export default function Stock() {
                     <div className="text-xs text-slate-400">{r.title}{r.sku ? ` · ${r.sku}` : ''}</div>
                   </td>
                   <td className="px-5 py-3"><InventoryCell variantId={r.variantId} value={r.inventory} onSaved={reload} /></td>
+                  <td className="px-5 py-3 text-slate-700">
+                    {r.available ?? r.inventory}
+                    {r.reserved > 0 && <span className="ml-1 text-xs text-amber-600">({r.reserved} reserved)</span>}
+                  </td>
                   <td className="px-5 py-3 text-slate-500">{r.dailyVelocity.toFixed(2)}</td>
                   <td className="px-5 py-3 text-slate-500">
                     {r.daysOfCover == null ? '∞' : Math.round(r.daysOfCover)}

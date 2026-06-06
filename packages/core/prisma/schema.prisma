@@ -196,6 +196,13 @@ enum StockMovementReason {
   ADJUST   // manual correction (recount, shrinkage, damage)
 }
 
+// Lifecycle of a stock reservation held between checkout and capture.
+enum ReservationStatus {
+  ACTIVE   // holding stock for a pending order
+  CONSUMED // the order was paid → became a real sale
+  RELEASED // the order was cancelled / failed / expired → stock freed
+}
+
 // A customer-support conversation's state.
 enum SupportConversationStatus {
   OPEN       // bot/customer exchange in progress
@@ -468,6 +475,7 @@ model Store {
   returnPolicy ReturnPolicy?
   listingAgentConfig ListingAgentConfig?
   stockMovements StockMovement[]
+  stockReservations StockReservation[]
   loyaltyProgram LoyaltyProgram?
   subscriptions Subscription[]
   subscriptionSettings SubscriptionSettings?
@@ -565,6 +573,8 @@ model ProductVariant {
   costMinor Int     @default(0)
   currency  String  @default("INR")
   inventory Int     @default(0)
+  // Units held for not-yet-paid orders (checkout→capture). available = inventory - reserved.
+  reserved  Int     @default(0)
   options   Json?
   // Last computed stock health, used to detect transitions for alerting.
   lastStockStatus StockStatus?
@@ -575,6 +585,7 @@ model ProductVariant {
   subscriptions    Subscription[]
   competitorPrices CompetitorPrice[]
   stockMovements   StockMovement[]
+  reservations     StockReservation[]
 
   @@index([tenantId])
   @@index([productId])
@@ -995,6 +1006,27 @@ model StockMovement {
   @@index([tenantId])
   @@index([storeId, createdAt])
   @@index([variantId, createdAt])
+}
+
+// A hold on stock for a pending order, from checkout until capture. Consumed on
+// payment, released on cancel/fail/expiry. Backs the race-safe overselling guard.
+model StockReservation {
+  id        String            @id @default(cuid())
+  tenantId  String
+  storeId   String
+  orderId   String
+  variantId String
+  quantity  Int
+  status    ReservationStatus @default(ACTIVE)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  store   Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([storeId, status])
+  @@index([variantId, status])
 }
 
 // Per-store abandoned-cart recovery configuration.

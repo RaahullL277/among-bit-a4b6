@@ -36,11 +36,13 @@ export class OrderService {
       data: { status },
       include: orderInclude,
     });
-    // Cancelling/refunding a paid order returns its consumed stock (once).
+    // Reversing an order returns its stock: a paid order had inventory consumed
+    // (restore it), an unpaid one only held a reservation (release it).
     const reversing = status === 'CANCELLED' || status === 'REFUNDED';
     const wasPaid = before.status === 'PAID' || before.status === 'FULFILLED';
-    if (reversing && wasPaid && before.status !== status) {
-      await this.stock?.restoreOrder(id).catch(() => undefined);
+    if (reversing && before.status !== status) {
+      if (wasPaid) await this.stock?.restoreOrder(id).catch(() => undefined);
+      else if (before.status === 'PENDING') await this.stock?.releaseReservations(id).catch(() => undefined);
     }
     // Best-effort customer notification; never block the status change.
     await this.notifications

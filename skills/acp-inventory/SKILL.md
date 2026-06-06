@@ -22,10 +22,12 @@ variant, so you can see what needs reordering.
   resulting balance, and actor. Automated movements (sales/returns/cancels) show actor
   `system`; manual ones record the user/partner who made them.
 
-## Consumption & overselling
-Stock is **consumed when a sale is captured** (paid) and **returned** when a received
-return is restocked or a paid order is cancelled (damaged returns are not restocked).
-By default, checkout is **blocked** when an item exceeds available stock.
+## Consumption, reservations & overselling
+Stock is **reserved at checkout** (a race-safe hold so two shoppers can't claim the same
+unit), **consumed when the sale is captured** (paid), and **returned** when a received return
+is restocked or a paid order is cancelled (damaged returns are not restocked). A hold is
+**released** if the order is cancelled, fails, or expires (unpaid > 24h). Buyers see only
+**available = on-hand − reserved**; checkout is blocked when an item exceeds availability.
 
 ## Policy
 `get_stock_policy` / `set_stock_policy` with `storeId` tune:
