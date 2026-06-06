@@ -159,6 +159,40 @@ export function registerTools(server: McpServer, session: Session) {
         }
       },
     );
+    server.registerTool(
+      'create_client',
+      {
+        description: 'Onboard a NEW client: spins up a fresh client workspace (store + owner + API key) linked to you, with an optional plan fee + renewal. Returns credentials to hand to the client.',
+        inputSchema: {
+          businessName: z.string(),
+          ownerEmail: z.string().describe('The client owner\'s email (magic-link login)'),
+          ownerName: z.string().optional(),
+          monthlyFeeMinor: z.number().optional().describe('Recurring plan fee in minor units (paise for INR)'),
+          renewsAt: z.string().optional().describe('Next renewal date (ISO)'),
+        },
+      },
+      async (a: any) => {
+        try {
+          return ok(await commerce.partners.createClientForPartner(session.partner!.partnerId, a));
+        } catch (err) {
+          return fail(err);
+        }
+      },
+    );
+    server.registerTool(
+      'update_client_plan',
+      {
+        description: 'Update one of your clients\' plan: monthly fee and/or renewal date.',
+        inputSchema: { clientId: z.string().describe('The clientId from list_clients'), monthlyFeeMinor: z.number().optional(), renewsAt: z.string().optional() },
+      },
+      async (a: any) => {
+        try {
+          return ok(await commerce.partners.updateClientForPartner(session.partner!.partnerId, a.clientId, a));
+        } catch (err) {
+          return fail(err);
+        }
+      },
+    );
   }
 
   const variantShape = z.object({

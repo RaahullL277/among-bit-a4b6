@@ -114,6 +114,35 @@ describe.skipIf(!hasDb)('partner dashboard', () => {
     expect(access.accessLevel).toBe('MANAGE');
   });
 
+  it('lets a partner self-serve: create a new client and edit its plan', async () => {
+    const before = (await commerce.partners.clients(partnerId)).length;
+    const res = await commerce.partners.createClientForPartner(partnerId, {
+      businessName: 'Fresh Client',
+      ownerEmail: `fresh+${randomBytes(4).toString('hex')}@example.com`,
+      monthlyFeeMinor: 150000,
+      renewsAt: new Date(Date.now() + 20 * 86_400_000),
+    });
+    created.push(res.tenantId);
+    expect(res.apiKey).toMatch(/^sk_/); // a usable workspace key to hand off
+
+    const clients = await commerce.partners.clients(partnerId);
+    expect(clients.length).toBe(before + 1);
+    const mine = clients.find((c) => c.tenantId === res.tenantId)!;
+    expect(mine.name).toBe('Fresh Client');
+    expect(mine.monthlyFeeMinor).toBe(150000);
+    expect(mine.accessLevel).toBe('MANAGE'); // partner created it → full access by default
+
+    // Edit the plan fee.
+    await commerce.partners.updateClientForPartner(partnerId, mine.clientId, { monthlyFeeMinor: 250000 });
+    const after = (await commerce.partners.clients(partnerId)).find((c) => c.clientId === mine.clientId)!;
+    expect(after.monthlyFeeMinor).toBe(250000);
+
+    // A partner cannot edit another partner's client.
+    const other = await commerce.partners.createPartner({ name: 'Other2', email: `other2+${randomBytes(4).toString('hex')}@example.com` });
+    await expect(commerce.partners.updateClientForPartner(other.id, mine.clientId, { monthlyFeeMinor: 1 })).rejects.toBeTruthy();
+    await prisma.partner.delete({ where: { id: other.id } }).catch(() => undefined);
+  });
+
   it('authenticates a partner via magic link and resolves a session', async () => {
     const { token } = await commerce.partnerAuth.requestMagicLink('AGENCY@example.com');
     expect(token).toBeTruthy();

@@ -1,6 +1,7 @@
 import type { PartnerAccessLevel, PrismaClient } from '@prisma/client';
 import { ForbiddenError, NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { ALL_PERMISSIONS, READ_PERMISSIONS } from '../authz.js';
+import type { OnboardingService } from './onboarding.service.js';
 
 const PAID = ['PAID', 'FULFILLED'] as const;
 const DAY_MS = 86_400_000;
@@ -24,8 +25,19 @@ export interface AddClientInput {
  *  - the partner dashboard (analytics across a partner's own clients, earnings
  *    from commission on client GMV, and upcoming renewals), scoped by partnerId.
  */
+export interface CreateClientInput {
+  businessName: string;
+  ownerEmail: string;
+  ownerName?: string;
+  monthlyFeeMinor?: number;
+  renewsAt?: string | Date;
+}
+
 export class PartnerService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly onboarding?: OnboardingService,
+  ) {}
 
   // --- Operator management --------------------------------------------------
 
@@ -82,6 +94,46 @@ export class PartnerService {
     if (!client) throw new NotFoundError('PartnerClient', clientId);
     await this.prisma.partnerClient.delete({ where: { id: clientId } });
     return { id: clientId, removed: true };
+  }
+
+  // --- Partner self-serve client management ---------------------------------
+  // (Scoped to the authenticated partner; partnerId comes from their session.)
+
+  /**
+   * Onboard a NEW client for a partner: spin up a fresh workspace (tenant +
+   * owner + API key) and link it to the partner with a plan fee + renewal. The
+   * partner creates the tenant, so this can't claim another merchant's store.
+   * Returns the new workspace credentials to hand off to the client.
+   */
+  async createClientForPartner(partnerId: string, input: CreateClientInput) {
+    const partner = await this.prisma.partner.findUnique({ where: { id: partnerId }, select: { id: true } });
+    if (!partner) throw new NotFoundError('Partner', partnerId);
+    if (!this.onboarding) throw new ValidationError('Onboarding is not available.');
+    if (!input.businessName?.trim()) throw new ValidationError('A business name is required.');
+
+    const account = await this.onboarding.createAccount({
+      businessName: input.businessName,
+      ownerEmail: input.ownerEmail,
+      ownerName: input.ownerName,
+    });
+    await this.addClient(partnerId, {
+      tenantId: account.tenantId,
+      monthlyFeeMinor: input.monthlyFeeMinor,
+      renewsAt: input.renewsAt,
+    });
+    return {
+      tenantId: account.tenantId,
+      name: input.businessName.trim(),
+      ownerEmail: account.ownerEmail,
+      apiKey: account.apiKey,
+      message:
+        'Client workspace created and linked to you (MANAGE access). Build their store next (Manage → or launch_store), and share the owner email (magic-link login) + API key with the client.',
+    };
+  }
+
+  /** A partner edits one of its clients' plan (monthly fee + renewal date). */
+  async updateClientForPartner(partnerId: string, clientId: string, patch: { monthlyFeeMinor?: number; renewsAt?: string | Date | null }) {
+    return this.updateClient(partnerId, clientId, patch);
   }
 
   // --- Partner-facing analytics ---------------------------------------------

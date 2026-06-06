@@ -112,10 +112,11 @@ export class Commerce {
     this.seo = new SeoService(prisma);
     this.images = new ImageService(prisma);
     this.partnerAuth = new PartnerAuthService(prisma);
-    this.partners = new PartnerService(prisma);
     this.pricing = new PricingService(prisma);
     this.templates = new TemplateService(prisma, this.pages);
     this.onboarding = new OnboardingService(prisma, this.auth, this.apiKeys, this.stores, this.products, this.integrations, this.pages, this.templates);
+    // Constructed after onboarding so partners can self-serve new client workspaces.
+    this.partners = new PartnerService(prisma, this.onboarding);
   }
 }
 

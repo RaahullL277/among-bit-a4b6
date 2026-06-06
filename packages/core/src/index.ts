@@ -80,7 +80,7 @@ export {
 export { SeoService, type SeoSettingsInput } from './services/seo.service.js';
 export { ImageService, type CreateImageInput } from './services/image.service.js';
 export { PartnerAuthService, type PartnerContext, type PartnerSessionResult } from './services/partner-auth.service.js';
-export { PartnerService, type CreatePartnerInput, type AddClientInput } from './services/partner.service.js';
+export { PartnerService, type CreatePartnerInput, type AddClientInput, type CreateClientInput } from './services/partner.service.js';
 export {
   PricingService,
   type PricingRuleInput,

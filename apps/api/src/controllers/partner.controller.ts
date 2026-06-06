@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { getCommerce, type PartnerContext } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
 import { PartnerAuthGuard } from '../auth/partner-auth.guard.js';
@@ -58,5 +58,28 @@ export class PartnerController {
   @Get('renewals')
   renewals(@Partner() p: PartnerContext, @Query('withinDays') withinDays?: string): Promise<any> {
     return this.commerce.partners.renewals(p.partnerId, withinDays ? Number(withinDays) : 30);
+  }
+
+  // --- Self-serve client management -----------------------------------------
+  @Post('clients')
+  createClient(
+    @Partner() p: PartnerContext,
+    @Body() body: { businessName: string; ownerEmail: string; ownerName?: string; monthlyFeeMinor?: number; renewsAt?: string },
+  ): Promise<any> {
+    return this.commerce.partners.createClientForPartner(p.partnerId, body);
+  }
+
+  @Patch('clients/:clientId')
+  updateClient(
+    @Partner() p: PartnerContext,
+    @Param('clientId') clientId: string,
+    @Body() body: { monthlyFeeMinor?: number; renewsAt?: string | null },
+  ): Promise<any> {
+    return this.commerce.partners.updateClientForPartner(p.partnerId, clientId, body);
+  }
+
+  @Delete('clients/:clientId')
+  removeClient(@Partner() p: PartnerContext, @Param('clientId') clientId: string): Promise<any> {
+    return this.commerce.partners.removeClient(p.partnerId, clientId);
   }
 }

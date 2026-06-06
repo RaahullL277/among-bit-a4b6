@@ -34,6 +34,9 @@ export const api = {
   },
   dashboard: (from) => req(`/partner/dashboard?${qs({ from })}`),
   clients: (from) => req(`/partner/clients?${qs({ from })}`),
+  createClient: (body) => req('/partner/clients', { method: 'POST', body }),
+  updateClient: (clientId, body) => req(`/partner/clients/${clientId}`, { method: 'PATCH', body }),
+  removeClient: (clientId) => req(`/partner/clients/${clientId}`, { method: 'DELETE' }),
   renewals: (withinDays) => req(`/partner/renewals?${qs({ withinDays })}`),
 };
 
