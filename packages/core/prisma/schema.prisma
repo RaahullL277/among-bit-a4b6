@@ -450,6 +450,26 @@ model Store {
   // Phase 2 will derive these from user memberships; explicit for now.
   ownerEmail String?
   ownerPhone String?
+  // --- Seller tax identity (printed on GST tax invoices) -------------------
+  // Registered legal/business name (falls back to `name` on the invoice).
+  legalName    String?
+  // 15-char GSTIN. Present => the store is GST-registered and issues tax
+  // invoices with split CGST/SGST/IGST; absent => a plain bill of supply.
+  gstin        String?
+  pan          String?
+  // Registered place of business (the seller address on the invoice).
+  taxAddressLine1 String?
+  taxAddressLine2 String?
+  taxCity         String?
+  taxState        String?
+  // 2-digit Indian state code (e.g. "29" = Karnataka). Drives intra- vs
+  // inter-state tax: seller state == place of supply => CGST+SGST, else IGST.
+  taxStateCode    String?
+  taxPincode      String?
+  // Per-store invoice / credit-note number-series prefixes (GST requires a
+  // unique, sequential series). Numbers themselves are sequential ints.
+  invoicePrefix    String @default("INV")
+  creditNotePrefix String @default("CN")
   // Last time cohort intelligence was recomputed (drives the scheduled cadence).
   cohortsRecomputedAt DateTime?
   createdAt DateTime    @default(now())
@@ -493,6 +513,8 @@ model Store {
   shopabilityConfig   ShopabilityConfig?
   agentCheckouts      AgentCheckout[]
   wishlistItems       WishlistItem[]
+  invoices            Invoice[]
+  creditNotes         CreditNote[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -520,6 +542,11 @@ model Product {
   title       String
   description String?
   status      ProductStatus @default(DRAFT)
+  // HSN/SAC classification code, printed per line on the GST tax invoice.
+  hsnCode     String?
+  // Optional per-product GST rate in basis points (1800 = 18%). When unset the
+  // store-level checkout tax rate applies. Snapshotted onto each invoice line.
+  gstRateBps  Int?
   // Free-form tags/keywords (set by the listing agent's content writer).
   tags        String[]      @default([])
   // SEO overrides (fall back to store templates/title when unset).
@@ -678,6 +705,8 @@ model Order {
   payment  Payment?
   shipment Shipment?
   returns  Return[]
+  invoice  Invoice?
+  creditNotes CreditNote[]
 
   @@unique([storeId, number])
   @@index([tenantId])
@@ -1333,6 +1362,7 @@ model Return {
   store Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
   order Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   items ReturnItem[]
+  creditNote CreditNote?
 
   @@unique([storeId, number])
   @@index([tenantId])
@@ -1820,4 +1850,128 @@ model EngagementMessage {
   @@index([tenantId])
   @@index([storeId, status, createdAt])
   @@index([customerId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// GST tax invoicing & accounting
+// ---------------------------------------------------------------------------
+
+// A GST tax invoice for a paid order. One per order, generated on payment
+// capture. Snapshots the seller's tax identity, the buyer's details, the place
+// of supply, and the per-line HSN + taxable value + split CGST/SGST (intra-
+// state) or IGST (inter-state) so the document is a permanent, self-contained
+// legal record even if the store or product later changes.
+model Invoice {
+  id        String   @id @default(cuid())
+  tenantId  String
+  storeId   String
+  orderId   String   @unique
+  // Sequential per store (GST: unique + sequential within the series).
+  number    Int
+  // Formatted, human-facing number, e.g. "INV-0001".
+  invoiceNo String
+  issuedAt  DateTime @default(now())
+
+  // --- Seller snapshot (at issue time) ---
+  sellerName      String
+  sellerLegalName String?
+  sellerGstin     String?
+  sellerPan       String?
+  sellerAddress   Json?   // { line1, line2, city, state, stateCode, pincode }
+  sellerStateCode String?
+
+  // --- Buyer snapshot ---
+  buyerName    String?
+  buyerEmail   String?
+  buyerGstin   String?  // present => B2B (registered buyer)
+  buyerAddress Json?    // shipping address used for place of supply
+
+  // --- Place of supply (drives the tax split) ---
+  placeOfSupply     String?  // state name
+  placeOfSupplyCode String?  // 2-digit state code
+  // True when seller state == place of supply => CGST + SGST; else IGST.
+  intraState        Boolean  @default(false)
+  // True when the seller is GST-registered (a tax invoice vs a bill of supply).
+  isTaxInvoice      Boolean  @default(false)
+
+  currency      String @default("INR")
+  // All amounts in minor units (paise). Reconciles to the order total.
+  subtotalMinor Int        // sum of line taxable values (pre-tax)
+  discountMinor Int    @default(0)
+  taxableMinor  Int        // taxable value the tax was charged on
+  cgstMinor     Int    @default(0)
+  sgstMinor     Int    @default(0)
+  igstMinor     Int    @default(0)
+  taxMinor      Int    @default(0) // cgst + sgst + igst
+  shippingMinor Int    @default(0)
+  roundOffMinor Int    @default(0)
+  totalMinor    Int
+
+  store Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lines InvoiceLine[]
+  creditNotes CreditNote[]
+
+  @@unique([storeId, number])
+  @@unique([storeId, invoiceNo])
+  @@index([tenantId])
+  @@index([storeId, issuedAt])
+}
+
+model InvoiceLine {
+  id        String @id @default(cuid())
+  tenantId  String
+  invoiceId String
+  title     String
+  hsnCode   String?
+  quantity  Int    @default(1)
+  // Tax-exclusive unit price + the line's taxable value (after its discount share).
+  unitPriceMinor Int
+  taxableMinor   Int
+  // GST rate applied to this line, in basis points (1800 = 18%).
+  gstRateBps Int   @default(0)
+  cgstMinor  Int   @default(0)
+  sgstMinor  Int   @default(0)
+  igstMinor  Int   @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// A GST credit note issued when a (paid, invoiced) order is refunded — fully or
+// partially — through a return or buyer cancellation. Reverses the invoiced tax
+// proportionally and carries its own sequential number series.
+model CreditNote {
+  id           String   @id @default(cuid())
+  tenantId     String
+  storeId      String
+  invoiceId    String
+  orderId      String
+  returnId     String?  @unique
+  number       Int
+  creditNoteNo String
+  issuedAt     DateTime @default(now())
+  reason       String?
+
+  currency      String @default("INR")
+  // Amounts reversed (minor units).
+  taxableMinor Int
+  cgstMinor    Int @default(0)
+  sgstMinor    Int @default(0)
+  igstMinor    Int @default(0)
+  taxMinor     Int @default(0)
+  shippingMinor Int @default(0)
+  totalMinor   Int
+  intraState   Boolean @default(false)
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  return  Return? @relation(fields: [returnId], references: [id], onDelete: SetNull)
+
+  @@unique([storeId, number])
+  @@unique([storeId, creditNoteNo])
+  @@index([tenantId])
+  @@index([storeId, issuedAt])
 }

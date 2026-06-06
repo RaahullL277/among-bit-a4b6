@@ -31,6 +31,23 @@ export class StorefrontController {
     return this.commerce.storefront.trackOrder(storeId, Number(number), email);
   }
 
+  // Buyer downloads their GST tax invoice (verified by order number + email).
+  @Get(':storeId/invoice')
+  invoice(@Param('storeId') storeId: string, @Query('number') number: string, @Query('email') email: string) {
+    return this.commerce.storefront.invoice(storeId, Number(number), email);
+  }
+
+  @Get(':storeId/invoice.html')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  async invoiceHtml(
+    @Param('storeId') storeId: string,
+    @Query('number') number: string,
+    @Query('email') email: string,
+  ): Promise<string> {
+    const html = await this.commerce.storefront.invoiceHtml(storeId, Number(number), email);
+    return html ?? '<!doctype html><meta charset="utf-8"><p>Invoice not found.</p>';
+  }
+
   @Get(':storeId/wishlist')
   wishlist(@Param('storeId') storeId: string, @Query('email') email: string) {
     return this.commerce.storefront.wishlist(storeId, email);

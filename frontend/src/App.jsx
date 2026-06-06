@@ -11,6 +11,7 @@ import Orders from './pages/Orders';
 import Carts from './pages/Carts';
 import Shipments from './pages/Shipments';
 import Returns from './pages/Returns';
+import Invoicing from './pages/Invoicing';
 import Stock from './pages/Stock';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
@@ -50,6 +51,7 @@ function AuthedApp() {
           <Route path="/carts" element={<Carts />} />
           <Route path="/shipments" element={<Shipments />} />
           <Route path="/returns" element={<Returns />} />
+          <Route path="/invoicing" element={<Invoicing />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/:id" element={<CustomerDetail />} />
           <Route path="/cohorts" element={<Cohorts />} />

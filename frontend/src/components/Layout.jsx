@@ -31,6 +31,7 @@ import {
   Settings,
   LogOut,
   ShoppingBag,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStores } from '../context/StoreContext';
@@ -52,6 +53,7 @@ const nav = [
   { to: '/carts', label: 'Carts', icon: ShoppingBasket },
   { to: '/shipments', label: 'Shipments', icon: Truck },
   { to: '/returns', label: 'Returns', icon: Undo2 },
+  { to: '/invoicing', label: 'Invoicing', icon: FileText },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/cohorts', label: 'Cohorts', icon: Sparkles },
   { to: '/automation', label: 'Automation', icon: Send, perm: 'notifications:write' },

@@ -1,6 +1,7 @@
 import type { PrismaClient, Store } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { effectivePlan } from '../platform/plans.js';
+import { isLikelyGstin, resolveStateCode, stateCodeFromGstin } from '../tax/india-states.js';
 
 export interface CreateStoreInput {
   name: string;
@@ -18,6 +19,21 @@ export interface UpdateStoreInput {
   status?: 'ACTIVE' | 'SUSPENDED';
   ownerEmail?: string;
   ownerPhone?: string;
+}
+
+/** Seller tax identity printed on GST invoices (item 1). */
+export interface StoreTaxIdentityInput {
+  legalName?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
+  taxAddressLine1?: string | null;
+  taxAddressLine2?: string | null;
+  taxCity?: string | null;
+  taxState?: string | null;
+  taxStateCode?: string | null;
+  taxPincode?: string | null;
+  invoicePrefix?: string;
+  creditNotePrefix?: string;
 }
 
 function slugify(value: string): string {
@@ -95,6 +111,57 @@ export class StoreService {
         status: input.status,
         ownerEmail: input.ownerEmail,
         ownerPhone: input.ownerPhone,
+      },
+    });
+  }
+
+  /** Read the seller tax identity (for the invoice settings UI). */
+  async getTaxIdentity(ctx: TenantContext, id: string) {
+    const store = await this.get(ctx, id);
+    return {
+      storeId: store.id,
+      name: store.name,
+      legalName: store.legalName,
+      gstin: store.gstin,
+      pan: store.pan,
+      taxAddressLine1: store.taxAddressLine1,
+      taxAddressLine2: store.taxAddressLine2,
+      taxCity: store.taxCity,
+      taxState: store.taxState,
+      taxStateCode: store.taxStateCode,
+      taxPincode: store.taxPincode,
+      invoicePrefix: store.invoicePrefix,
+      creditNotePrefix: store.creditNotePrefix,
+    };
+  }
+
+  /** Set the seller tax identity (GSTIN, legal name, registered address, series). */
+  async setTaxIdentity(ctx: TenantContext, id: string, input: StoreTaxIdentityInput): Promise<Store> {
+    await this.get(ctx, id);
+    const gstin = input.gstin?.trim().toUpperCase() || null;
+    if (gstin && !isLikelyGstin(gstin)) {
+      throw new ValidationError('GSTIN must be a valid 15-character GST identification number.');
+    }
+    // Derive the state code from the GSTIN if not given explicitly, else the state name.
+    const taxStateCode =
+      input.taxStateCode?.trim() ||
+      stateCodeFromGstin(gstin) ||
+      (input.taxState ? resolveStateCode(input.taxState) : undefined) ||
+      undefined;
+    return this.prisma.store.update({
+      where: { id },
+      data: {
+        legalName: input.legalName,
+        gstin,
+        pan: input.pan?.trim().toUpperCase() || (input.pan === null ? null : undefined),
+        taxAddressLine1: input.taxAddressLine1,
+        taxAddressLine2: input.taxAddressLine2,
+        taxCity: input.taxCity,
+        taxState: input.taxState,
+        taxStateCode,
+        taxPincode: input.taxPincode,
+        invoicePrefix: input.invoicePrefix?.trim() || undefined,
+        creditNotePrefix: input.creditNotePrefix?.trim() || undefined,
       },
     });
   }

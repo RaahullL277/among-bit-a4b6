@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError, type TenantContext } from '../context.j
 import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { StockService } from './stock.service.js';
+import type { InvoiceService } from './invoice.service.js';
 
 export interface ReturnItemInput {
   orderItemId: string;
@@ -61,6 +62,7 @@ export class ReturnService {
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
     private readonly stock?: StockService,
+    private readonly invoices?: InvoiceService,
   ) {}
 
   private money(minor: number, currency: string) {
@@ -250,8 +252,12 @@ export class ReturnService {
     let refunded = false;
     const wasPaid = order.status === 'PAID';
     if (wasPaid && (order.payment?.status === 'CAPTURED' || order.payment?.status === 'PARTIALLY_REFUNDED')) {
-      await this.payments.refund(ctx, order.id); // refund the remaining balance
+      const r = await this.payments.refund(ctx, order.id); // refund the remaining balance
       refunded = true;
+      // Credit note for the buyer-initiated cancellation refund.
+      await this.invoices
+        ?.generateCreditNote(ctx, order.id, { refundMinor: r.amountMinor, reason: 'Order cancelled by customer' })
+        .catch(() => undefined);
     }
     // Refund may have set the order to REFUNDED; mark it cancelled (the buyer's intent).
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
@@ -425,6 +431,10 @@ export class ReturnService {
       where: { id },
       data: { status: 'REFUNDED', refundMinor: result.amountMinor, refundRef: result.refundRef },
     });
+    // Issue a GST credit note reversing the proportional tax (idempotent per return).
+    await this.invoices
+      ?.generateCreditNote(ctx, row.orderId, { refundMinor: result.amountMinor, returnId: id, reason: `Return ${row.number}` })
+      .catch(() => undefined);
     await this.notifyCustomer(ctx, row, 'RETURN_REFUNDED', { refund: this.money(result.amountMinor, row.order.currency) });
     return updated;
   }

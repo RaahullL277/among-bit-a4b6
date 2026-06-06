@@ -33,6 +33,8 @@ import { EngagementController } from './controllers/engagement.controller.js';
 import { ShopabilityController } from './controllers/shopability.controller.js';
 import { AgentController } from './controllers/agent.controller.js';
 import { ReturnsController } from './controllers/returns.controller.js';
+import { InvoicesController } from './controllers/invoices.controller.js';
+import { AccountingController } from './controllers/accounting.controller.js';
 import { LoyaltyController } from './controllers/loyalty.controller.js';
 import { SubscriptionsController } from './controllers/subscriptions.controller.js';
 import { SeoController } from './controllers/seo.controller.js';
@@ -77,6 +79,8 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     ListingController,
     CheckoutSettingsController,
     ReturnsController,
+    InvoicesController,
+    AccountingController,
     LoyaltyController,
     SubscriptionsController,
     SeoController,

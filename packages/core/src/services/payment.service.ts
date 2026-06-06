@@ -7,6 +7,7 @@ import type { MarketingService } from './marketing.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
 import type { StockService } from './stock.service.js';
 import type { CheckoutSettingsService } from './checkout-settings.service.js';
+import type { InvoiceService } from './invoice.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -34,6 +35,7 @@ export class PaymentService {
     private readonly loyalty?: LoyaltyService,
     private readonly stock?: StockService,
     private readonly checkoutSettings?: CheckoutSettingsService,
+    private readonly invoices?: InvoiceService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -269,6 +271,8 @@ export class PaymentService {
         // The reservation becomes a real sale: release the hold, consume inventory.
         await this.stock?.consumeReservations(orderId).catch(() => undefined);
         await this.stock?.applyOrderSale(orderId).catch(() => undefined);
+        // Issue the GST tax invoice for the paid order (idempotent, best-effort).
+        await this.invoices?.generateForOrder(ctx, orderId).catch(() => undefined);
         // Attribute a paid order back to its cart (recovered if it was abandoned).
         if (order.cartId) {
           const cart = await this.prisma.cart.findUnique({

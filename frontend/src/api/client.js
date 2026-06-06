@@ -68,6 +68,29 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   return data;
 }
 
+// Fetch a non-JSON (HTML/CSV) endpoint with auth, as text.
+async function requestText(path) {
+  const token = getToken();
+  const acting = getActingClient();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(acting?.tenantId ? { 'x-acp-client': acting.tenantId } : {}),
+    },
+  });
+  if (!res.ok) throw new ApiError(res.statusText, res.status);
+  return res.text();
+}
+
+// Open an authed HTML/CSV document in a new tab via a blob URL (carries auth
+// the browser wouldn't send on a plain window.open of the API URL).
+async function openDocument(path, type = 'text/html') {
+  const text = await requestText(path);
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 // Resource helpers ---------------------------------------------------------
 export const api = {
   auth: {
@@ -93,6 +116,19 @@ export const api = {
     get: (id) => request(`/stores/${id}`),
     create: (body) => request('/stores', { method: 'POST', body }),
     update: (id, body) => request(`/stores/${id}`, { method: 'PATCH', body }),
+    getTaxIdentity: (id) => request(`/stores/${id}/tax-identity`),
+    setTaxIdentity: (id, body) => request(`/stores/${id}/tax-identity`, { method: 'PUT', body }),
+  },
+  invoices: {
+    list: (storeId, from, to) => request(`/invoices?${qs({ storeId, from, to })}`),
+    get: (id) => request(`/invoices/${id}`),
+    creditNotes: (storeId) => request(`/invoices/credit-notes?${qs({ storeId })}`),
+    openHtml: (id) => openDocument(`/invoices/${id}/html`),
+  },
+  accounting: {
+    salesRegister: (storeId, from, to) => request(`/accounting/sales-register?${qs({ storeId, from, to })}`),
+    pnl: (storeId, from, to) => request(`/accounting/pnl?${qs({ storeId, from, to })}`),
+    downloadCsv: (storeId, from, to) => openDocument(`/accounting/sales-register.csv?${qs({ storeId, from, to })}`, 'text/csv'),
   },
   products: {
     list: (storeId) => request(`/products?storeId=${encodeURIComponent(storeId)}`),

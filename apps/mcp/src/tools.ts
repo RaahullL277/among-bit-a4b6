@@ -232,6 +232,37 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.stores.get(ctx, a.storeId)),
   );
 
+  server.registerTool(
+    'get_store_tax_identity',
+    {
+      description: 'The seller tax identity printed on GST invoices: legal name, GSTIN, PAN, registered address + state code, and the invoice / credit-note number-series prefixes.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.stores.getTaxIdentity(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_store_tax_identity',
+    {
+      description: 'Set the seller tax identity for GST tax invoices: registered legal name, GSTIN (15-char; the state code is derived from it), PAN, the registered place-of-business address (used as the seller address and to decide CGST+SGST vs IGST), and optional invoice/credit-note number prefixes.',
+      inputSchema: {
+        storeId: z.string(),
+        legalName: z.string().nullable().optional(),
+        gstin: z.string().nullable().optional().describe('15-char GSTIN; presence makes invoices "Tax Invoices" with split GST'),
+        pan: z.string().nullable().optional(),
+        taxAddressLine1: z.string().nullable().optional(),
+        taxAddressLine2: z.string().nullable().optional(),
+        taxCity: z.string().nullable().optional(),
+        taxState: z.string().nullable().optional().describe('State name or 2-digit GST state code'),
+        taxStateCode: z.string().nullable().optional(),
+        taxPincode: z.string().nullable().optional(),
+        invoicePrefix: z.string().optional().describe('Invoice number series prefix, e.g. "INV"'),
+        creditNotePrefix: z.string().optional().describe('Credit-note series prefix, e.g. "CN"'),
+      },
+    },
+    tool((ctx, a: any) => commerce.stores.setTaxIdentity(ctx, a.storeId, a)),
+  );
+
   // --- Listing agent (photo → copy → price/discount/stock → publish) --------
   server.registerTool(
     'get_listing_config',
@@ -315,12 +346,14 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'create_product',
     {
-      description: 'Add a product (with one or more variants) to a store.',
+      description: 'Add a product (with one or more variants) to a store. Set hsnCode + gstRateBps for GST tax invoices.',
       inputSchema: {
         storeId: z.string(),
         title: z.string(),
         description: z.string().optional(),
         status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
+        hsnCode: z.string().nullable().optional().describe('HSN/SAC code printed per line on the GST invoice'),
+        gstRateBps: z.number().int().min(0).max(10000).nullable().optional().describe('Per-product GST rate in basis points (1800=18%); falls back to the store rate'),
         variants: z.array(variantShape).optional(),
       },
     },
@@ -330,13 +363,15 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'update_product',
     {
-      description: 'Update a product\'s title, description, status, or tags.',
+      description: 'Update a product\'s title, description, status, tags, or GST classification (hsnCode, gstRateBps).',
       inputSchema: {
         productId: z.string(),
         title: z.string().optional(),
         description: z.string().optional(),
         status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
         tags: z.array(z.string()).optional(),
+        hsnCode: z.string().nullable().optional(),
+        gstRateBps: z.number().int().min(0).max(10000).nullable().optional(),
       },
     },
     tool((ctx, a: any) => commerce.products.update(ctx, a.productId, a)),
@@ -913,6 +948,52 @@ export function registerTools(server: McpServer, session: Session) {
       inputSchema: rangeSchema,
     },
     tool((ctx, a: any) => commerce.analytics.funnel(ctx, a)),
+  );
+
+  // --- Invoices & accounting (GST) ------------------------------------------
+  server.registerTool(
+    'list_invoices',
+    {
+      description: 'List GST tax invoices (one per paid order), optionally filtered by store and date range. Each carries seller GSTIN, buyer details, place of supply, and split CGST/SGST or IGST.',
+      inputSchema: { storeId: z.string().optional(), from: z.string().optional(), to: z.string().optional(), limit: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.invoices.list(ctx, a)),
+  );
+
+  server.registerTool(
+    'get_invoice',
+    {
+      description: 'Fetch one tax invoice with its line items (HSN, taxable value, CGST/SGST/IGST). Pass orderId to fetch the invoice for an order, or id for the invoice directly.',
+      inputSchema: { id: z.string().optional(), orderId: z.string().optional() },
+    },
+    tool((ctx, a: any) => (a.orderId ? commerce.invoices.getByOrder(ctx, a.orderId) : commerce.invoices.get(ctx, a.id))),
+  );
+
+  server.registerTool(
+    'list_credit_notes',
+    {
+      description: 'List GST credit notes (raised when a paid order is refunded), optionally filtered by store.',
+      inputSchema: { storeId: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.invoices.creditNotes(ctx, a)),
+  );
+
+  server.registerTool(
+    'sales_register',
+    {
+      description: 'GST sales register: every invoice + credit note in a period with taxable value and CGST/SGST/IGST, plus period totals. Set csv=true for a Tally/Zoho-Books-shaped CSV export.',
+      inputSchema: { storeId: z.string().optional(), from: z.string().optional(), to: z.string().optional(), csv: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => (a.csv ? commerce.accounting.salesRegisterCsv(ctx, a) : commerce.accounting.salesRegister(ctx, a))),
+  );
+
+  server.registerTool(
+    'profit_and_loss',
+    {
+      description: 'P&L-lite over a period: net revenue (invoices − credit notes), GST collected, COGS (unit cost × qty), gross profit and margin.',
+      inputSchema: { storeId: z.string().optional(), from: z.string().optional(), to: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.accounting.profitAndLoss(ctx, a)),
   );
 
   // --- Stock ----------------------------------------------------------------

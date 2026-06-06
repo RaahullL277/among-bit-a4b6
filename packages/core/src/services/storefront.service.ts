@@ -6,6 +6,8 @@ import type { LoyaltyService } from './loyalty.service.js';
 import type { SubscriptionService } from './subscription.service.js';
 import type { StockService } from './stock.service.js';
 import type { CheckoutSettingsService } from './checkout-settings.service.js';
+import type { InvoiceService } from './invoice.service.js';
+import { renderInvoiceHtml } from './invoice.service.js';
 
 /**
  * Public, store-scoped surface for a customer-facing storefront. No API key:
@@ -22,6 +24,7 @@ export class StorefrontService {
     private readonly subscriptions: SubscriptionService,
     private readonly stock?: StockService,
     private readonly checkoutSettings?: CheckoutSettingsService,
+    private readonly invoices?: InvoiceService,
   ) {}
 
   /** Adds a buyer-safe `availability` (in_stock / low_stock / out_of_stock) to
@@ -113,7 +116,7 @@ export class StorefrontService {
     if (!orderNumber || !email) return null;
     const order = await this.prisma.order.findFirst({
       where: { storeId, number: Number(orderNumber), customer: { email: { equals: email, mode: 'insensitive' } } },
-      include: { items: true, shipment: true },
+      include: { items: true, shipment: true, invoice: { select: { invoiceNo: true, isTaxInvoice: true } } },
     });
     if (!order) return null;
     return {
@@ -126,7 +129,22 @@ export class StorefrontService {
       shipment: order.shipment
         ? { status: order.shipment.status, courier: order.shipment.courier, awb: order.shipment.awb, trackingUrl: order.shipment.trackingUrl }
         : null,
+      // Buyers can download their tax invoice once the order is paid + invoiced.
+      invoice: order.invoice ? { invoiceNo: order.invoice.invoiceNo, isTaxInvoice: order.invoice.isTaxInvoice } : null,
     };
+  }
+
+  /** Buyer-facing tax invoice (verified by order number + email). */
+  async invoice(storeId: string, orderNumber: number, email: string) {
+    await this.ctxForStore(storeId);
+    const inv = await this.invoices?.getForBuyer(storeId, Number(orderNumber), email);
+    return inv ?? null;
+  }
+
+  /** Buyer-facing printable invoice HTML (verified by order number + email). */
+  async invoiceHtml(storeId: string, orderNumber: number, email: string): Promise<string | null> {
+    const inv = await this.invoice(storeId, orderNumber, email);
+    return inv ? renderInvoiceHtml(inv) : null;
   }
 
   // --- Wishlist (guest-friendly, keyed by email) ----------------------------

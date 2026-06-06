@@ -4,7 +4,7 @@ import { api, money, STORE_ID } from '../api';
 import { identify } from '../track';
 import { useCart } from '../cart';
 
-const emptyAddress = { name: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '' };
+const emptyAddress = { name: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', gstin: '' };
 
 export default function Cart() {
   const { cart, cartId, clear } = useCart();
@@ -94,6 +94,7 @@ export default function Cart() {
           <input value={address.line2} onChange={(e) => setAddress({ ...address, line2: e.target.value })} placeholder="Address line 2 (optional)" className="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm" />
           <input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} placeholder="City" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" />
           <input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} placeholder="State" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" />
+          <input value={address.gstin} onChange={(e) => setAddress({ ...address, gstin: e.target.value.toUpperCase() })} placeholder="GSTIN (optional, for business invoice)" className="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm" />
         </div>
       </div>
 

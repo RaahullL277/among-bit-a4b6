@@ -39,6 +39,8 @@ import { CohortService } from './services/cohort.service.js';
 import { EngagementService } from './services/engagement.service.js';
 import { ShopabilityService } from './services/shopability.service.js';
 import { CheckoutSettingsService } from './services/checkout-settings.service.js';
+import { InvoiceService } from './services/invoice.service.js';
+import { AccountingService } from './services/accounting.service.js';
 import { AuditService } from './services/audit.service.js';
 import { AppService } from './services/app.service.js';
 import { ListingService } from './services/listing.service.js';
@@ -65,6 +67,8 @@ export class Commerce {
   readonly carts: CartService;
   readonly stock: StockService;
   readonly checkoutSettings: CheckoutSettingsService;
+  readonly invoices: InvoiceService;
+  readonly accounting: AccountingService;
   readonly storefront: StorefrontService;
   readonly analytics: AnalyticsService;
   readonly shipping: ShippingService;
@@ -107,14 +111,18 @@ export class Commerce {
     // Stock is constructed early so the sale/return paths can consume + restore it.
     this.stock = new StockService(prisma, this.notifications);
     this.checkoutSettings = new CheckoutSettingsService(prisma);
+    // Invoicing is constructed before payments/returns so capture + refund can
+    // generate the tax invoice + credit note.
+    this.invoices = new InvoiceService(prisma, this.checkoutSettings);
+    this.accounting = new AccountingService(prisma);
     this.orders = new OrderService(prisma, this.notifications, this.stock);
     this.loyalty = new LoyaltyService(prisma);
-    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings);
+    this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices);
     this.messaging = new MessagingService(prisma, this.integrations);
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
-    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings);
+    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings, this.invoices);
     this.analytics = new AnalyticsService(prisma);
     this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
     this.platformAuth = new PlatformAuthService(prisma);
@@ -124,7 +132,7 @@ export class Commerce {
     this.customerSupport = new CustomerSupportService(prisma, this.notifications);
     this.reviews = new ReviewService(prisma);
     this.pages = new PageService(prisma);
-    this.returns = new ReturnService(prisma, this.payments, this.notifications, this.stock);
+    this.returns = new ReturnService(prisma, this.payments, this.notifications, this.stock, this.invoices);
     this.seo = new SeoService(prisma);
     this.images = new ImageService(prisma);
     this.partnerAuth = new PartnerAuthService(prisma);

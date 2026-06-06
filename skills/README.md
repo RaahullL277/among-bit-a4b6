@@ -24,6 +24,7 @@ When a Claude user has the connector installed and says, e.g., *"set up a loyalt
 | `acp-seo` | SEO audit, meta, image optimization | `seo_audit`, `set_seo_settings`, `optimize_images` |
 | `acp-pricing` | Competitor tracking + repricing + margins | `set_pricing_rule`, `add_competitor_price`, `analyze_pricing`, `run_repricing` |
 | `acp-returns` | Returns / RMA / refunds | `list_returns`, `update_return` |
+| `acp-invoicing` | GST tax invoices, credit notes, sales register & P&L | `set_store_tax_identity`, `list_invoices`, `sales_register`, `profit_and_loss` |
 | `acp-marketing` | Email marketing (Klaviyo/Mailchimp/Brevo) | `configure_marketing`, `sync_marketing` |
 | `acp-support-chatbot` | Storefront AI sales & support chatbot | `configure_support_bot` |
 | `acp-shipping` | Shipping / fulfillment (Delhivery) | `configure_shipping`, `create_shipment` |

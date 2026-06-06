@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { getCommerce, type TenantContext } from '@acp/core';
 import { Tenant } from '../common/tenant.decorator.js';
 import { Permissions } from '../common/permissions.decorator.js';
@@ -29,5 +29,18 @@ export class StoresController {
   @Permissions('stores:write')
   update(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
     return this.commerce.stores.update(t, id, body);
+  }
+
+  // --- Seller tax identity (GSTIN, legal name, registered address; item 1) ---
+  @Get(':id/tax-identity')
+  @Permissions('stores:read')
+  getTaxIdentity(@Tenant() t: TenantContext, @Param('id') id: string): Promise<unknown> {
+    return this.commerce.stores.getTaxIdentity(t, id);
+  }
+
+  @Put(':id/tax-identity')
+  @Permissions('stores:write')
+  setTaxIdentity(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
+    return this.commerce.stores.setTaxIdentity(t, id, body);
   }
 }

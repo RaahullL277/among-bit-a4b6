@@ -14,7 +14,9 @@ export { generateApiKey, hashApiKey } from './crypto.js';
 
 // Services (types for callers that want explicit references)
 export { ApiKeyService, type CreatedApiKey } from './services/api-key.service.js';
-export { StoreService, type CreateStoreInput, type UpdateStoreInput } from './services/store.service.js';
+export { StoreService, type CreateStoreInput, type UpdateStoreInput, type StoreTaxIdentityInput } from './services/store.service.js';
+export { InvoiceService, renderInvoiceHtml } from './services/invoice.service.js';
+export { AccountingService } from './services/accounting.service.js';
 export {
   ProductService,
   type CreateProductInput,

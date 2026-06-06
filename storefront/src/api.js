@@ -30,6 +30,9 @@ export const api = {
   search: (id, q) => req(`/storefront/${id}/search?q=${encodeURIComponent(q)}`),
   trackOrder: (id, number, email) =>
     req(`/storefront/${id}/track?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
+  // Direct URL to the buyer's printable GST tax invoice (verified by number + email).
+  invoiceUrl: (id, number, email) =>
+    `${BASE_URL}/storefront/${id}/invoice.html?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`,
   returnPolicy: (id) => req(`/storefront/${id}/return-policy`),
   cancelOrder: (id, body) => req(`/storefront/${id}/cancel-order`, { method: 'POST', body }),
   wishlist: (id, email) => req(`/storefront/${id}/wishlist?email=${encodeURIComponent(email)}`),

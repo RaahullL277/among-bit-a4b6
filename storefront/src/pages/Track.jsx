@@ -99,6 +99,17 @@ export default function Track() {
             )}
           </div>
 
+          {order.invoice && (
+            <a
+              href={api.invoiceUrl(STORE_ID, order.number, email.trim())}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 block w-full rounded-lg border border-stone-300 px-4 py-2 text-center text-sm font-medium text-stone-700 hover:bg-stone-50"
+            >
+              Download {order.invoice.isTaxInvoice ? 'tax invoice' : 'invoice'} ({order.invoice.invoiceNo})
+            </a>
+          )}
+
           {cancellable && (
             <button
               onClick={cancel}

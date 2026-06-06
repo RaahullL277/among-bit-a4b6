@@ -9,6 +9,10 @@ export interface CreateProductInput {
   tags?: string[];
   metaTitle?: string;
   metaDescription?: string;
+  /** HSN/SAC code printed per line on the GST tax invoice. */
+  hsnCode?: string | null;
+  /** Per-product GST rate in basis points (1800 = 18%); falls back to store rate. */
+  gstRateBps?: number | null;
   variants?: VariantInput[];
 }
 
@@ -30,6 +34,8 @@ export interface UpdateProductInput {
   tags?: string[];
   metaTitle?: string;
   metaDescription?: string;
+  hsnCode?: string | null;
+  gstRateBps?: number | null;
 }
 
 const productInclude = { variants: true } as const;
@@ -54,6 +60,9 @@ export class ProductService {
     if (variants.some((v) => v.compareAtMinor != null && v.compareAtMinor < v.priceMinor)) {
       throw new ValidationError('compareAtMinor (the "was" price) must be at least the selling price.');
     }
+    if (input.gstRateBps != null && (input.gstRateBps < 0 || input.gstRateBps > 10000)) {
+      throw new ValidationError('gstRateBps must be between 0 and 10000.');
+    }
 
     return this.prisma.product.create({
       data: {
@@ -65,6 +74,8 @@ export class ProductService {
         tags: input.tags ?? [],
         metaTitle: input.metaTitle,
         metaDescription: input.metaDescription,
+        hsnCode: input.hsnCode ?? undefined,
+        gstRateBps: input.gstRateBps ?? undefined,
         variants: {
           create: variants.map((v) => ({
             tenantId: ctx.tenantId,
@@ -103,6 +114,9 @@ export class ProductService {
 
   async update(ctx: TenantContext, id: string, input: UpdateProductInput) {
     await this.get(ctx, id);
+    if (input.gstRateBps != null && (input.gstRateBps < 0 || input.gstRateBps > 10000)) {
+      throw new ValidationError('gstRateBps must be between 0 and 10000.');
+    }
     return this.prisma.product.update({
       where: { id },
       data: {
@@ -112,6 +126,8 @@ export class ProductService {
         tags: input.tags,
         metaTitle: input.metaTitle,
         metaDescription: input.metaDescription,
+        hsnCode: input.hsnCode === undefined ? undefined : input.hsnCode,
+        gstRateBps: input.gstRateBps === undefined ? undefined : input.gstRateBps,
       },
       include: productInclude,
     });

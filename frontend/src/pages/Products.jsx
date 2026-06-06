@@ -20,7 +20,7 @@ import {
   StockDot,
 } from '../components/ui';
 
-const emptyForm = { title: '', description: '', status: 'ACTIVE', price: '', sku: '', inventory: '' };
+const emptyForm = { title: '', description: '', status: 'ACTIVE', price: '', sku: '', inventory: '', hsnCode: '', gstRate: '' };
 
 export default function Products() {
   const { selectedId, selectedStore } = useStores();
@@ -52,6 +52,8 @@ export default function Products() {
         title: form.title,
         description: form.description || undefined,
         status: form.status,
+        hsnCode: form.hsnCode || undefined,
+        gstRateBps: form.gstRate ? Math.round(parseFloat(form.gstRate) * 100) : undefined,
         variants: [
           {
             priceMinor,
@@ -175,6 +177,12 @@ export default function Products() {
                 value={form.inventory}
                 onChange={(e) => setForm({ ...form, inventory: e.target.value })}
               />
+            </Field>
+            <Field label="HSN/SAC code" hint="For the GST invoice">
+              <Input value={form.hsnCode} onChange={(e) => setForm({ ...form, hsnCode: e.target.value })} placeholder="0910" />
+            </Field>
+            <Field label="GST rate (%)" hint="Blank = store default">
+              <Input type="number" min="0" max="100" step="0.5" value={form.gstRate} onChange={(e) => setForm({ ...form, gstRate: e.target.value })} placeholder="18" />
             </Field>
           </div>
           <ErrorBanner message={error} />
