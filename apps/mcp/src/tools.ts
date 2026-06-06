@@ -146,6 +146,7 @@ export function registerTools(server: McpServer, session: Session) {
     title: z.string().optional(),
     sku: z.string().optional(),
     priceMinor: z.number().int().nonnegative().describe('Price in the smallest currency unit (paise for INR)'),
+    costMinor: z.number().int().optional().describe('Unit cost (COGS) — enables margin analysis & repricing'),
     inventory: z.number().int().optional(),
   });
 
@@ -819,6 +820,80 @@ export function registerTools(server: McpServer, session: Session) {
       },
     },
     tool((ctx, a: any) => commerce.pricing.addCompetitor(ctx, a)),
+  );
+
+  server.registerTool(
+    'set_pricing_rule',
+    {
+      description: 'Configure automatic repricing: strategy + how much to undercut, bounded by a minimum-margin floor (never sells at a loss).',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        strategy: z.enum(['MATCH_LOWEST', 'BEAT_LOWEST', 'FIXED_MARGIN']).optional(),
+        adjustValue: z.number().optional().describe('Undercut amount (percent or minor units), or target margin % for FIXED_MARGIN'),
+        adjustIsPercent: z.boolean().optional(),
+        minMarginPercent: z.number().optional().describe('Never price below the margin floor'),
+        roundTo99: z.boolean().optional().describe('Charm pricing (prices end in .99)'),
+      },
+    },
+    tool((ctx, a: any) => commerce.pricing.setRule(ctx, a)),
+  );
+
+  // --- Feature setup (storefront offers, SEO, support, shipping) -------------
+  server.registerTool(
+    'set_subscription_settings',
+    {
+      description: 'Set up the storefront "subscribe & save" offer: enable it, the discount, and the cadences shoppers can pick.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        discountPercent: z.number().optional(),
+        intervals: z.array(z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY'])).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.subscriptions.setSettings(ctx, a)),
+  );
+
+  server.registerTool(
+    'set_seo_settings',
+    {
+      description: 'Configure store SEO defaults: the page-title template, default meta description, and whether search engines may index the store.',
+      inputSchema: {
+        storeId: z.string(),
+        titleTemplate: z.string().optional().describe('Uses {title} and {storeName}'),
+        defaultDescription: z.string().optional(),
+        indexable: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.seo.setSettings(ctx, a)),
+  );
+
+  server.registerTool(
+    'configure_support_bot',
+    {
+      description: 'Set up the storefront sales & support chatbot: enable it and set its name, greeting, and persona/instructions.',
+      inputSchema: {
+        storeId: z.string(),
+        enabled: z.boolean().optional(),
+        displayName: z.string().optional(),
+        greeting: z.string().optional(),
+        persona: z.string().optional().describe('Tone, policies, what to emphasize'),
+      },
+    },
+    tool((ctx, a: any) => commerce.customerSupport.setConfig(ctx, a)),
+  );
+
+  server.registerTool(
+    'configure_shipping',
+    {
+      description: 'Configure the shipping courier (Delhivery) credentials for a store, so shipments can be created.',
+      inputSchema: {
+        storeId: z.string(),
+        credentials: z.record(z.any()).describe('e.g. { token, pickupName, webhookSecret }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.integrations.configure(ctx, { ...a, provider: 'DELHIVERY' })),
   );
 
   // --- Team / members -------------------------------------------------------
