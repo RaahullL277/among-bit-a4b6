@@ -61,7 +61,7 @@ describe.skipIf(!hasDb)('subscriptions', () => {
       discountPercent: 20,
     });
 
-    const res = await commerce.subscriptions.runDueSubscriptions(new Date());
+    const res = await commerce.subscriptions.runDueSubscriptions({ now: new Date() });
     expect(res.orders).toBeGreaterThanOrEqual(1);
 
     // The generated order carries the 20% subscribe-and-save discount.
@@ -74,6 +74,28 @@ describe.skipIf(!hasDb)('subscriptions', () => {
     const order = await prisma.order.findUnique({ where: { id: mine.lastOrderId! } });
     expect(order?.discountMinor).toBe(20000); // 20% of ₹1000
     expect(order?.totalMinor).toBe(80000);
+
+    // Idempotent: a second run for the same (already-billed) cycle creates no
+    // duplicate order — the cycle was claimed by advancing nextBillingAt.
+    const ordersForSub = () => prisma.order.count({ where: { storeId, customerId: order!.customerId } });
+    const countBefore = await ordersForSub();
+    const second = await commerce.subscriptions.runDueSubscriptions({ now: new Date() });
+    expect(second.orders).toBe(0);
+    expect(await ordersForSub()).toBe(countBefore);
+  });
+
+  it('run-billing is tenant-scoped (does not touch another tenant)', async () => {
+    const other = await prisma.tenant.create({ data: { name: 'Other Subs' } });
+    const otherStore = await commerce.stores.create({ tenantId: other.id }, { name: 'Other' });
+    await commerce.integrations.configure({ tenantId: other.id }, { storeId: otherStore.id, provider: 'RAZORPAY', credentials: { webhookSecret: 's' } });
+    const op = await commerce.products.create({ tenantId: other.id }, { storeId: otherStore.id, title: 'X', status: 'ACTIVE', variants: [{ priceMinor: 10000, inventory: 100 }] });
+    await commerce.subscriptions.create({ tenantId: other.id }, { storeId: otherStore.id, variantId: op.variants[0].id, interval: 'WEEKLY', email: 'o@ex.com', startAt: new Date(Date.now() - 1000) });
+
+    // Billing scoped to OUR tenant must not create an order for the other tenant.
+    const otherBefore = await prisma.order.count({ where: { storeId: otherStore.id } });
+    await commerce.subscriptions.runDueSubscriptions({ now: new Date(), tenantId: ctx.tenantId });
+    expect(await prisma.order.count({ where: { storeId: otherStore.id } })).toBe(otherBefore);
+    await prisma.tenant.delete({ where: { id: other.id } }).catch(() => undefined);
   });
 
   it('does not bill paused/cancelled subscriptions', async () => {
@@ -86,7 +108,7 @@ describe.skipIf(!hasDb)('subscriptions', () => {
     });
     await commerce.subscriptions.setStatus(ctx, sub.id, 'PAUSED');
     const before = await prisma.order.count({ where: { storeId } });
-    await commerce.subscriptions.runDueSubscriptions(new Date());
+    await commerce.subscriptions.runDueSubscriptions({ now: new Date() });
     // The paused sub should not have produced an order (others may have none due).
     const cur = await commerce.subscriptions.list(ctx, { status: 'PAUSED' });
     expect(cur.find((s) => s.id === sub.id)?.cyclesCompleted).toBe(0);

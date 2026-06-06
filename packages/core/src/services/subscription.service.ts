@@ -268,9 +268,18 @@ export class SubscriptionService {
    * invoked by the worker. Each due subscription produces one discounted order
    * via the active payment provider, then its schedule advances by one interval.
    */
-  async runDueSubscriptions(now: Date = new Date()): Promise<{ processed: number; orders: number; failed: number }> {
+  /**
+   * Generate orders for due subscriptions. Tenant-scoped when `tenantId` is given
+   * (the merchant-triggered path only bills its own subs; the worker bills all).
+   * Each cycle is **claimed** with an atomic conditional advance of nextBillingAt,
+   * so a concurrent run or retry can't double-bill the same period.
+   */
+  async runDueSubscriptions(
+    opts: { now?: Date; tenantId?: string } = {},
+  ): Promise<{ processed: number; orders: number; failed: number }> {
+    const now = opts.now ?? new Date();
     const due = await this.prisma.subscription.findMany({
-      where: { status: 'ACTIVE', nextBillingAt: { lte: now } },
+      where: { status: 'ACTIVE', nextBillingAt: { lte: now }, ...(opts.tenantId ? { tenantId: opts.tenantId } : {}) },
       include: { variant: true },
       take: 500,
     });
@@ -279,13 +288,22 @@ export class SubscriptionService {
     let failed = 0;
     for (const sub of due) {
       const ctx: TenantContext = { tenantId: sub.tenantId };
+      // Pause if the variant is gone.
+      if (!sub.variant) {
+        await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAUSED' } });
+        failed++;
+        continue;
+      }
+      // Claim this cycle: only one runner can advance nextBillingAt from its
+      // current value. If another run already claimed it, skip (no double-bill).
+      const next = this.addDays(sub.nextBillingAt, INTERVAL_DAYS[sub.interval]);
+      const claim = await this.prisma.subscription.updateMany({
+        where: { id: sub.id, status: 'ACTIVE', nextBillingAt: sub.nextBillingAt },
+        data: { nextBillingAt: next },
+      });
+      if (claim.count === 0) continue;
+
       try {
-        // Skip (and pause) if the variant is gone.
-        if (!sub.variant) {
-          await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAUSED' } });
-          failed++;
-          continue;
-        }
         const subtotal = sub.variant.priceMinor * sub.quantity;
         const discountMinor = Math.floor((subtotal * sub.discountPercent) / 100);
         const { order } = await this.payments.checkout(ctx, {
@@ -296,14 +314,14 @@ export class SubscriptionService {
         });
         await this.prisma.subscription.update({
           where: { id: sub.id },
-          data: {
-            lastOrderId: order.id,
-            cyclesCompleted: { increment: 1 },
-            nextBillingAt: this.addDays(sub.nextBillingAt, INTERVAL_DAYS[sub.interval]),
-          },
+          data: { lastOrderId: order.id, cyclesCompleted: { increment: 1 } },
         });
         orders++;
       } catch {
+        // Billing failed → revert the claim and pause; retried on reactivation.
+        await this.prisma.subscription
+          .update({ where: { id: sub.id }, data: { status: 'PAUSED', nextBillingAt: sub.nextBillingAt } })
+          .catch(() => undefined);
         failed++;
       }
     }

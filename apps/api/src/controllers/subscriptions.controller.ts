@@ -62,7 +62,9 @@ export class SubscriptionsController {
 
   @Post('run-billing')
   @Permissions('orders:write')
-  runBilling(): Promise<any> {
-    return this.commerce.subscriptions.runDueSubscriptions();
+  runBilling(@Tenant() t: TenantContext): Promise<any> {
+    // Merchant-triggered: bill only THIS tenant's due subscriptions (the worker
+    // runs the cross-tenant job).
+    return this.commerce.subscriptions.runDueSubscriptions({ tenantId: t.tenantId });
   }
 }
