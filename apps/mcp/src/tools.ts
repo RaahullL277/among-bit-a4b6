@@ -678,6 +678,40 @@ export function registerTools(
     tool((ctx, a: any) => commerce.images.optimizeAll(ctx, a.storeId)),
   );
 
+  // --- Pricing intelligence -------------------------------------------------
+  server.registerTool(
+    'analyze_pricing',
+    {
+      description: 'Margin + competitor analysis for a store, with a recommended price per variant.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.pricing.analyze(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'run_repricing',
+    {
+      description: 'Compute repricing for a store (preview by default). Pass apply=true to write the new prices.',
+      inputSchema: { storeId: z.string(), apply: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => commerce.pricing.reprice(ctx, a.storeId, { apply: a.apply })),
+  );
+
+  server.registerTool(
+    'add_competitor_price',
+    {
+      description: 'Track a competitor price for one of our variants (feeds margin analysis + repricing).',
+      inputSchema: {
+        variantId: z.string(),
+        competitorName: z.string(),
+        priceMinor: z.number(),
+        url: z.string().optional(),
+        inStock: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.pricing.addCompetitor(ctx, a)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

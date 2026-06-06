@@ -74,13 +74,13 @@ async function main() {
     description: 'Loose-leaf spiced black tea blend.',
     status: 'ACTIVE',
     storeId: store.id,
-    variants: [{ title: '250g', sku: 'CHAI-250', priceMinor: 24900, inventory: 100 }],
+    variants: [{ title: '250g', sku: 'CHAI-250', priceMinor: 24900, costMinor: 14000, inventory: 100 }],
   });
   await commerce.products.create(ctx, {
     title: 'Green Tea (100g)',
     status: 'ACTIVE',
     storeId: store.id,
-    variants: [{ title: '100g', sku: 'GREEN-100', priceMinor: 19900, inventory: 50 }],
+    variants: [{ title: '100g', sku: 'GREEN-100', priceMinor: 19900, costMinor: 11000, inventory: 50 }],
   });
 
   const customer = await commerce.customers.create(ctx, {

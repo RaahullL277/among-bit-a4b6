@@ -230,6 +230,16 @@ export const api = {
     get: () => request('/partner-access'),
     set: (accessLevel) => request('/partner-access', { method: 'PUT', body: { accessLevel } }),
   },
+  pricing: {
+    getRule: (storeId) => request(`/pricing/rule?${qs({ storeId })}`),
+    setRule: (body) => request('/pricing/rule', { method: 'PUT', body }),
+    analyze: (storeId) => request(`/pricing/analyze?${qs({ storeId })}`),
+    reprice: (storeId, apply) => request('/pricing/reprice', { method: 'POST', body: { storeId, apply } }),
+    refresh: (storeId) => request('/pricing/refresh', { method: 'POST', body: { storeId } }),
+    setCost: (variantId, costMinor) => request(`/pricing/variants/${variantId}/cost`, { method: 'PUT', body: { costMinor } }),
+    addCompetitor: (body) => request('/pricing/competitors', { method: 'POST', body }),
+    removeCompetitor: (id) => request(`/pricing/competitors/${id}`, { method: 'DELETE' }),
+  },
 };
 
 export { BASE_URL };

@@ -13,6 +13,7 @@ export interface VariantInput {
   title?: string;
   sku?: string;
   priceMinor: number;
+  costMinor?: number;
   currency?: string;
   inventory?: number;
   options?: Record<string, unknown>;
@@ -59,6 +60,7 @@ export class ProductService {
             title: v.title ?? 'Default',
             sku: v.sku,
             priceMinor: v.priceMinor,
+            costMinor: v.costMinor ?? 0,
             currency: v.currency ?? 'INR',
             inventory: v.inventory ?? 0,
             options: (v.options ?? undefined) as Prisma.InputJsonValue | undefined,

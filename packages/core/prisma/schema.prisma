@@ -239,6 +239,13 @@ enum PartnerAccessLevel {
   NONE   // no store access (dashboard aggregates only)
 }
 
+// Repricing strategy for the pricing-intelligence engine.
+enum RepricingStrategy {
+  MATCH_LOWEST // price at the lowest competitor
+  BEAT_LOWEST  // undercut the lowest competitor by adjustValue
+  FIXED_MARGIN // price to hit a target margin off cost (ignores competitors)
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
@@ -402,6 +409,7 @@ model Store {
   subscriptionSettings SubscriptionSettings?
   seoSettings  SeoSettings?
   images       ImageAsset[]
+  pricingRule  PricingRule?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -437,16 +445,19 @@ model ProductVariant {
   sku       String?
   // Price is stored in the smallest currency unit (paise for INR).
   priceMinor Int
+  // Unit cost (COGS) in minor units, used for margin analysis & repricing floors.
+  costMinor Int     @default(0)
   currency  String  @default("INR")
   inventory Int     @default(0)
   options   Json?
   // Last computed stock health, used to detect transitions for alerting.
   lastStockStatus StockStatus?
 
-  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems    OrderItem[]
-  bundleItems   BundleItem[]
-  subscriptions Subscription[]
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems       OrderItem[]
+  bundleItems      BundleItem[]
+  subscriptions    Subscription[]
+  competitorPrices CompetitorPrice[]
 
   @@index([tenantId])
   @@index([productId])
@@ -1295,4 +1306,50 @@ model PartnerMagicLinkToken {
   createdAt  DateTime  @default(now())
 
   @@index([email])
+}
+
+// ---------------------------------------------------------------------------
+// Pricing intelligence (competitor tracking + repricing + margin analysis)
+// ---------------------------------------------------------------------------
+
+// A tracked competitor price for one of our variants. Refresh is simulated here;
+// a real scraper/feed drops in behind the same fields.
+model CompetitorPrice {
+  id             String   @id @default(cuid())
+  tenantId       String
+  storeId        String
+  variantId      String
+  competitorName String
+  url            String?
+  priceMinor     Int
+  inStock        Boolean  @default(true)
+  checkedAt      DateTime @default(now())
+
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([storeId])
+  @@index([variantId])
+}
+
+// Per-store automatic repricing rule, bounded by a minimum-margin floor.
+model PricingRule {
+  id              String            @id @default(cuid())
+  tenantId        String
+  storeId         String            @unique
+  enabled         Boolean           @default(false)
+  strategy        RepricingStrategy @default(BEAT_LOWEST)
+  // For BEAT_LOWEST: percent (1 = 1% under) when adjustIsPercent, else flat minor.
+  // For FIXED_MARGIN: the target margin percent.
+  adjustValue     Int               @default(1)
+  adjustIsPercent Boolean           @default(true)
+  // Never price below the price that yields this margin off cost.
+  minMarginPercent Int              @default(10)
+  // Charm pricing: round the computed price to end in .99.
+  roundTo99       Boolean           @default(false)
+  updatedAt       DateTime          @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

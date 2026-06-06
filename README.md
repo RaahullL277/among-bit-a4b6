@@ -71,6 +71,13 @@ partner/        Partner/agency portal (client analytics + earnings) over /partne
   toggle bundles from a **Bundles** admin page (with co-purchase suggestions). Public
   `/storefront/:id/products/:pid/bundles` + `/frequently-bought-together`; merchant `/bundles/*`;
   MCP `list_bundles` / `create_bundle`.
+- **Pricing intelligence** — tracks **competitor prices** per variant, computes **margin** (off a unit
+  cost) and **market position** (cheapest / competitive / expensive), and recommends a price from a
+  store **repricing rule** (match-lowest / beat-lowest / fixed-margin) that is **always bounded by a
+  minimum-margin floor** so a price war can't sell at a loss. Merchants set costs, add competitors,
+  tune the rule, and preview or apply repricing (which writes the new variant prices) from a
+  **Pricing** admin page; charm (.99) rounding optional. Merchant `/pricing/*`; MCP `analyze_pricing`
+  / `run_repricing` / `add_competitor_price`.
 - **SEO & page speed** — an SEO audit engine (Plug-in-SEO style) scores the live catalog + pages and
   lists on-page issues (missing/over-long meta, missing alt text, no images), renders per-product
   **meta tags + Product JSON-LD** (price/availability/aggregate rating) and applies them on the
