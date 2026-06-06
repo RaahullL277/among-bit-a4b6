@@ -46,6 +46,7 @@ enum IntegrationKind {
   PAYMENT
   MESSAGING
   SHIPPING
+  MARKETING
 }
 
 // Concrete provider implementations available behind the adapter interfaces.
@@ -56,6 +57,9 @@ enum ProviderName {
   RESEND
   MSG91
   DELHIVERY
+  KLAVIYO
+  MAILCHIMP
+  BREVO
 }
 
 // Lifecycle of a shipment (Delhivery-style).

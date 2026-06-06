@@ -225,6 +225,29 @@ export function registerTools(
     tool((ctx, a: any) => commerce.integrations.configure(ctx, { ...a, provider: 'MSG91' })),
   );
 
+  server.registerTool(
+    'configure_marketing',
+    {
+      description: 'Configure a marketing-email provider (Klaviyo/Mailchimp/Brevo) for a store.',
+      inputSchema: {
+        storeId: z.string(),
+        provider: z.enum(['KLAVIYO', 'MAILCHIMP', 'BREVO']),
+        credentials: z.record(z.any()).describe('e.g. { apiKey, listId }'),
+        enabled: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.integrations.configure(ctx, a)),
+  );
+
+  server.registerTool(
+    'sync_marketing',
+    {
+      description: 'Re-sync a store\'s customers to its enabled marketing-email providers.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.marketing.syncAll(ctx, a.storeId)),
+  );
+
   // --- Notifications --------------------------------------------------------
   const eventEnum = z.enum([
     'ORDER_PLACED',

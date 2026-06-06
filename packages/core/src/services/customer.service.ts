@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { NotFoundError, type TenantContext } from '../context.js';
+import type { MarketingService } from './marketing.service.js';
 
 export interface CreateCustomerInput {
   storeId: string;
@@ -9,7 +10,10 @@ export interface CreateCustomerInput {
 }
 
 export class CustomerService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly marketing?: MarketingService,
+  ) {}
 
   private async assertStore(ctx: TenantContext, storeId: string) {
     const store = await this.prisma.store.findFirst({
@@ -21,7 +25,7 @@ export class CustomerService {
 
   async create(ctx: TenantContext, input: CreateCustomerInput) {
     await this.assertStore(ctx, input.storeId);
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: {
         tenantId: ctx.tenantId,
         storeId: input.storeId,
@@ -30,6 +34,9 @@ export class CustomerService {
         phone: input.phone,
       },
     });
+    // Best-effort sync to marketing platforms (Klaviyo/Mailchimp/Brevo).
+    await this.marketing?.syncCustomer(ctx, customer.id).catch(() => undefined);
+    return customer;
   }
 
   async list(ctx: TenantContext, storeId: string) {

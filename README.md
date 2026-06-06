@@ -51,6 +51,10 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   fallback) that answers from the live catalog and verified order status, and escalates to a human.
   Backed by a merchant **support inbox** (read transcripts, reply as an agent, resolve) and per-store
   bot config. Public `/storefront/:id/support/*`; merchant `/support/*`.
+- **Marketing-email connectors** — `MarketingEmailProvider` adapters for **Klaviyo / Mailchimp /
+  Brevo (Sendinblue)** (stubbed), configured per store. Customers auto-sync on creation and a paid
+  order tracks a "Placed Order" event; `/marketing/sync` re-syncs all customers. Real REST
+  implementations slot in behind the same interface.
 - **Shipping** — create shipments via the active courier (Delhivery), AWB/label/tracking, signed
   tracking webhooks (`/webhooks/shipping/:provider`) that advance status and notify the customer at
   shipped / out-for-delivery / delivered milestones.

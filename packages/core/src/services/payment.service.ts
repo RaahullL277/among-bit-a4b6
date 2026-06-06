@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError, type TenantContext } from '../context.j
 import { getPaymentProvider } from '../adapters/registry.js';
 import type { IntegrationService } from './integration.service.js';
 import type { NotificationService } from './notification.service.js';
+import type { MarketingService } from './marketing.service.js';
 
 export interface CheckoutInput {
   storeId: string;
@@ -21,6 +22,7 @@ export class PaymentService {
     private readonly prisma: PrismaClient,
     private readonly integrations: IntegrationService,
     private readonly notifications?: NotificationService,
+    private readonly marketing?: MarketingService,
   ) {}
 
   async checkout(ctx: TenantContext, input: CheckoutInput) {
@@ -192,6 +194,8 @@ export class PaymentService {
         }
         // Notify the customer their payment succeeded (best-effort).
         await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
+        // Track the purchase to marketing platforms (best-effort).
+        await this.marketing?.trackOrder(ctx, orderId, 'Placed Order').catch(() => undefined);
       }
     }
   }

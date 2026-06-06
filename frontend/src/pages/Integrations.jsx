@@ -73,6 +73,33 @@ const PROVIDERS = [
       { key: 'webhookSecret', label: 'Webhook Secret', secret: true },
     ],
   },
+  {
+    name: 'KLAVIYO',
+    label: 'Klaviyo',
+    kind: 'Marketing email',
+    fields: [
+      { key: 'apiKey', label: 'API Key', secret: true },
+      { key: 'listId', label: 'List ID' },
+    ],
+  },
+  {
+    name: 'MAILCHIMP',
+    label: 'Mailchimp',
+    kind: 'Marketing email',
+    fields: [
+      { key: 'apiKey', label: 'API Key', secret: true },
+      { key: 'listId', label: 'Audience ID' },
+    ],
+  },
+  {
+    name: 'BREVO',
+    label: 'Brevo (Sendinblue)',
+    kind: 'Marketing email',
+    fields: [
+      { key: 'apiKey', label: 'API Key', secret: true },
+      { key: 'listId', label: 'List ID' },
+    ],
+  },
 ];
 
 function ProviderCard({ def, configured, storeId, onSaved }) {
@@ -132,6 +159,29 @@ function ProviderCard({ def, configured, storeId, onSaved }) {
   );
 }
 
+function MarketingSync({ storeId }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  async function run() {
+    setBusy(true);
+    setMsg('');
+    try {
+      const r = await api.marketing.sync(storeId);
+      setMsg(r.providers ? `Synced ${r.customers} customer(s) to ${r.providers} provider(s).` : 'No marketing providers enabled.');
+    } catch (e) {
+      setMsg(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="flex items-center gap-3">
+      {msg && <span className="text-xs text-slate-500">{msg}</span>}
+      <Button variant="secondary" onClick={run} loading={busy}>Sync customers</Button>
+    </div>
+  );
+}
+
 export default function Integrations() {
   const { selectedId, selectedStore } = useStores();
   const { data: configured, loading, error, reload } = useAsync(
@@ -153,7 +203,10 @@ export default function Integrations() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold text-slate-900">Integrations</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">Integrations</h1>
+        <MarketingSync storeId={selectedId} />
+      </div>
       <p className="text-sm text-slate-500">
         Credentials are encrypted at rest. {selectedStore?.name} uses the active payment provider for checkout.
       </p>

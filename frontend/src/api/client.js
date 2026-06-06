@@ -97,6 +97,10 @@ export const api = {
   messaging: {
     send: (body) => request('/messaging/send', { method: 'POST', body }),
   },
+  marketing: {
+    providers: (storeId) => request(`/marketing/providers?${qs({ storeId })}`),
+    sync: (storeId) => request(`/marketing/sync?${qs({ storeId })}`, { method: 'POST' }),
+  },
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
     setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),

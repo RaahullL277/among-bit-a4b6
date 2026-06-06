@@ -9,6 +9,12 @@ import { WhatsAppAdapter, type MessagingProvider } from './messaging.js';
 import { ResendAdapter, type EmailProvider } from './email.js';
 import { Msg91Adapter, type SmsProvider } from './sms.js';
 import { DelhiveryAdapter, type ShippingProvider } from './shipping.js';
+import {
+  BrevoAdapter,
+  KlaviyoAdapter,
+  MailchimpAdapter,
+  type MarketingEmailProvider,
+} from './marketing.js';
 
 /**
  * Resolves a provider name + decrypted credentials into a concrete adapter.
@@ -71,6 +77,19 @@ export function getShippingProvider(provider: ProviderName, creds: ProviderCrede
   }
 }
 
+export function getMarketingProvider(provider: ProviderName, creds: ProviderCredentials): MarketingEmailProvider {
+  switch (provider) {
+    case 'KLAVIYO':
+      return new KlaviyoAdapter(creds);
+    case 'MAILCHIMP':
+      return new MailchimpAdapter(creds);
+    case 'BREVO':
+      return new BrevoAdapter(creds);
+    default:
+      throw new Error(`No marketing adapter registered for provider: ${provider}`);
+  }
+}
+
 export const PROVIDER_KIND: Record<ProviderName, IntegrationKind> = {
   RAZORPAY: 'PAYMENT',
   GOKWIK: 'PAYMENT',
@@ -78,6 +97,9 @@ export const PROVIDER_KIND: Record<ProviderName, IntegrationKind> = {
   RESEND: 'MESSAGING',
   MSG91: 'MESSAGING',
   DELHIVERY: 'SHIPPING',
+  KLAVIYO: 'MARKETING',
+  MAILCHIMP: 'MARKETING',
+  BREVO: 'MARKETING',
 };
 
 /** Each notification channel is backed by exactly one provider (today). */
