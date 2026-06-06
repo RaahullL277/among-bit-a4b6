@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { NotFoundError, type TenantContext } from '../context.js';
+import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { ProductService } from './product.service.js';
 import type { CartService } from './cart.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
@@ -56,6 +56,94 @@ export class StorefrontService {
       throw new NotFoundError('Product', productId);
     }
     return product;
+  }
+
+  /** Full-text-ish product search (title/description) over active products. */
+  async searchProducts(storeId: string, query: string) {
+    await this.ctxForStore(storeId);
+    const q = (query ?? '').trim();
+    if (!q) return [];
+    const products = await this.prisma.product.findMany({
+      where: {
+        storeId,
+        status: 'ACTIVE',
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      include: { variants: { orderBy: { priceMinor: 'asc' }, take: 1 } },
+      take: 50,
+    });
+    return products.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      priceMinor: p.variants[0]?.priceMinor ?? null,
+      currency: p.variants[0]?.currency ?? 'INR',
+    }));
+  }
+
+  /** Order status + shipment tracking for a buyer (by order number + email). */
+  async trackOrder(storeId: string, orderNumber: number, email: string) {
+    await this.ctxForStore(storeId);
+    if (!orderNumber || !email) return null;
+    const order = await this.prisma.order.findFirst({
+      where: { storeId, number: Number(orderNumber), customer: { email: { equals: email, mode: 'insensitive' } } },
+      include: { items: true, shipment: true },
+    });
+    if (!order) return null;
+    return {
+      number: order.number,
+      status: order.status,
+      placedAt: order.createdAt,
+      currency: order.currency,
+      totalMinor: order.totalMinor,
+      items: order.items.map((i) => ({ title: i.title, quantity: i.quantity, unitPriceMinor: i.unitPriceMinor })),
+      shipment: order.shipment
+        ? { status: order.shipment.status, courier: order.shipment.courier, awb: order.shipment.awb, trackingUrl: order.shipment.trackingUrl }
+        : null,
+    };
+  }
+
+  // --- Wishlist (guest-friendly, keyed by email) ----------------------------
+
+  async wishlist(storeId: string, email: string) {
+    await this.ctxForStore(storeId);
+    if (!email) return [];
+    const items = await this.prisma.wishlistItem.findMany({ where: { storeId, email: email.toLowerCase() }, orderBy: { createdAt: 'desc' } });
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: items.map((i) => i.productId) }, status: 'ACTIVE' },
+      include: { variants: { orderBy: { priceMinor: 'asc' }, take: 1 } },
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return items
+      .map((i) => {
+        const p = byId.get(i.productId);
+        if (!p) return null;
+        return { productId: p.id, title: p.title, priceMinor: p.variants[0]?.priceMinor ?? null, currency: p.variants[0]?.currency ?? 'INR' };
+      })
+      .filter(Boolean);
+  }
+
+  async addToWishlist(storeId: string, email: string, productId: string) {
+    const { store } = await this.ctxForStore(storeId);
+    if (!email || !productId) throw new ValidationError('email and productId are required.');
+    const product = await this.prisma.product.findFirst({ where: { id: productId, storeId, status: 'ACTIVE' }, select: { id: true } });
+    if (!product) throw new NotFoundError('Product', productId);
+    await this.prisma.wishlistItem.upsert({
+      where: { storeId_email_productId: { storeId, email: email.toLowerCase(), productId } },
+      create: { tenantId: store.tenantId, storeId, email: email.toLowerCase(), productId },
+      update: {},
+    });
+    return { saved: true };
+  }
+
+  async removeFromWishlist(storeId: string, email: string, productId: string) {
+    await this.ctxForStore(storeId);
+    if (!email || !productId) throw new ValidationError('email and productId are required.');
+    await this.prisma.wishlistItem.deleteMany({ where: { storeId, email: email.toLowerCase(), productId } });
+    return { removed: true };
   }
 
   async createCart(

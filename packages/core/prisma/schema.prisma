@@ -467,9 +467,25 @@ model Store {
   engagementMessages  EngagementMessage[]
   shopabilityConfig   ShopabilityConfig?
   agentCheckouts      AgentCheckout[]
+  wishlistItems       WishlistItem[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
+}
+
+// A storefront shopper's saved products, keyed by email (guest-friendly).
+model WishlistItem {
+  id        String   @id @default(cuid())
+  tenantId  String
+  storeId   String
+  email     String
+  productId String
+  createdAt DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, email, productId])
+  @@index([storeId, email])
 }
 
 model Product {

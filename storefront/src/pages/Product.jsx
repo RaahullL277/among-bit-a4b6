@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 import { api, applySeo, money, STORE_ID } from '../api';
 import { track } from '../track';
 import { useCart } from '../cart';
@@ -16,6 +17,7 @@ export default function Product() {
   const [qty, setQty] = useState(1);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // Subscribe & save.
   const [subSettings, setSubSettings] = useState(null);
@@ -51,6 +53,16 @@ export default function Product() {
     } finally {
       setAdding(false);
     }
+  }
+
+  async function saveToWishlist() {
+    let email = localStorage.getItem('shopper.email');
+    if (!email) {
+      email = window.prompt('Enter your email to save to your wishlist:')?.trim();
+      if (!email) return;
+      localStorage.setItem('shopper.email', email);
+    }
+    try { await api.addWishlist(STORE_ID, { email, productId: product.id }); setSaved(true); } catch { /* ignore */ }
   }
 
   async function startSubscription() {
@@ -130,6 +142,13 @@ export default function Product() {
                 className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60"
               >
                 Buy now
+              </button>
+              <button
+                onClick={saveToWishlist}
+                title="Save to wishlist"
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium ${saved ? 'border-rose-200 text-rose-600' : 'border-stone-300 text-stone-600 hover:bg-stone-50'}`}
+              >
+                <Heart size={16} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save'}
               </button>
             </>
           )}

@@ -21,6 +21,31 @@ export class StorefrontController {
     return this.commerce.storefront.listProducts(storeId);
   }
 
+  @Get(':storeId/search')
+  search(@Param('storeId') storeId: string, @Query('q') q: string) {
+    return this.commerce.storefront.searchProducts(storeId, q ?? '');
+  }
+
+  @Get(':storeId/track')
+  trackOrder(@Param('storeId') storeId: string, @Query('number') number: string, @Query('email') email: string) {
+    return this.commerce.storefront.trackOrder(storeId, Number(number), email);
+  }
+
+  @Get(':storeId/wishlist')
+  wishlist(@Param('storeId') storeId: string, @Query('email') email: string) {
+    return this.commerce.storefront.wishlist(storeId, email);
+  }
+
+  @Post(':storeId/wishlist')
+  addWishlist(@Param('storeId') storeId: string, @Body() body: { email: string; productId: string }) {
+    return this.commerce.storefront.addToWishlist(storeId, body?.email, body?.productId);
+  }
+
+  @Post(':storeId/wishlist/remove')
+  removeWishlist(@Param('storeId') storeId: string, @Body() body: { email: string; productId: string }) {
+    return this.commerce.storefront.removeFromWishlist(storeId, body?.email, body?.productId);
+  }
+
   @Get(':storeId/products/:productId')
   product(@Param('storeId') storeId: string, @Param('productId') productId: string) {
     return this.commerce.storefront.getProduct(storeId, productId);

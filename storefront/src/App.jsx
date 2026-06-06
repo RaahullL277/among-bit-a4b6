@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Heart, Search as SearchIcon } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
 import { trackLand } from './track';
 import ChatWidget from './ChatWidget';
@@ -11,16 +11,35 @@ import Cart from './pages/Cart';
 import Confirmation from './pages/Confirmation';
 import Returns from './pages/Returns';
 import Subscriptions from './pages/Subscriptions';
+import Search from './pages/Search';
+import Track from './pages/Track';
+import Wishlist from './pages/Wishlist';
 
 function Header({ storeName }) {
   const { itemCount } = useCart();
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
   return (
     <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+      <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
         <Link to="/" className="text-lg font-semibold text-[var(--brand)]">{storeName || 'Store'}</Link>
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`); }}
+          className="relative ml-2 hidden flex-1 sm:block"
+        >
+          <SearchIcon size={15} className="pointer-events-none absolute left-3 top-2.5 text-stone-400" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search products…"
+            className="w-full rounded-lg border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-stone-300"
+          />
+        </form>
         <div className="flex items-center gap-4">
-        <Link to="/subscriptions" className="text-sm text-stone-500 hover:text-stone-800">Subscriptions</Link>
-        <Link to="/returns" className="text-sm text-stone-500 hover:text-stone-800">Returns</Link>
+        <Link to="/track" className="text-sm text-stone-500 hover:text-stone-800">Track</Link>
+        <Link to="/subscriptions" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Subscriptions</Link>
+        <Link to="/returns" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Returns</Link>
+        <Link to="/wishlist" className="text-stone-700 hover:text-stone-900" title="Wishlist"><Heart size={20} /></Link>
         <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
           <ShoppingCart size={20} />
           {itemCount > 0 && (
@@ -98,6 +117,9 @@ export default function App() {
           <Route path="/confirmation" element={<Confirmation />} />
           <Route path="/returns" element={<Returns />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/track" element={<Track />} />
+          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -27,6 +27,12 @@ async function req(path, { method = 'GET', body } = {}) {
 export const api = {
   store: (id) => req(`/storefront/${id}`),
   products: (id) => req(`/storefront/${id}/products`),
+  search: (id, q) => req(`/storefront/${id}/search?q=${encodeURIComponent(q)}`),
+  trackOrder: (id, number, email) =>
+    req(`/storefront/${id}/track?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
+  wishlist: (id, email) => req(`/storefront/${id}/wishlist?email=${encodeURIComponent(email)}`),
+  addWishlist: (id, body) => req(`/storefront/${id}/wishlist`, { method: 'POST', body }),
+  removeWishlist: (id, body) => req(`/storefront/${id}/wishlist/remove`, { method: 'POST', body }),
   product: (id, pid) => req(`/storefront/${id}/products/${pid}`),
   createCart: (id, body) => req(`/storefront/${id}/carts`, { method: 'POST', body }),
   getCart: (cid) => req(`/storefront/carts/${cid}`),
