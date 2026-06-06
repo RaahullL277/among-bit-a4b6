@@ -265,7 +265,7 @@ const NudgeOpsDashboard = () => {
           <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link
-              to="/nudgeops/create"
+              to="/nudgeops/campaigns/new"
               className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 rounded-lg border border-blue-400/20 hover:border-blue-400/40 transition-all"
             >
               <Plus className="h-5 w-5 text-blue-400" />

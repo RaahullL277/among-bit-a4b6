@@ -173,9 +173,11 @@ function parseIntent(command) {
 function extractEntities(text) {
   const entities = {};
 
-  // Extract campaign ID
+  // Extract campaign or approval ID
   const cmpMatch = text.match(/cmp_\w+/);
   if (cmpMatch) entities.campaignId = cmpMatch[0];
+  const aprMatch = text.match(/apr_\w+/);
+  if (aprMatch) entities.approvalId = aprMatch[0];
 
   // Extract channel
   const channels = ['push', 'sms', 'email', 'whatsapp', 'in_app'];

@@ -266,7 +266,7 @@ const AnalyticsDashboard = () => {
                         </span>
                       </div>
                       <Link
-                        to="/nudgeops/create"
+                        to="/nudgeops/campaigns/new"
                         className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white text-sm font-medium transition-all flex-shrink-0"
                       >
                         <span>Create Campaign</span>
