@@ -2,6 +2,7 @@ import type { CartStatus, PrismaClient } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
+import type { OfferService } from './offer.service.js';
 
 const cartInclude = { items: true } as const;
 
@@ -29,6 +30,7 @@ export class CartService {
     private readonly prisma: PrismaClient,
     private readonly payments: PaymentService,
     private readonly notifications: NotificationService,
+    private readonly offers?: OfferService,
   ) {}
 
   private async assertStore(ctx: TenantContext, storeId: string) {
@@ -127,11 +129,16 @@ export class CartService {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
 
+    const items = cart.items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }));
+    // Auto-apply any bundle saving the cart qualifies for (no coupon codes).
+    const offer = this.offers ? await this.offers.computeCartDiscount(ctx, cart.storeId, items) : undefined;
+
     const result = await this.payments.checkout(ctx, {
       storeId: cart.storeId,
       customerId: cart.customerId ?? undefined,
-      items: cart.items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+      items,
       provider: opts.provider,
+      discountMinor: offer?.discountMinor,
     });
 
     await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });

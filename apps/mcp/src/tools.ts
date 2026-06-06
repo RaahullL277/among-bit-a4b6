@@ -442,6 +442,34 @@ export function registerTools(
     tool((ctx, a: any) => commerce.reviews.moderate(ctx, a.reviewId, a.status)),
   );
 
+  // --- Bundles / frequently bought together ---------------------------------
+  server.registerTool(
+    'list_bundles',
+    {
+      description: 'List conversion bundles (priced, with savings), optionally filtered by store.',
+      inputSchema: { storeId: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.offers.listBundles(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'create_bundle',
+    {
+      description:
+        'Create a "buy together & save" bundle. The saving auto-applies at checkout when a cart contains all of its variants. Needs at least two items.',
+      inputSchema: {
+        storeId: z.string(),
+        title: z.string(),
+        description: z.string().optional(),
+        discountType: z.enum(['PERCENT', 'FIXED']).optional(),
+        discountValue: z.number().optional(),
+        active: z.boolean().optional(),
+        items: z.array(z.object({ variantId: z.string(), quantity: z.number().optional() })),
+      },
+    },
+    tool((ctx, a: any) => commerce.offers.createBundle(ctx, a)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

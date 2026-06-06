@@ -48,6 +48,12 @@ export { PlatformAnalyticsService, type PlatformRange } from './services/platfor
 export { SupportAssistantService } from './services/support-assistant.service.js';
 export { CustomerSupportService } from './services/customer-support.service.js';
 export { ReviewService, type SubmitReviewInput } from './services/review.service.js';
+export {
+  OfferService,
+  type CreateBundleInput,
+  type UpdateBundleInput,
+  type BundleItemInput,
+} from './services/offer.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,
@@ -139,4 +145,5 @@ export type {
   SupportConversationStatus,
   SupportSender,
   ReviewStatus,
+  DiscountType,
 } from '@prisma/client';

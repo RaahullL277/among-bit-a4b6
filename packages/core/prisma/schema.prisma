@@ -102,6 +102,12 @@ enum ReviewStatus {
   REJECTED
 }
 
+// How a bundle's saving is expressed.
+enum DiscountType {
+  PERCENT // discountValue = percent off (0..100)
+  FIXED   // discountValue = flat amount off, in minor units
+}
+
 // Who a notification is addressed to.
 enum RecipientType {
   CUSTOMER
@@ -327,6 +333,7 @@ model Store {
   supportConversations SupportConversation[]
   supportBotConfig SupportBotConfig?
   reviews      Review[]
+  bundles      Bundle[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -364,8 +371,9 @@ model ProductVariant {
   // Last computed stock health, used to detect transitions for alerting.
   lastStockStatus StockStatus?
 
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  bundleItems BundleItem[]
 
   @@index([tenantId])
   @@index([productId])
@@ -411,7 +419,10 @@ model Order {
   // Set when an order originates from a cart, so recovery can be attributed.
   cartId     String?
   status     OrderStatus @default(PENDING)
+  // totalMinor is the amount actually charged (after any bundle discount).
   totalMinor Int
+  // Bundle/offer savings applied at checkout, in minor units (0 = none).
+  discountMinor Int      @default(0)
   currency   String      @default("INR")
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -852,4 +863,45 @@ model Review {
   @@index([tenantId])
   @@index([storeId])
   @@index([productId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Bundles / "frequently bought together" (conversion offers)
+// ---------------------------------------------------------------------------
+
+// A curated set of variants sold together at a saving. When a cart contains
+// every item of an active bundle (at the required quantities), the discount is
+// auto-applied at checkout. Bundles also drive the storefront "frequently
+// bought together" widget on product pages.
+model Bundle {
+  id            String       @id @default(cuid())
+  tenantId      String
+  storeId       String
+  title         String
+  description   String?
+  discountType  DiscountType @default(PERCENT)
+  discountValue Int          @default(0)
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  store Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items BundleItem[]
+
+  @@index([tenantId])
+  @@index([storeId])
+}
+
+model BundleItem {
+  id        String @id @default(cuid())
+  tenantId  String
+  bundleId  String
+  variantId String
+  quantity  Int    @default(1)
+
+  bundle  Bundle         @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, variantId])
+  @@index([bundleId])
 }

@@ -72,4 +72,15 @@ export class StorefrontController {
   reviewSummaries(@Param('storeId') storeId: string, @Query('productIds') productIds?: string) {
     return this.commerce.reviews.summariesForStore(storeId, productIds ? productIds.split(',').filter(Boolean) : undefined);
   }
+
+  // --- Bundles / frequently bought together (public) ------------------------
+  @Get(':storeId/products/:productId/bundles')
+  productBundles(@Param('storeId') storeId: string, @Param('productId') productId: string): Promise<any> {
+    return this.commerce.offers.bundlesForProduct(storeId, productId);
+  }
+
+  @Get(':storeId/products/:productId/frequently-bought-together')
+  frequentlyBoughtTogether(@Param('storeId') storeId: string, @Param('productId') productId: string): Promise<any> {
+    return this.commerce.offers.frequentlyBoughtTogether(storeId, productId);
+  }
 }

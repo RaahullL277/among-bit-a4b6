@@ -107,6 +107,13 @@ export const api = {
     providers: (storeId) => request(`/marketing/providers?${qs({ storeId })}`),
     sync: (storeId) => request(`/marketing/sync?${qs({ storeId })}`, { method: 'POST' }),
   },
+  bundles: {
+    list: (storeId) => request(`/bundles?${qs({ storeId })}`),
+    suggestions: (storeId, productId) => request(`/bundles/suggestions?${qs({ storeId, productId })}`),
+    create: (body) => request('/bundles', { method: 'POST', body }),
+    update: (id, body) => request(`/bundles/${id}`, { method: 'PATCH', body }),
+    remove: (id) => request(`/bundles/${id}`, { method: 'DELETE' }),
+  },
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
     setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),

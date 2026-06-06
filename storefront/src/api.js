@@ -38,6 +38,8 @@ export const api = {
   submitReview: (id, pid, body) => req(`/storefront/${id}/products/${pid}/reviews`, { method: 'POST', body }),
   reviewSummaries: (id, productIds) =>
     req(`/storefront/${id}/reviews/summary${productIds ? `?productIds=${productIds.join(',')}` : ''}`),
+  productBundles: (id, pid) => req(`/storefront/${id}/products/${pid}/bundles`),
+  frequentlyBoughtTogether: (id, pid) => req(`/storefront/${id}/products/${pid}/frequently-bought-together`),
 };
 
 export function money(minor, currency = 'INR') {

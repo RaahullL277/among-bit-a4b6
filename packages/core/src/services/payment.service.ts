@@ -11,6 +11,8 @@ export interface CheckoutInput {
   items: { variantId: string; quantity: number }[];
   /** Override the auto-selected provider (must be configured for the store). */
   provider?: ProviderName;
+  /** Bundle/offer saving to subtract from the order total (minor units). */
+  discountMinor?: number;
 }
 
 /**
@@ -52,7 +54,10 @@ export class PaymentService {
         unitPriceMinor: variant.priceMinor,
       };
     });
-    const totalMinor = lineItems.reduce((sum, li) => sum + li.unitPriceMinor * li.quantity, 0);
+    const subtotalMinor = lineItems.reduce((sum, li) => sum + li.unitPriceMinor * li.quantity, 0);
+    // Clamp any offer discount to the subtotal so the charged total never goes negative.
+    const discountMinor = Math.max(0, Math.min(Math.round(input.discountMinor ?? 0), subtotalMinor));
+    const totalMinor = subtotalMinor - discountMinor;
 
     const provider = input.provider ?? (await this.integrations.getActivePaymentProvider(ctx, store.id));
     const creds = await this.integrations.getCredentials(ctx, store.id, provider);
@@ -74,6 +79,7 @@ export class PaymentService {
           customerId: input.customerId,
           status: 'PENDING',
           totalMinor,
+          discountMinor,
           currency: store.currency,
           items: {
             create: lineItems.map((li) => ({

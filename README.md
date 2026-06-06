@@ -55,6 +55,13 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   Brevo (Sendinblue)** (stubbed), configured per store. Customers auto-sync on creation and a paid
   order tracks a "Placed Order" event; `/marketing/sync` re-syncs all customers. Real REST
   implementations slot in behind the same interface.
+- **Bundles & "frequently bought together"** — curated *buy-together-and-save* bundles (percent or
+  fixed discount) whose saving **auto-applies at checkout** when a cart holds all the items (no coupon
+  codes; the discount is recorded on the order). Product pages show the bundle, or fall back to an
+  automatic frequently-bought-together list mined from paid-order co-purchases. Merchants build and
+  toggle bundles from a **Bundles** admin page (with co-purchase suggestions). Public
+  `/storefront/:id/products/:pid/bundles` + `/frequently-bought-together`; merchant `/bundles/*`;
+  MCP `list_bundles` / `create_bundle`.
 - **Customer reviews** — product star-ratings & written reviews (judge.me-style). Shoppers submit
   from the storefront; a review is **verified** when it matches a paid order for that product/email.
   Merchants moderate (approve/reject), post a public reply, and see per-status counts in a **Reviews**
