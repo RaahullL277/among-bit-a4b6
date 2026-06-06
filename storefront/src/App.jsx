@@ -14,7 +14,7 @@ function Header({ storeName }) {
   return (
     <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link to="/" className="text-lg font-semibold text-stone-900">{storeName || 'Store'}</Link>
+        <Link to="/" className="text-lg font-semibold text-[var(--brand)]">{storeName || 'Store'}</Link>
         <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
           <ShoppingCart size={20} />
           {itemCount > 0 && (
@@ -54,6 +54,13 @@ function StoreGate() {
   );
 }
 
+// Apply the store theme as CSS variables the storefront reads (--brand, --accent).
+function applyTheme(theme) {
+  const root = document.documentElement;
+  root.style.setProperty('--brand', theme?.primaryColor || '#1c1917');
+  root.style.setProperty('--accent', theme?.accentColor || '#4f46e5');
+}
+
 export default function App() {
   const [storeName, setStoreName] = useState('');
   const [missing, setMissing] = useState(false);
@@ -64,6 +71,10 @@ export default function App() {
       return;
     }
     api.store(STORE_ID).then((s) => setStoreName(s.name)).catch(() => setMissing(true));
+    api.theme(STORE_ID).then((t) => {
+      applyTheme(t);
+      if (t?.logoText) setStoreName(t.logoText);
+    }).catch(() => undefined);
   }, []);
 
   if (missing) return <StoreGate />;

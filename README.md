@@ -55,6 +55,14 @@ platform/       Platform-operator console (cross-tenant back-office) over /platf
   Brevo (Sendinblue)** (stubbed), configured per store. Customers auto-sync on creation and a paid
   order tracks a "Placed Order" event; `/marketing/sync` re-syncs all customers. Real REST
   implementations slot in behind the same interface.
+- **Store design & page builder** — merchant- (or agent-) authored storefront pages built from typed
+  sections (hero, rich text, image, product grid, featured product, FAQ) stored as JSON, plus a
+  per-store **theme** (brand/accent colors + logo). The storefront renders the published `home` page
+  (falling back to the catalog grid) with product references resolved server-side; drafts stay hidden
+  until published. Merchants use a **Design** builder (add/reorder/edit sections, SEO, publish);
+  the same `PageService` powers MCP tools (`list_pages` / `create_page` / `update_page` /
+  `publish_page` / `set_store_theme`) so an agent can design a store. Public
+  `/storefront/:id/pages/:slug` + `/theme`; merchant `/pages/*` + `/theme`.
 - **Bundles & "frequently bought together"** — curated *buy-together-and-save* bundles (percent or
   fixed discount) whose saving **auto-applies at checkout** when a cart holds all the items (no coupon
   codes; the discount is recorded on the order). Product pages show the bundle, or fall back to an

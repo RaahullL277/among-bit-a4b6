@@ -114,6 +114,16 @@ export const api = {
     update: (id, body) => request(`/bundles/${id}`, { method: 'PATCH', body }),
     remove: (id) => request(`/bundles/${id}`, { method: 'DELETE' }),
   },
+  design: {
+    listPages: (storeId) => request(`/pages?${qs({ storeId })}`),
+    getPage: (id) => request(`/pages/${id}`),
+    createPage: (body) => request('/pages', { method: 'POST', body }),
+    updatePage: (id, body) => request(`/pages/${id}`, { method: 'PATCH', body }),
+    setPageStatus: (id, status) => request(`/pages/${id}/status`, { method: 'POST', body: { status } }),
+    removePage: (id) => request(`/pages/${id}`, { method: 'DELETE' }),
+    getTheme: (storeId) => request(`/theme?${qs({ storeId })}`),
+    setTheme: (body) => request('/theme', { method: 'PUT', body }),
+  },
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
     setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),

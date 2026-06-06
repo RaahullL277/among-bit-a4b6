@@ -54,6 +54,13 @@ export {
   type UpdateBundleInput,
   type BundleItemInput,
 } from './services/offer.service.js';
+export {
+  PageService,
+  SECTION_TYPES,
+  type SectionType,
+  type PageSection,
+  type UpsertPageInput,
+} from './services/page.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {
   type MarketingEmailProvider,
@@ -146,4 +153,7 @@ export type {
   SupportSender,
   ReviewStatus,
   DiscountType,
+  PageStatus,
+  StorePage,
+  StoreTheme,
 } from '@prisma/client';

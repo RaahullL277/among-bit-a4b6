@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Star,
   Boxes,
+  Palette,
   Activity,
   UserCog,
   Settings,
@@ -25,6 +26,7 @@ import { useStores } from '../context/StoreContext';
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/stores', label: 'Stores', icon: Store },
+  { to: '/design', label: 'Design', icon: Palette },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/reviews', label: 'Reviews', icon: Star },
   { to: '/bundles', label: 'Bundles', icon: Boxes },

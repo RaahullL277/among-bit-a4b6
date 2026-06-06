@@ -108,6 +108,12 @@ enum DiscountType {
   FIXED   // discountValue = flat amount off, in minor units
 }
 
+// Publish state of a builder-authored storefront page.
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
 // Who a notification is addressed to.
 enum RecipientType {
   CUSTOMER
@@ -334,6 +340,8 @@ model Store {
   supportBotConfig SupportBotConfig?
   reviews      Review[]
   bundles      Bundle[]
+  pages        StorePage[]
+  theme        StoreTheme?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -904,4 +912,49 @@ model BundleItem {
 
   @@unique([bundleId, variantId])
   @@index([bundleId])
+}
+
+// ---------------------------------------------------------------------------
+// Store design / page builder
+// ---------------------------------------------------------------------------
+
+// A merchant- (or agent-) authored storefront page. `sections` is an ordered
+// list of typed blocks (hero, rich_text, product_grid, image, featured_product,
+// faq) stored as JSON; the storefront renders them and the builder edits them.
+// The page with slug "home" is the storefront landing page.
+model StorePage {
+  id              String     @id @default(cuid())
+  tenantId        String
+  storeId         String
+  slug            String
+  title           String
+  sections        Json       @default("[]")
+  metaTitle       String?
+  metaDescription String?
+  status          PageStatus @default(DRAFT)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, slug])
+  @@index([tenantId])
+  @@index([storeId, status])
+}
+
+// Per-store visual theme (colors, logo text). One row per store; extensible
+// design tokens live in `settings`.
+model StoreTheme {
+  id           String   @id @default(cuid())
+  tenantId     String
+  storeId      String   @unique
+  primaryColor String   @default("#1c1917")
+  accentColor  String   @default("#4f46e5")
+  logoText     String?
+  settings     Json     @default("{}")
+  updatedAt    DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

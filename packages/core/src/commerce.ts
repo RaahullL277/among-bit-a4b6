@@ -24,6 +24,7 @@ import { SupportAssistantService } from './services/support-assistant.service.js
 import { CustomerSupportService } from './services/customer-support.service.js';
 import { ReviewService } from './services/review.service.js';
 import { OfferService } from './services/offer.service.js';
+import { PageService } from './services/page.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -56,6 +57,7 @@ export class Commerce {
   readonly customerSupport: CustomerSupportService;
   readonly reviews: ReviewService;
   readonly offers: OfferService;
+  readonly pages: PageService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -83,6 +85,7 @@ export class Commerce {
     this.supportAssistant = new SupportAssistantService(this.platform, this.platformAnalytics);
     this.customerSupport = new CustomerSupportService(prisma);
     this.reviews = new ReviewService(prisma);
+    this.pages = new PageService(prisma);
   }
 }
 

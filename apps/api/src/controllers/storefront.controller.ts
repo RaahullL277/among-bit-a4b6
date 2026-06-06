@@ -83,4 +83,15 @@ export class StorefrontController {
   frequentlyBoughtTogether(@Param('storeId') storeId: string, @Param('productId') productId: string): Promise<any> {
     return this.commerce.offers.frequentlyBoughtTogether(storeId, productId);
   }
+
+  // --- Store design (public) ------------------------------------------------
+  @Get(':storeId/theme')
+  theme(@Param('storeId') storeId: string): Promise<any> {
+    return this.commerce.pages.publicTheme(storeId);
+  }
+
+  @Get(':storeId/pages/:slug')
+  page(@Param('storeId') storeId: string, @Param('slug') slug: string): Promise<any> {
+    return this.commerce.pages.renderPage(storeId, slug);
+  }
 }

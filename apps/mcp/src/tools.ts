@@ -470,6 +470,77 @@ export function registerTools(
     tool((ctx, a: any) => commerce.offers.createBundle(ctx, a)),
   );
 
+  // --- Store design / page builder ------------------------------------------
+  const pageSection = z.object({
+    id: z.string().optional(),
+    type: z.enum(['hero', 'rich_text', 'image', 'product_grid', 'featured_product', 'faq']),
+    data: z.record(z.any()).optional(),
+  });
+
+  server.registerTool(
+    'list_pages',
+    { description: 'List the storefront pages of a store (builder pages).', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.pages.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'create_page',
+    {
+      description:
+        'Create a storefront page from typed sections (hero, rich_text, image, product_grid, featured_product, faq). slug "home" is the landing page. Status DRAFT unless PUBLISHED is given.',
+      inputSchema: {
+        storeId: z.string(),
+        slug: z.string(),
+        title: z.string(),
+        sections: z.array(pageSection).optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+        status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.pages.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'update_page',
+    {
+      description: 'Update a storefront page (title, slug, sections, SEO, or status).',
+      inputSchema: {
+        pageId: z.string(),
+        slug: z.string().optional(),
+        title: z.string().optional(),
+        sections: z.array(pageSection).optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+        status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.pages.update(ctx, a.pageId, a)),
+  );
+
+  server.registerTool(
+    'publish_page',
+    {
+      description: 'Publish or unpublish a storefront page.',
+      inputSchema: { pageId: z.string(), status: z.enum(['DRAFT', 'PUBLISHED']) },
+    },
+    tool((ctx, a: any) => commerce.pages.setStatus(ctx, a.pageId, a.status)),
+  );
+
+  server.registerTool(
+    'set_store_theme',
+    {
+      description: 'Set the store visual theme (hex colors + logo text).',
+      inputSchema: {
+        storeId: z.string(),
+        primaryColor: z.string().optional(),
+        accentColor: z.string().optional(),
+        logoText: z.string().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.pages.setTheme(ctx, a)),
+  );
+
   // --- Team / members -------------------------------------------------------
   const roleEnum = z.enum(['OWNER', 'ADMIN', 'STAFF']);
 

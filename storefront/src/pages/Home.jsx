@@ -3,21 +3,32 @@ import { Link } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
 import Stars from '../Stars';
+import PageRenderer from '../PageRenderer';
 
 export default function Home() {
   const { addToCart } = useCart();
+  const [page, setPage] = useState(undefined); // undefined = loading, null = none
   const [products, setProducts] = useState(null);
   const [ratings, setRatings] = useState({});
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.products(STORE_ID).then((list) => {
-      setProducts(list);
-      api.reviewSummaries(STORE_ID, list.map((p) => p.id)).then(setRatings).catch(() => undefined);
-    }).catch((e) => setError(e.message));
+    // Prefer a merchant-designed published "home" page; fall back to the catalog grid.
+    api.page(STORE_ID, 'home')
+      .then((p) => {
+        setPage(p);
+        if (p) return;
+        return api.products(STORE_ID).then((list) => {
+          setProducts(list);
+          api.reviewSummaries(STORE_ID, list.map((x) => x.id)).then(setRatings).catch(() => undefined);
+        });
+      })
+      .catch((e) => setError(e.message));
   }, []);
 
   if (error) return <p className="text-rose-600">{error}</p>;
+  if (page === undefined) return <p className="text-stone-500">Loading…</p>;
+  if (page) return <PageRenderer page={page} />;
   if (!products) return <p className="text-stone-500">Loading…</p>;
   if (!products.length) return <p className="text-stone-500">No products available.</p>;
 

@@ -40,6 +40,8 @@ export const api = {
     req(`/storefront/${id}/reviews/summary${productIds ? `?productIds=${productIds.join(',')}` : ''}`),
   productBundles: (id, pid) => req(`/storefront/${id}/products/${pid}/bundles`),
   frequentlyBoughtTogether: (id, pid) => req(`/storefront/${id}/products/${pid}/frequently-bought-together`),
+  theme: (id) => req(`/storefront/${id}/theme`),
+  page: (id, slug) => req(`/storefront/${id}/pages/${slug}`),
 };
 
 export function money(minor, currency = 'INR') {
