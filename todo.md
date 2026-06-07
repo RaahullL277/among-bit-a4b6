@@ -52,8 +52,9 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 ## Known roadmap (from AUDIT.md)
 - [ ] P0-1: real Razorpay / GoKwik / WhatsApp / Delhivery / Resend / Msg91 / ESP adapters (stubs today; need live credentials).
 - [ ] Multi-location / warehouse inventory (large architectural change).
-- [ ] Buyer accounts / order history / saved addresses (currently guest-only storefront).
-- [ ] Outstanding **P2** hardening items — see `AUDIT.md` P2 section.
+- [x] Buyer accounts / order history / saved addresses — email-OTP buyer login (`CustomerAuthService`, `CustomerSession`/`CustomerAddress`), storefront Account page, reuse at checkout. See `STOREFRONT_AUDIT.md` P1-4.
+- [x] Storefront P0/P1/P2 audit build — cart editing, discount codes, SEO/OG, post-payment confirmation, mobile nav, trust bar/ratings, recently-viewed, cart cross-sell, skeletons, PWA manifest, PDP breadcrumbs. See `STOREFRONT_AUDIT.md`.
+- [ ] Outstanding hardening — true SSR/prerender, custom-domain routing, saved payment methods, multi-currency/i18n. See `STOREFRONT_AUDIT.md` follow-ups.
 
 ## Authentication (audited + extended 2026-06-06 — see AUTH_AUDIT.md)
 - [x] Audit platform / merchant+roles / partner auth planes.

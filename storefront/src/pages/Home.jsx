@@ -5,6 +5,8 @@ import { useCart } from '../cart';
 import Stars from '../Stars';
 import PageRenderer from '../PageRenderer';
 import TrustBar from '../TrustBar';
+import RecentlyViewed from '../RecentlyViewed';
+import { SkeletonGrid } from '../Skeleton';
 
 export default function Home() {
   const { addToCart } = useCart();
@@ -28,9 +30,9 @@ export default function Home() {
   }, []);
 
   if (error) return <p className="text-rose-600">{error}</p>;
-  if (page === undefined) return <p className="text-stone-500">Loading…</p>;
+  if (page === undefined) return <div><TrustBar /><SkeletonGrid /></div>;
   if (page) return <PageRenderer page={page} />;
-  if (!products) return <p className="text-stone-500">Loading…</p>;
+  if (!products) return <div><TrustBar /><SkeletonGrid /></div>;
   if (!products.length) return <p className="text-stone-500">No products available.</p>;
 
   return (
@@ -78,6 +80,7 @@ export default function Home() {
         );
       })}
     </div>
+    <RecentlyViewed />
     </div>
   );
 }

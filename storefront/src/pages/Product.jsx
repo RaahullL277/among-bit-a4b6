@@ -6,6 +6,8 @@ import { track } from '../track';
 import { useCart } from '../cart';
 import Reviews from '../Reviews';
 import FrequentlyBoughtTogether from '../FrequentlyBoughtTogether';
+import RecentlyViewed from '../RecentlyViewed';
+import { recordView } from '../recently';
 
 const INTERVAL_LABEL = { WEEKLY: 'Every week', BIWEEKLY: 'Every 2 weeks', MONTHLY: 'Every month', QUARTERLY: 'Every 3 months' };
 
@@ -32,6 +34,7 @@ export default function Product() {
     api.product(STORE_ID, id).then(setProduct).catch((e) => setError(e.message));
     api.productSeo(STORE_ID, id).then((seo) => applySeo({ ...seo, type: 'product' })).catch(() => undefined);
     track('VIEW', id); // product view → cohort signal
+    recordView(id); // remember for the "recently viewed" rail
     api.subscriptionSettings(STORE_ID)
       .then((s) => {
         setSubSettings(s);
@@ -39,6 +42,25 @@ export default function Product() {
       })
       .catch(() => undefined);
   }, [id]);
+
+  // BreadcrumbList structured data (Home › Shop › product) for rich results.
+  useEffect(() => {
+    if (!product || typeof window === 'undefined') return;
+    const origin = window.location.origin;
+    const ld = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
+        { '@type': 'ListItem', position: 2, name: 'Shop', item: `${origin}/shop` },
+        { '@type': 'ListItem', position: 3, name: product.title, item: window.location.href.split('?')[0] },
+      ],
+    };
+    let el = document.getElementById('ld-breadcrumb');
+    if (!el) { el = document.createElement('script'); el.type = 'application/ld+json'; el.id = 'ld-breadcrumb'; document.head.appendChild(el); }
+    el.textContent = JSON.stringify(ld);
+    return () => { document.getElementById('ld-breadcrumb')?.remove(); };
+  }, [product]);
 
   if (error) return <p className="text-rose-600">{error}</p>;
   if (!product) return <p className="text-stone-500">Loading…</p>;
@@ -95,7 +117,14 @@ export default function Product() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link to="/" className="text-sm text-stone-500 hover:text-stone-800">← Back</Link>
+      {/* Breadcrumbs */}
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-stone-500">
+        <Link to="/" className="hover:text-stone-800">Home</Link>
+        <span className="text-stone-300">/</span>
+        <Link to="/shop" className="hover:text-stone-800">Shop</Link>
+        <span className="text-stone-300">/</span>
+        <span className="truncate text-stone-700">{product.title}</span>
+      </nav>
       <div className="mt-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
         {/* Image gallery */}
         <div className="mb-4 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-stone-100">
@@ -269,6 +298,7 @@ export default function Product() {
 
       <FrequentlyBoughtTogether productId={product.id} />
       <Reviews productId={product.id} />
+      <RecentlyViewed excludeId={product.id} />
     </div>
   );
 }

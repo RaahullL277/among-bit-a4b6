@@ -4,6 +4,7 @@ import { api, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
 import Stars from '../Stars';
 import TrustBar from '../TrustBar';
+import { SkeletonGrid } from '../Skeleton';
 
 export default function Shop() {
   const { addToCart } = useCart();
@@ -66,7 +67,7 @@ export default function Shop() {
       </div>
 
       {!products ? (
-        <p className="text-stone-500">Loading…</p>
+        <SkeletonGrid />
       ) : !products.length ? (
         <p className="text-stone-500">No products match.</p>
       ) : (

@@ -1,0 +1,13 @@
+{
+  "name": "Store",
+  "short_name": "Store",
+  "description": "Shop securely — fast delivery and easy returns.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1c1917",
+  "icons": [
+    { "src": "/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}

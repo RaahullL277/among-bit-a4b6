@@ -4,6 +4,7 @@ import { api, money, STORE_ID } from '../api';
 import { identify } from '../track';
 import { useCart } from '../cart';
 import { useAccount } from '../account';
+import ProductRail from '../ProductRail';
 
 const emptyAddress = { name: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', gstin: '' };
 
@@ -30,10 +31,22 @@ export default function Cart() {
   const [code, setCode] = useState('');
   const [discount, setDiscount] = useState(null);
   const [codeMsg, setCodeMsg] = useState('');
+  const [crossSell, setCrossSell] = useState([]);
 
   useEffect(() => {
     if (cartId) api.checkoutQuote(cartId).then(setQuote).catch(() => setQuote(null));
   }, [cartId, cart?.items?.length]);
+
+  // Cross-sell: products not already in the cart ("You might also like").
+  useEffect(() => {
+    const inCart = new Set((cart?.items ?? []).map((i) => i.variantId));
+    api.products(STORE_ID)
+      .then((list) => {
+        const picks = list.filter((p) => !(p.variants ?? []).some((v) => inCart.has(v.id)) && p.variants?.[0]?.availability !== 'out_of_stock');
+        setCrossSell(picks.slice(0, 8));
+      })
+      .catch(() => setCrossSell([]));
+  }, [cart?.items?.length]);
 
   useEffect(() => {
     api.legalPolicies(STORE_ID).then(setPolicies).catch(() => setPolicies([]));
@@ -232,6 +245,8 @@ export default function Cart() {
       >
         {loading ? 'Placing order…' : 'Checkout'}
       </button>
+
+      <ProductRail title="You might also like" products={crossSell} />
     </div>
   );
 }

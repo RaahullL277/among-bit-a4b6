@@ -14,7 +14,7 @@ auto-handoff support chat; per-page SEO meta.
 ## P0 — conversion blockers
 - **P0-1 Cart was not editable.** Added cart **quantity stepper + remove item**
   (REST `PATCH/DELETE /storefront/carts/:cartId/items/:variantId`; `cart.service`
-  `updateItemQuantity`/`removeItem`).
+  `setItemQuantity`/`removeVariant`).
 - **P0-2 No discount codes.** New `Discount` model (PERCENT/FIXED, min-spend,
   usage cap, expiry) + `DiscountService`; applied at checkout; storefront coupon
   field; admin **Discounts** manager + MCP tools.
@@ -34,8 +34,15 @@ auto-handoff support chat; per-page SEO meta.
   (secure checkout · easy returns · GST invoice).
 
 ## P2 — polish & growth
-- Recently-viewed rail; cross-sell on the cart; loading skeletons; favicon/PWA
-  manifest; breadcrumbs on the PDP.
+- **Recently-viewed rail** — PDP records views in localStorage (`recently.js`);
+  a rail (`RecentlyViewed` over `ProductRail`) shows them on Home + PDP.
+- **Cart cross-sell** — "You might also like" rail on the cart (in-stock
+  products not already in the cart).
+- **Loading skeletons** — `Skeleton`/`SkeletonGrid` replace "Loading…" on
+  Home + Shop grids.
+- **Favicon / PWA manifest** — `manifest.webmanifest` + `icon.svg` (installable,
+  maskable) + apple-touch-icon.
+- **PDP breadcrumbs** — Home › Shop › product nav + `BreadcrumbList` JSON-LD.
 
 ## Follow-ups (not in this pass)
 True SSR/prerender (needs a server-render layer); custom-domain / per-store host
