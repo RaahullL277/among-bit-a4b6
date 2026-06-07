@@ -126,6 +126,38 @@ function Transcript({ id, onChanged }) {
   );
 }
 
+function BotStats({ storeId }) {
+  const { data: stats } = useAsync(() => api.support.analytics(storeId), [storeId]);
+  const { data: cfg } = useAsync(() => api.support.getConfig(storeId), [storeId]);
+  if (!stats) return null;
+  const Item = ({ label, value }) => (
+    <div className="rounded-xl border border-slate-100 bg-white p-3 text-center">
+      <div className="text-lg font-semibold text-slate-900">{value}</div>
+      <div className="text-xs text-slate-400">{label}</div>
+    </div>
+  );
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+        Assistant
+        <span className={`rounded-full px-2 py-0.5 text-xs ${cfg?.llmActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+          {cfg?.llmActive ? 'AI (Claude)' : 'Basic (no AI key)'}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <Item label="Conversations" value={stats.conversations} />
+        <Item label="Deflection" value={`${stats.deflectionRate}%`} />
+        <Item label="Escalated" value={stats.escalated} />
+        <Item label="Open" value={stats.open} />
+        <Item label="Resolved" value={stats.resolved} />
+      </div>
+      {stats.topTools?.length > 0 && (
+        <div className="mt-3 text-xs text-slate-400">Top tools: {stats.topTools.map((t) => `${t.name} (${t.count})`).join(' · ')}</div>
+      )}
+    </Card>
+  );
+}
+
 export default function Support() {
   const { selectedId, selectedStore } = useStores();
   const [status, setStatus] = useState('');
@@ -152,6 +184,8 @@ export default function Support() {
           <Settings size={15} /> Assistant settings
         </Button>
       </div>
+
+      <BotStats storeId={selectedId} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">

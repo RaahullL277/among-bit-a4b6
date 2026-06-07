@@ -272,6 +272,7 @@ export const api = {
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
     setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),
+    analytics: (storeId) => request(`/support/analytics?${qs({ storeId })}`),
     conversations: (storeId, status) => request(`/support/conversations?${qs({ storeId, status })}`),
     conversation: (id) => request(`/support/conversations/${id}`),
     reply: (id, body) => request(`/support/conversations/${id}/reply`, { method: 'POST', body: { body } }),

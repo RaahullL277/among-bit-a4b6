@@ -14,6 +14,12 @@ export class SupportController {
     return this.commerce.customerSupport.getConfig(t, storeId);
   }
 
+  @Get('analytics')
+  @Permissions('customers:read')
+  analytics(@Tenant() t: TenantContext, @Query('storeId') storeId: string): Promise<unknown> {
+    return this.commerce.customerSupport.botAnalytics(t, storeId);
+  }
+
   @Put('bot-config')
   @Permissions('customers:write')
   setConfig(@Tenant() t: TenantContext, @Body() body: any) {

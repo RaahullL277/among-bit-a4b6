@@ -71,3 +71,9 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 - [x] P1: categories (collections + membership), spec attributes, brand/type + faceted Shop filter.
 - [x] P2: product document assets (datasheets/certs/size charts), warranty/compliance + variant logistics fields, B2B price tiers (applied at checkout).
 - [ ] (Follow-up) Multi-batch inventory lots; serial/IMEI capture at fulfilment; gold-rate-linked jewellery pricing; weight/zone shipping rate cards; RFQ workflow.
+
+## Chatbot (CHATBOT_AUDIT.md — all built 2026-06-07)
+- [x] P0: sell + know the store (get_product/browse_catalog/add_to_cart/get_policies; rich product cards + add-to-cart actions); handoff loop (agent reply emails customer; widget captures email); LLM mode indicator.
+- [x] P1: policy/FAQ grounding; history trimmed (20 turns); input cap (2000); provider leak removed.
+- [x] P2: WhatsApp inbound routed through the real bot; bot analytics (deflection/escalation/top tools) on the admin Support page.
+- [ ] (Follow-up) Streaming; CSAT capture; inbox SLA/assignment; prompt-injection hardening of tool outputs; KB ingestion; proactive/abandoned-cart chat.
