@@ -65,3 +65,9 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 - [ ] (Follow-up) Make merchant `requestMagicLink` enumeration-safe (match platform/partner planes).
 - [ ] (Follow-up) Per-identifier rate-limiting on OTP/login at the edge; global SMS sender wired into OtpSender for real OTP delivery.
 - [ ] (Follow-up) Passkeys/WebAuthn; phone-OTP/password on the operator/partner planes if desired.
+
+## Catalog & merchandising (PRODUCT_AUDIT.md — all built 2026-06-07)
+- [x] P0: storefront product images (gallery + card primary) + structured variant options & selection.
+- [x] P1: categories (collections + membership), spec attributes, brand/type + faceted Shop filter.
+- [x] P2: product document assets (datasheets/certs/size charts), warranty/compliance + variant logistics fields, B2B price tiers (applied at checkout).
+- [ ] (Follow-up) Multi-batch inventory lots; serial/IMEI capture at fulfilment; gold-rate-linked jewellery pricing; weight/zone shipping rate cards; RFQ workflow.

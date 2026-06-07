@@ -3,6 +3,15 @@
 Audited 2026-06-07 against the verticals a store owner will most likely sell:
 **fashion, lifestyle, cosmetics, jewellery, electronics, robotic parts, wellness.**
 
+> **STATUS: all P0/P1/P2 BUILT (2026-06-07).** Schema (options, attributes,
+> collections+membership, assets, price-tiers, variant logistics, image
+> ordering/primary/variant); `CatalogService` + extended `ProductService`/
+> `ImageService`; REST `CatalogController` + storefront browse; ~12 MCP tools;
+> storefront gallery + variant selectors + specs + documents + bulk-price table
+> + faceted **Shop** page; admin **Merchandise** modal (images/options/specs/
+> categories/bulk pricing) + brand/type on the create form; B2B tiers applied at
+> checkout. Tests: +5 core (227 total) / 11 api / 4 mcp green.
+
 **Headline:** the platform nails the transactional spine (cart, tax/GST, per-variant
 inventory + ledger, payments-shaped flow, reviews, bundles, subscriptions) but the
 **catalog & merchandising layer is thin** — built for simple, single-variant,

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Package } from 'lucide-react';
+import { Plus, Package, Sliders } from 'lucide-react';
 import { api } from '../api/client';
 import { useStores } from '../context/StoreContext';
 import { useAsync } from '../hooks/useAsync';
+import MerchandiseModal from '../components/MerchandiseModal';
 import {
   Button,
   Card,
@@ -20,7 +21,7 @@ import {
   StockDot,
 } from '../components/ui';
 
-const emptyForm = { title: '', description: '', status: 'ACTIVE', price: '', sku: '', inventory: '', hsnCode: '', gstRate: '' };
+const emptyForm = { title: '', description: '', status: 'ACTIVE', price: '', sku: '', inventory: '', hsnCode: '', gstRate: '', brand: '', productType: '' };
 
 export default function Products() {
   const { selectedId, selectedStore } = useStores();
@@ -28,6 +29,7 @@ export default function Products() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [merchFor, setMerchFor] = useState(null);
 
   const { data: products, loading, error: loadError, reload } = useAsync(
     () => (selectedId ? api.products.list(selectedId) : Promise.resolve([])),
@@ -54,6 +56,8 @@ export default function Products() {
         status: form.status,
         hsnCode: form.hsnCode || undefined,
         gstRateBps: form.gstRate ? Math.round(parseFloat(form.gstRate) * 100) : undefined,
+        brand: form.brand || undefined,
+        productType: form.productType || undefined,
         variants: [
           {
             priceMinor,
@@ -131,7 +135,12 @@ export default function Products() {
                     <td className="px-5 py-3 text-slate-500">{v?.sku ?? '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v?.inventory ?? 0}</td>
                     <td className="px-5 py-3">
-                      <StockDot status={v ? stockByVariant.get(v.id) : null} />
+                      <div className="flex items-center gap-3">
+                        <StockDot status={v ? stockByVariant.get(v.id) : null} />
+                        <button onClick={() => setMerchFor({ id: p.id, title: p.title })} className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline" title="Images, options, specs, categories, bulk pricing">
+                          <Sliders size={13} /> Merchandise
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -184,7 +193,14 @@ export default function Products() {
             <Field label="GST rate (%)" hint="Blank = store default">
               <Input type="number" min="0" max="100" step="0.5" value={form.gstRate} onChange={(e) => setForm({ ...form, gstRate: e.target.value })} placeholder="18" />
             </Field>
+            <Field label="Brand">
+              <Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="Acme" />
+            </Field>
+            <Field label="Product type" hint="e.g. Ring, Serum, Sensor">
+              <Input value={form.productType} onChange={(e) => setForm({ ...form, productType: e.target.value })} placeholder="T-Shirt" />
+            </Field>
           </div>
+          <p className="-mt-2 text-xs text-slate-400">After creating, use <strong>Merchandise</strong> on the product row to add images, options, specs, categories &amp; bulk pricing.</p>
           <ErrorBanner message={error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
@@ -196,6 +212,14 @@ export default function Products() {
           </div>
         </form>
       </Modal>
+
+      <MerchandiseModal
+        open={Boolean(merchFor)}
+        onClose={() => setMerchFor(null)}
+        storeId={selectedId}
+        productId={merchFor?.id}
+        productTitle={merchFor?.title}
+      />
     </div>
   );
 }
