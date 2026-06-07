@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Heart, Search as SearchIcon } from 'lucide-react';
+import { ShoppingCart, Heart, Search as SearchIcon, Menu, X } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
 import { trackLand } from './track';
 import ChatWidget from './ChatWidget';
@@ -21,14 +21,18 @@ function Header({ storeName }) {
   const { itemCount } = useCart();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false); // mobile drawer
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (q.trim()) { navigate(`/search?q=${encodeURIComponent(q.trim())}`); setOpen(false); }
+  };
+
   return (
-    <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
         <Link to="/" className="text-lg font-semibold text-[var(--brand)]">{storeName || 'Store'}</Link>
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`); }}
-          className="relative ml-2 hidden flex-1 sm:block"
-        >
+        <form onSubmit={submit} className="relative ml-2 hidden flex-1 sm:block">
           <SearchIcon size={15} className="pointer-events-none absolute left-3 top-2.5 text-stone-400" />
           <input
             value={q}
@@ -37,22 +41,57 @@ function Header({ storeName }) {
             className="w-full rounded-lg border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-stone-300"
           />
         </form>
-        <div className="flex items-center gap-4">
-        <Link to="/track" className="text-sm text-stone-500 hover:text-stone-800">Track</Link>
-        <Link to="/subscriptions" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Subscriptions</Link>
-        <Link to="/returns" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Returns</Link>
-        <Link to="/shop" className="text-sm font-medium text-stone-700 hover:text-stone-900">Shop</Link>
-        <Link to="/wishlist" className="text-stone-700 hover:text-stone-900" title="Wishlist"><Heart size={20} /></Link>
-        <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
-          <ShoppingCart size={20} />
-          {itemCount > 0 && (
-            <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-stone-900 px-1 text-[10px] font-semibold text-white">
-              {itemCount}
-            </span>
-          )}
-        </Link>
+
+        {/* Desktop nav */}
+        <div className="ml-auto hidden items-center gap-4 sm:flex">
+          <Link to="/track" className="text-sm text-stone-500 hover:text-stone-800">Track</Link>
+          <Link to="/subscriptions" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Subscriptions</Link>
+          <Link to="/returns" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Returns</Link>
+          <Link to="/shop" className="text-sm font-medium text-stone-700 hover:text-stone-900">Shop</Link>
+          <Link to="/wishlist" className="text-stone-700 hover:text-stone-900" title="Wishlist"><Heart size={20} /></Link>
+          <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
+            <ShoppingCart size={20} />
+            {itemCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-stone-900 px-1 text-[10px] font-semibold text-white">{itemCount}</span>
+            )}
+          </Link>
+        </div>
+
+        {/* Mobile controls: cart + hamburger */}
+        <div className="ml-auto flex items-center gap-3 sm:hidden">
+          <Link to="/cart" className="relative inline-flex items-center text-stone-700" title="Cart">
+            <ShoppingCart size={22} />
+            {itemCount > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-stone-900 px-1 text-[10px] font-semibold text-white">{itemCount}</span>
+            )}
+          </Link>
+          <button onClick={() => setOpen((v) => !v)} className="text-stone-700" aria-label="Menu" aria-expanded={open}>
+            {open ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="border-t border-stone-200 bg-white px-4 py-4 sm:hidden">
+          <form onSubmit={submit} className="relative mb-3">
+            <SearchIcon size={15} className="pointer-events-none absolute left-3 top-2.5 text-stone-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search products…"
+              className="w-full rounded-lg border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-stone-300"
+            />
+          </form>
+          <nav className="flex flex-col gap-1 text-sm">
+            <Link to="/shop" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 font-medium text-stone-800 hover:bg-stone-100">Shop</Link>
+            <Link to="/wishlist" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Wishlist</Link>
+            <Link to="/track" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Track order</Link>
+            <Link to="/subscriptions" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Subscriptions</Link>
+            <Link to="/returns" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Returns</Link>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

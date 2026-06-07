@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
 import { useCart } from '../cart';
+import Stars from '../Stars';
+import TrustBar from '../TrustBar';
 
 export default function Shop() {
   const { addToCart } = useCart();
   const [params, setParams] = useSearchParams();
   const [facets, setFacets] = useState(null);
   const [products, setProducts] = useState(null);
+  const [ratings, setRatings] = useState({});
 
   const collection = params.get('collection') || '';
   const brand = params.get('brand') || '';
@@ -19,7 +22,10 @@ export default function Shop() {
 
   useEffect(() => {
     setProducts(null);
-    api.catalog(STORE_ID, { collection, brand, sort }).then(setProducts).catch(() => setProducts([]));
+    api.catalog(STORE_ID, { collection, brand, sort }).then((list) => {
+      setProducts(list);
+      api.reviewSummaries(STORE_ID, list.map((x) => x.id)).then(setRatings).catch(() => undefined);
+    }).catch(() => setProducts([]));
   }, [collection, brand, sort]);
 
   const set = (k, v) => {
@@ -31,6 +37,7 @@ export default function Shop() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-4 text-xl font-semibold text-stone-900">Shop</h1>
+      <TrustBar />
 
       {/* Category strip */}
       {facets?.collections?.length > 0 && (
@@ -72,6 +79,9 @@ export default function Shop() {
                 </div>
                 <div className="font-medium text-stone-900">{p.title}</div>
                 {p.brand && <div className="text-xs text-stone-400">{p.brand}</div>}
+                {ratings[p.id]?.count > 0 && (
+                  <div className="mt-1 flex items-center gap-1"><Stars value={ratings[p.id].average} size={12} /><span className="text-xs text-stone-400">({ratings[p.id].count})</span></div>
+                )}
               </Link>
               <div className="mt-3 flex items-center justify-between">
                 <span className="font-semibold text-stone-900">{p.priceMinor != null ? money(p.priceMinor, p.currency) : '—'}</span>
