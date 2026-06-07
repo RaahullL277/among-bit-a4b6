@@ -30,7 +30,7 @@ export default function Product() {
 
   useEffect(() => {
     api.product(STORE_ID, id).then(setProduct).catch((e) => setError(e.message));
-    api.productSeo(STORE_ID, id).then(applySeo).catch(() => undefined);
+    api.productSeo(STORE_ID, id).then((seo) => applySeo({ ...seo, type: 'product' })).catch(() => undefined);
     track('VIEW', id); // product view → cohort signal
     api.subscriptionSettings(STORE_ID)
       .then((s) => {

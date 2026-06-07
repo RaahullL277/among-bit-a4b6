@@ -99,7 +99,13 @@ export default function App() {
       setMissing(true);
       return;
     }
-    api.store(STORE_ID).then((s) => setStoreName(s.name)).catch(() => setMissing(true));
+    api.store(STORE_ID).then((s) => {
+      setStoreName(s.name);
+      // Base store SEO (per-page tags override this).
+      document.title = s.name;
+      const d = document.querySelector('meta[name="description"]'); if (d) d.setAttribute('content', `Shop ${s.name} — secure checkout, fast delivery, easy returns.`);
+      const ot = document.querySelector('meta[property="og:title"]'); if (ot) ot.setAttribute('content', s.name);
+    }).catch(() => setMissing(true));
     api.theme(STORE_ID).then((t) => {
       applyTheme(t);
       if (t?.logoText) setStoreName(t.logoText);

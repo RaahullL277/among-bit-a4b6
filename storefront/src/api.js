@@ -97,6 +97,22 @@ export function applySeo(seo) {
   setMeta('description', seo.description);
   setMeta('og:title', seo.title, 'property');
   setMeta('og:description', seo.description, 'property');
+  setMeta('og:type', seo.type ?? 'website', 'property');
+  setMeta('twitter:title', seo.title);
+  setMeta('twitter:description', seo.description);
+  // Image (prefer an explicit image, else the JSON-LD product image).
+  const image = seo.image ?? seo.jsonLd?.image;
+  if (image) {
+    setMeta('og:image', image, 'property');
+    setMeta('twitter:image', image);
+  }
+  // Canonical = the current URL.
+  if (typeof window !== 'undefined') {
+    setMeta('og:url', window.location.href, 'property');
+    let link = document.head.querySelector('link[rel="canonical"]');
+    if (!link) { link = document.createElement('link'); link.setAttribute('rel', 'canonical'); document.head.appendChild(link); }
+    link.setAttribute('href', window.location.href.split('?')[0]);
+  }
   if (seo.indexable === false) setMeta('robots', 'noindex');
   if (seo.jsonLd) {
     let s = document.getElementById('ld-product');
