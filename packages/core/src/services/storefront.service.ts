@@ -274,6 +274,16 @@ export class StorefrontService {
     return this.carts.removeItem(ctx, cartId, itemId);
   }
 
+  async setItemQuantity(cartId: string, variantId: string, quantity: number) {
+    const { ctx } = await this.ctxForCart(cartId);
+    return this.carts.setItemQuantity(ctx, cartId, variantId, quantity);
+  }
+
+  async removeVariant(cartId: string, variantId: string) {
+    const { ctx } = await this.ctxForCart(cartId);
+    return this.carts.removeVariant(ctx, cartId, variantId);
+  }
+
   /**
    * Begin checkout: creates a pending order + payment via the active provider.
    * Captures the delivery address, identifies the shopper by email, redeems

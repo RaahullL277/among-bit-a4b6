@@ -7,7 +7,7 @@ import { useCart } from '../cart';
 const emptyAddress = { name: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', gstin: '' };
 
 export default function Cart() {
-  const { cart, cartId, clear } = useCart();
+  const { cart, cartId, clear, setQty, removeItem } = useCart();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,12 +70,19 @@ export default function Cart() {
       <h1 className="mb-4 text-xl font-semibold text-stone-900">Your cart</h1>
       <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
         {cart.items.map((i) => (
-          <div key={i.id} className="flex items-center justify-between border-b border-stone-100 px-5 py-4 last:border-0">
-            <div>
-              <div className="font-medium text-stone-900">{i.title}</div>
-              <div className="text-sm text-stone-500">Qty {i.quantity}</div>
+          <div key={i.id} className="flex items-center justify-between gap-3 border-b border-stone-100 px-5 py-4 last:border-0">
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium text-stone-900">{i.title}</div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="inline-flex items-center rounded-lg border border-stone-300">
+                  <button onClick={() => setQty(i.variantId, i.quantity - 1)} className="px-2.5 py-1 text-stone-600 hover:bg-stone-50" aria-label="Decrease quantity">−</button>
+                  <span className="min-w-7 px-1 text-center text-sm text-stone-800">{i.quantity}</span>
+                  <button onClick={() => setQty(i.variantId, i.quantity + 1)} className="px-2.5 py-1 text-stone-600 hover:bg-stone-50" aria-label="Increase quantity">+</button>
+                </div>
+                <button onClick={() => removeItem(i.variantId)} className="text-xs text-stone-400 hover:text-rose-600">Remove</button>
+              </div>
             </div>
-            <div className="font-medium text-stone-800">{money(i.unitPriceMinor * i.quantity)}</div>
+            <div className="whitespace-nowrap font-medium text-stone-800">{money(i.unitPriceMinor * i.quantity)}</div>
           </div>
         ))}
         <div className="space-y-1 px-5 py-4 text-sm">

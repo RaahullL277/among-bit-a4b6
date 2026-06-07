@@ -33,6 +33,14 @@ export function CartProvider({ children }) {
           setCart(await api.addItem(cartId, { variantId, quantity }));
         }
       },
+      async setQty(variantId, quantity) {
+        if (!cartId) return;
+        setCart(await api.setItemQty(cartId, variantId, quantity));
+      },
+      async removeItem(variantId) {
+        if (!cartId) return;
+        setCart(await api.removeItem(cartId, variantId));
+      },
       async refresh() {
         if (cartId) setCart(await api.getCart(cartId));
       },

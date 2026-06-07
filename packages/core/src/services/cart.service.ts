@@ -125,6 +125,29 @@ export class CartService {
     return this.getCart(ctx, cartId);
   }
 
+  /** Set the absolute quantity of a variant in the cart (0 = remove). */
+  async setItemQuantity(ctx: TenantContext, cartId: string, variantId: string, quantity: number) {
+    await this.getCart(ctx, cartId);
+    const qty = Math.round(quantity);
+    if (qty <= 0) {
+      await this.prisma.cartItem.deleteMany({ where: { cartId, variantId } });
+    } else {
+      const item = await this.prisma.cartItem.findUnique({ where: { cartId_variantId: { cartId, variantId } } });
+      if (!item) throw new NotFoundError('CartItem', variantId);
+      await this.prisma.cartItem.update({ where: { id: item.id }, data: { quantity: Math.min(99, qty) } });
+    }
+    await this.touch(cartId);
+    return this.getCart(ctx, cartId);
+  }
+
+  /** Remove a variant line from the cart (storefront convenience by variantId). */
+  async removeVariant(ctx: TenantContext, cartId: string, variantId: string) {
+    await this.getCart(ctx, cartId);
+    await this.prisma.cartItem.deleteMany({ where: { cartId, variantId } });
+    await this.touch(cartId);
+    return this.getCart(ctx, cartId);
+  }
+
   /** Reset activity and (if it was abandoned) bring the cart back to ACTIVE. */
   private async touch(cartId: string) {
     const cart = await this.prisma.cart.findUnique({ where: { id: cartId }, select: { status: true } });

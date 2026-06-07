@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
 import { getCommerce } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
 
@@ -122,6 +122,16 @@ export class StorefrontController {
   @Post('carts/:cartId/items')
   addItem(@Param('cartId') cartId: string, @Body() body: any) {
     return this.commerce.storefront.addItem(cartId, body);
+  }
+
+  @Patch('carts/:cartId/items/:variantId')
+  setItemQty(@Param('cartId') cartId: string, @Param('variantId') variantId: string, @Body() body: { quantity: number }) {
+    return this.commerce.storefront.setItemQuantity(cartId, variantId, body?.quantity ?? 0);
+  }
+
+  @Delete('carts/:cartId/items/:variantId')
+  removeCartItem(@Param('cartId') cartId: string, @Param('variantId') variantId: string) {
+    return this.commerce.storefront.removeVariant(cartId, variantId);
   }
 
   @Get('carts/:cartId/quote')
