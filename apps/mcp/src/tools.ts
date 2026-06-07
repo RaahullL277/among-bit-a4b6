@@ -201,7 +201,22 @@ export function registerTools(server: McpServer, session: Session) {
     priceMinor: z.number().int().nonnegative().describe('Price in the smallest currency unit (paise for INR)'),
     costMinor: z.number().int().optional().describe('Unit cost (COGS) — enables margin analysis & repricing'),
     inventory: z.number().int().optional(),
+    options: z.record(z.string()).optional().describe('Option map, e.g. { Size: "M", Color: "Red" }'),
+    barcode: z.string().optional(),
+    weightGrams: z.number().int().optional(),
   });
+
+  // Merchandising fields shared by create/update product.
+  const merchShape = {
+    brand: z.string().nullable().optional(),
+    productType: z.string().nullable().optional().describe('e.g. "Ring", "Smartphone", "Serum", "Sensor"'),
+    countryOfOrigin: z.string().nullable().optional(),
+    ingredients: z.string().nullable().optional().describe('Cosmetics / wellness'),
+    warrantyMonths: z.number().int().nullable().optional(),
+    warrantyTerms: z.string().nullable().optional(),
+    moq: z.number().int().nullable().optional().describe('B2B minimum order quantity'),
+    leadTimeDays: z.number().int().nullable().optional(),
+  };
 
   // --- Stores ---------------------------------------------------------------
   server.registerTool(
@@ -354,6 +369,7 @@ export function registerTools(server: McpServer, session: Session) {
         status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
         hsnCode: z.string().nullable().optional().describe('HSN/SAC code printed per line on the GST invoice'),
         gstRateBps: z.number().int().min(0).max(10000).nullable().optional().describe('Per-product GST rate in basis points (1800=18%); falls back to the store rate'),
+        ...merchShape,
         variants: z.array(variantShape).optional(),
       },
     },
@@ -363,7 +379,7 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'update_product',
     {
-      description: 'Update a product\'s title, description, status, tags, or GST classification (hsnCode, gstRateBps).',
+      description: 'Update a product\'s title, description, status, tags, GST classification, or merchandising fields (brand, productType, warranty, etc.).',
       inputSchema: {
         productId: z.string(),
         title: z.string().optional(),
@@ -372,6 +388,7 @@ export function registerTools(server: McpServer, session: Session) {
         tags: z.array(z.string()).optional(),
         hsnCode: z.string().nullable().optional(),
         gstRateBps: z.number().int().min(0).max(10000).nullable().optional(),
+        ...merchShape,
       },
     },
     tool((ctx, a: any) => commerce.products.update(ctx, a.productId, a)),
@@ -397,6 +414,113 @@ export function registerTools(server: McpServer, session: Session) {
     'list_products',
     { description: 'List products in a store.', inputSchema: { storeId: z.string() } },
     tool((ctx, a: any) => commerce.products.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'add_variant',
+    {
+      description: 'Add a variant to an existing product (build a size/colour matrix). `options` maps option name → value, e.g. { Size: "M", Color: "Red" }.',
+      inputSchema: {
+        productId: z.string(),
+        title: z.string().optional(),
+        sku: z.string().optional(),
+        priceMinor: z.number().int().nonnegative(),
+        compareAtMinor: z.number().int().optional(),
+        inventory: z.number().int().optional(),
+        options: z.record(z.string()).optional(),
+        barcode: z.string().optional(),
+        weightGrams: z.number().int().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.products.addVariant(ctx, a.productId, a)),
+  );
+
+  // --- Catalog merchandising (options, attributes, categories, assets, B2B) ---
+  server.registerTool(
+    'set_product_options',
+    {
+      description: 'Define a product\'s variant option axes (e.g. Size: [S,M,L], Colour: [Red,Blue]). Buyers pick these on the storefront; each combination resolves to a variant via its `options` map.',
+      inputSchema: { productId: z.string(), options: z.array(z.object({ name: z.string(), values: z.array(z.string()) })) },
+    },
+    tool((ctx, a: any) => commerce.catalog.setOptions(ctx, a.productId, a.options)),
+  );
+
+  server.registerTool(
+    'set_product_attributes',
+    {
+      description: 'Set a product\'s spec attributes (material, RAM, net weight, ingredients, dosage…). Mark `filterable` to surface it as a storefront facet.',
+      inputSchema: { productId: z.string(), attributes: z.array(z.object({ name: z.string(), value: z.string(), unit: z.string().optional(), filterable: z.boolean().optional() })) },
+    },
+    tool((ctx, a: any) => commerce.catalog.setAttributes(ctx, a.productId, a.attributes)),
+  );
+
+  server.registerTool(
+    'list_collections',
+    { description: 'List a store\'s collections (categories) with product counts.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.catalog.listCollections(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'create_collection',
+    {
+      description: 'Create a collection (category) for a store.',
+      inputSchema: { storeId: z.string(), title: z.string(), handle: z.string().optional(), description: z.string().optional(), imageUrl: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.catalog.createCollection(ctx, a)),
+  );
+
+  server.registerTool(
+    'set_product_collections',
+    {
+      description: 'Set which collections (categories) a product belongs to (replaces the set).',
+      inputSchema: { productId: z.string(), collectionIds: z.array(z.string()) },
+    },
+    tool((ctx, a: any) => commerce.catalog.setProductCollections(ctx, a.productId, a.collectionIds)),
+  );
+
+  server.registerTool(
+    'add_product_image',
+    {
+      description: 'Attach an image to a product (and optionally a variant). The first image becomes the primary (card/hero) automatically; set isPrimary to override.',
+      inputSchema: { storeId: z.string(), productId: z.string(), url: z.string(), alt: z.string().optional(), variantId: z.string().optional(), isPrimary: z.boolean().optional() },
+    },
+    tool((ctx, a: any) => commerce.images.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_product_images',
+    { description: 'List a product\'s images in display order (primary first).', inputSchema: { productId: z.string() } },
+    tool((_ctx, a: any) => commerce.images.productImages(a.productId)),
+  );
+
+  server.registerTool(
+    'set_primary_image',
+    { description: 'Make an image the product\'s primary (card/hero) image.', inputSchema: { imageId: z.string() } },
+    tool((ctx, a: any) => commerce.images.setPrimary(ctx, a.imageId)),
+  );
+
+  server.registerTool(
+    'reorder_product_images',
+    { description: 'Reorder a product\'s gallery to the given image-id order.', inputSchema: { productId: z.string(), orderedIds: z.array(z.string()) } },
+    tool((ctx, a: any) => commerce.images.reorder(ctx, a.productId, a.orderedIds)),
+  );
+
+  server.registerTool(
+    'add_product_asset',
+    {
+      description: 'Attach a document to a product: a datasheet, quality/hallmark certificate, size chart, or manual.',
+      inputSchema: { productId: z.string(), type: z.enum(['DATASHEET', 'CERTIFICATE', 'SIZE_CHART', 'MANUAL', 'OTHER']), url: z.string(), title: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.catalog.addAsset(ctx, a)),
+  );
+
+  server.registerTool(
+    'set_price_tiers',
+    {
+      description: 'Set B2B quantity price-breaks for a variant: at/above each minQuantity, charge priceMinor per unit. Applied automatically at checkout.',
+      inputSchema: { variantId: z.string(), tiers: z.array(z.object({ minQuantity: z.number().int().positive(), priceMinor: z.number().int().nonnegative() })) },
+    },
+    tool((ctx, a: any) => commerce.catalog.setPriceTiers(ctx, a.variantId, a.tiers)),
   );
 
   // --- Customers ------------------------------------------------------------

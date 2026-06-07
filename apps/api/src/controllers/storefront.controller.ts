@@ -26,6 +26,36 @@ export class StorefrontController {
     return this.commerce.storefront.searchProducts(storeId, q ?? '');
   }
 
+  // --- Catalog browse: categories, facets, filtered listing ---
+  @Get(':storeId/collections')
+  collections(@Param('storeId') storeId: string) {
+    return this.commerce.storefront.collections(storeId);
+  }
+
+  @Get(':storeId/facets')
+  facets(@Param('storeId') storeId: string) {
+    return this.commerce.storefront.facets(storeId);
+  }
+
+  @Get(':storeId/catalog')
+  catalog(@Param('storeId') storeId: string, @Query() q: any) {
+    return this.commerce.storefront.filter(storeId, {
+      q: q.q,
+      brand: q.brand,
+      productType: q.productType,
+      collection: q.collection,
+      minPriceMinor: q.minPriceMinor != null ? Number(q.minPriceMinor) : undefined,
+      maxPriceMinor: q.maxPriceMinor != null ? Number(q.maxPriceMinor) : undefined,
+      attributes: q.attributes ? (Array.isArray(q.attributes) ? q.attributes : String(q.attributes).split(',')) : undefined,
+      sort: q.sort,
+    });
+  }
+
+  @Post(':storeId/products/:productId/resolve-variant')
+  resolveVariant(@Param('storeId') storeId: string, @Param('productId') productId: string, @Body() body: { selected: Record<string, string> }) {
+    return this.commerce.storefront.resolveVariant(storeId, productId, body?.selected ?? {});
+  }
+
   @Get(':storeId/track')
   trackOrder(@Param('storeId') storeId: string, @Query('number') number: string, @Query('email') email: string) {
     return this.commerce.storefront.trackOrder(storeId, Number(number), email);

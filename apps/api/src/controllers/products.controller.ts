@@ -31,6 +31,12 @@ export class ProductsController {
     return this.commerce.products.updateVariant(t, variantId, body);
   }
 
+  @Post(':id/variants')
+  @Permissions('products:write')
+  addVariant(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
+    return this.commerce.products.addVariant(t, id, body);
+  }
+
   @Patch(':id')
   @Permissions('products:write')
   update(@Tenant() t: TenantContext, @Param('id') id: string, @Body() body: any) {
