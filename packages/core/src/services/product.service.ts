@@ -1,7 +1,19 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
 
-export interface CreateProductInput {
+/** Merchandising fields shared by create + update. */
+export interface ProductMerchInput {
+  brand?: string | null;
+  productType?: string | null;
+  countryOfOrigin?: string | null;
+  ingredients?: string | null;
+  warrantyMonths?: number | null;
+  warrantyTerms?: string | null;
+  moq?: number | null;
+  leadTimeDays?: number | null;
+}
+
+export interface CreateProductInput extends ProductMerchInput {
   storeId: string;
   title: string;
   description?: string;
@@ -24,10 +36,18 @@ export interface VariantInput {
   costMinor?: number;
   currency?: string;
   inventory?: number;
+  /** Map of option name → value, e.g. { Size: "M", Color: "Red" }. */
   options?: Record<string, unknown>;
+  barcode?: string | null;
+  weightGrams?: number | null;
+  lengthMm?: number | null;
+  widthMm?: number | null;
+  heightMm?: number | null;
+  batchNumber?: string | null;
+  expiryAt?: string | Date | null;
 }
 
-export interface UpdateProductInput {
+export interface UpdateProductInput extends ProductMerchInput {
   title?: string;
   description?: string;
   status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
@@ -39,6 +59,42 @@ export interface UpdateProductInput {
 }
 
 const productInclude = { variants: true } as const;
+
+// Full merchandising graph for a product detail view.
+const productDetailInclude: Prisma.ProductInclude = {
+  variants: { include: { images: { orderBy: { position: 'asc' } }, priceTiers: { orderBy: { minQuantity: 'asc' } } } },
+  images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }] },
+  options: { orderBy: { position: 'asc' }, include: { values: { orderBy: { position: 'asc' } } } },
+  attributes: { orderBy: { position: 'asc' } },
+  assets: { orderBy: { position: 'asc' } },
+  collections: { include: { collection: { select: { id: true, title: true, handle: true } } } },
+};
+
+function merchData(input: ProductMerchInput, creating: boolean) {
+  const u = <T>(v: T | undefined) => (v === undefined ? undefined : v);
+  return {
+    brand: creating ? input.brand ?? undefined : u(input.brand),
+    productType: creating ? input.productType ?? undefined : u(input.productType),
+    countryOfOrigin: creating ? input.countryOfOrigin ?? undefined : u(input.countryOfOrigin),
+    ingredients: creating ? input.ingredients ?? undefined : u(input.ingredients),
+    warrantyMonths: creating ? input.warrantyMonths ?? undefined : u(input.warrantyMonths),
+    warrantyTerms: creating ? input.warrantyTerms ?? undefined : u(input.warrantyTerms),
+    moq: creating ? input.moq ?? undefined : u(input.moq),
+    leadTimeDays: creating ? input.leadTimeDays ?? undefined : u(input.leadTimeDays),
+  };
+}
+
+function variantData(v: VariantInput) {
+  return {
+    barcode: v.barcode ?? undefined,
+    weightGrams: v.weightGrams ?? undefined,
+    lengthMm: v.lengthMm ?? undefined,
+    widthMm: v.widthMm ?? undefined,
+    heightMm: v.heightMm ?? undefined,
+    batchNumber: v.batchNumber ?? undefined,
+    expiryAt: v.expiryAt ? new Date(v.expiryAt) : undefined,
+  };
+}
 
 export class ProductService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -76,6 +132,7 @@ export class ProductService {
         metaDescription: input.metaDescription,
         hsnCode: input.hsnCode ?? undefined,
         gstRateBps: input.gstRateBps ?? undefined,
+        ...merchData(input, true),
         variants: {
           create: variants.map((v) => ({
             tenantId: ctx.tenantId,
@@ -87,10 +144,34 @@ export class ProductService {
             currency: v.currency ?? 'INR',
             inventory: v.inventory ?? 0,
             options: (v.options ?? undefined) as Prisma.InputJsonValue | undefined,
+            ...variantData(v),
           })),
         },
       },
       include: productInclude,
+    });
+  }
+
+  /** Add a variant to an existing product (for the variant matrix). */
+  async addVariant(ctx: TenantContext, productId: string, v: VariantInput) {
+    const product = await this.prisma.product.findFirst({ where: { id: productId, tenantId: ctx.tenantId }, select: { id: true } });
+    if (!product) throw new NotFoundError('Product', productId);
+    if (v.priceMinor == null || v.priceMinor < 0) throw new ValidationError('A non-negative priceMinor is required.');
+    if (v.compareAtMinor != null && v.compareAtMinor < v.priceMinor) throw new ValidationError('compareAtMinor must be at least the selling price.');
+    return this.prisma.productVariant.create({
+      data: {
+        tenantId: ctx.tenantId,
+        productId,
+        title: v.title ?? 'Default',
+        sku: v.sku,
+        priceMinor: v.priceMinor,
+        compareAtMinor: v.compareAtMinor,
+        costMinor: v.costMinor ?? 0,
+        currency: v.currency ?? 'INR',
+        inventory: v.inventory ?? 0,
+        options: (v.options ?? undefined) as Prisma.InputJsonValue | undefined,
+        ...variantData(v),
+      },
     });
   }
 
@@ -106,14 +187,14 @@ export class ProductService {
   async get(ctx: TenantContext, id: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, tenantId: ctx.tenantId },
-      include: productInclude,
+      include: productDetailInclude,
     });
     if (!product) throw new NotFoundError('Product', id);
     return product;
   }
 
   async update(ctx: TenantContext, id: string, input: UpdateProductInput) {
-    await this.get(ctx, id);
+    await this.prisma.product.findFirstOrThrow({ where: { id, tenantId: ctx.tenantId } }).catch(() => { throw new NotFoundError('Product', id); });
     if (input.gstRateBps != null && (input.gstRateBps < 0 || input.gstRateBps > 10000)) {
       throw new ValidationError('gstRateBps must be between 0 and 10000.');
     }
@@ -128,16 +209,17 @@ export class ProductService {
         metaDescription: input.metaDescription,
         hsnCode: input.hsnCode === undefined ? undefined : input.hsnCode,
         gstRateBps: input.gstRateBps === undefined ? undefined : input.gstRateBps,
+        ...merchData(input, false),
       },
       include: productInclude,
     });
   }
 
-  /** Edit an existing variant's price, compare-at, cost, title, or SKU. */
+  /** Edit an existing variant's price, compare-at, cost, title, SKU, options, or logistics fields. */
   async updateVariant(
     ctx: TenantContext,
     variantId: string,
-    patch: { priceMinor?: number; compareAtMinor?: number | null; costMinor?: number; title?: string; sku?: string | null },
+    patch: { priceMinor?: number; compareAtMinor?: number | null; costMinor?: number; title?: string; sku?: string | null; options?: Record<string, unknown> } & Partial<VariantInput>,
   ) {
     const variant = await this.prisma.productVariant.findFirst({ where: { id: variantId, tenantId: ctx.tenantId } });
     if (!variant) throw new NotFoundError('ProductVariant', variantId);
@@ -156,6 +238,14 @@ export class ProductService {
         costMinor: patch.costMinor ?? undefined,
         title: patch.title ?? undefined,
         sku: patch.sku === undefined ? undefined : patch.sku,
+        options: patch.options === undefined ? undefined : (patch.options as Prisma.InputJsonValue),
+        barcode: patch.barcode === undefined ? undefined : patch.barcode,
+        weightGrams: patch.weightGrams === undefined ? undefined : patch.weightGrams,
+        lengthMm: patch.lengthMm === undefined ? undefined : patch.lengthMm,
+        widthMm: patch.widthMm === undefined ? undefined : patch.widthMm,
+        heightMm: patch.heightMm === undefined ? undefined : patch.heightMm,
+        batchNumber: patch.batchNumber === undefined ? undefined : patch.batchNumber,
+        expiryAt: patch.expiryAt === undefined ? undefined : patch.expiryAt ? new Date(patch.expiryAt) : null,
       },
     });
   }

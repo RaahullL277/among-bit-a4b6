@@ -30,6 +30,7 @@ import { LoyaltyService } from './services/loyalty.service.js';
 import { SubscriptionService } from './services/subscription.service.js';
 import { SeoService } from './services/seo.service.js';
 import { ImageService } from './services/image.service.js';
+import { CatalogService } from './services/catalog.service.js';
 import { PartnerAuthService } from './services/partner-auth.service.js';
 import { PartnerService } from './services/partner.service.js';
 import { PricingService } from './services/pricing.service.js';
@@ -89,6 +90,7 @@ export class Commerce {
   readonly subscriptions: SubscriptionService;
   readonly seo: SeoService;
   readonly images: ImageService;
+  readonly catalog: CatalogService;
   readonly partnerAuth: PartnerAuthService;
   readonly partners: PartnerService;
   readonly pricing: PricingService;
@@ -108,6 +110,7 @@ export class Commerce {
     this.members = new MemberService(prisma);
     this.stores = new StoreService(prisma);
     this.products = new ProductService(prisma);
+    this.catalog = new CatalogService(prisma);
     this.integrations = new IntegrationService(prisma);
     this.marketing = new MarketingService(prisma, this.integrations);
     this.customers = new CustomerService(prisma, this.marketing);
@@ -128,7 +131,7 @@ export class Commerce {
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
-    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings, this.invoices, this.legal);
+    this.storefront = new StorefrontService(prisma, this.products, this.carts, this.loyalty, this.subscriptions, this.stock, this.checkoutSettings, this.invoices, this.legal, this.catalog);
     this.analytics = new AnalyticsService(prisma);
     this.shipping = new ShippingService(prisma, this.integrations, this.notifications);
     this.platformAuth = new PlatformAuthService(prisma);

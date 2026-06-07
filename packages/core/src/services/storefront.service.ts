@@ -27,7 +27,53 @@ export class StorefrontService {
     private readonly checkoutSettings?: CheckoutSettingsService,
     private readonly invoices?: InvoiceService,
     private readonly legal?: LegalService,
+    private readonly catalog?: import('./catalog.service.js').CatalogService,
   ) {}
+
+  /** Attach the primary image url to each product card (by product id). */
+  private async withPrimaryImage<T extends { id: string }>(items: T[]): Promise<(T & { imageUrl: string | null })[]> {
+    const ids = items.map((i) => i.id);
+    if (!ids.length) return items.map((i) => ({ ...i, imageUrl: null }));
+    const imgs = await this.prisma.imageAsset.findMany({
+      where: { productId: { in: ids } },
+      orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }],
+    });
+    const byProduct = new Map<string, string>();
+    for (const img of imgs) if (img.productId && !byProduct.has(img.productId)) byProduct.set(img.productId, img.url);
+    return items.map((i) => ({ ...i, imageUrl: byProduct.get(i.id) ?? null }));
+  }
+
+  // --- Catalog browse: categories, facets, filtered listing -----------------
+
+  /** Store categories (collections) for storefront navigation. */
+  async collections(storeId: string) {
+    const { ctx } = await this.ctxForStore(storeId);
+    return (await this.catalog?.listCollections(ctx, storeId)) ?? [];
+  }
+
+  /** Available filter facets (brands, types, categories, price range, attributes). */
+  async facets(storeId: string) {
+    await this.ctxForStore(storeId);
+    return (await this.catalog?.facets(storeId)) ?? null;
+  }
+
+  /** Filtered + sorted catalog browse (cards with primary image). */
+  async filter(storeId: string, params: import('./catalog.service.js').FilterInput) {
+    await this.ctxForStore(storeId);
+    return (await this.catalog?.filter(storeId, params)) ?? [];
+  }
+
+  /** Resolve a variant from a selected option map, e.g. { Size:"M", Color:"Red" }. */
+  async resolveVariant(storeId: string, productId: string, selected: Record<string, string>) {
+    const { ctx } = await this.ctxForStore(storeId);
+    const product = await this.products.get(ctx, productId);
+    if (product.storeId !== storeId) throw new NotFoundError('Product', productId);
+    const match = (product.variants as any[]).find((v) => {
+      const opts = (v.options ?? {}) as Record<string, string>;
+      return Object.entries(selected).every(([k, val]) => String(opts[k]) === String(val));
+    });
+    return match ? { id: match.id, priceMinor: match.priceMinor, available: ((match.inventory ?? 0) - (match.reserved ?? 0)) > 0 } : null;
+  }
 
   // --- Legal policies (storefront footer + policy pages) --------------------
 
@@ -79,11 +125,12 @@ export class StorefrontService {
     return { id: store.id, name: store.name, slug: store.slug, currency: store.currency, country: store.country };
   }
 
-  /** Active products only, with variants — what a buyer may browse. */
+  /** Active products only, with variants + primary image — what a buyer may browse. */
   async listProducts(storeId: string) {
     const { ctx } = await this.ctxForStore(storeId);
     const all = await this.products.list(ctx, storeId);
-    return this.withAvailability(storeId, all.filter((p) => p.status === 'ACTIVE'));
+    const withAvail = await this.withAvailability(storeId, all.filter((p) => p.status === 'ACTIVE'));
+    return this.withPrimaryImage(withAvail);
   }
 
   async getProduct(storeId: string, productId: string) {
@@ -109,7 +156,7 @@ export class StorefrontService {
           { description: { contains: q, mode: 'insensitive' } },
         ],
       },
-      include: { variants: { orderBy: { priceMinor: 'asc' }, take: 1 } },
+      include: { variants: { orderBy: { priceMinor: 'asc' }, take: 1 }, images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], take: 1 } },
       take: 50,
     });
     const track = (await this.stock?.fulfillmentPolicy(storeId))?.trackInventory ?? true;
@@ -121,6 +168,7 @@ export class StorefrontService {
         description: p.description,
         priceMinor: v?.priceMinor ?? null,
         currency: v?.currency ?? 'INR',
+        imageUrl: p.images[0]?.url ?? null,
         availability: v ? this.stock?.availabilityOf({ inventory: v.inventory, reserved: v.reserved }, track) ?? 'in_stock' : 'out_of_stock',
       };
     });

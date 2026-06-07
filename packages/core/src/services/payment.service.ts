@@ -62,6 +62,22 @@ export class PaymentService {
     });
     const variantById = new Map(variants.map((v) => [v.id, v]));
 
+    // B2B quantity price-breaks: the best tier whose minQuantity ≤ the line qty.
+    const tiers = await this.prisma.priceTier.findMany({ where: { variantId: { in: variantIds } }, orderBy: { minQuantity: 'asc' } });
+    const tiersByVariant = new Map<string, { minQuantity: number; priceMinor: number }[]>();
+    for (const t of tiers) {
+      const arr = tiersByVariant.get(t.variantId) ?? [];
+      arr.push({ minQuantity: t.minQuantity, priceMinor: t.priceMinor });
+      tiersByVariant.set(t.variantId, arr);
+    }
+    const tierPrice = (variantId: string, qty: number, base: number) => {
+      const arr = tiersByVariant.get(variantId);
+      if (!arr) return base;
+      let price = base;
+      for (const t of arr) if (qty >= t.minQuantity) price = t.priceMinor; // sorted asc → last match is best
+      return price;
+    };
+
     const lineItems = input.items.map((item) => {
       const variant = variantById.get(item.variantId);
       if (!variant) throw new NotFoundError('ProductVariant', item.variantId);
@@ -70,7 +86,7 @@ export class PaymentService {
         variantId: variant.id,
         title: variant.title,
         quantity: item.quantity,
-        unitPriceMinor: variant.priceMinor,
+        unitPriceMinor: tierPrice(variant.id, item.quantity, variant.priceMinor),
       };
     });
 

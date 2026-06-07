@@ -5,8 +5,12 @@ export interface CreateImageInput {
   storeId: string;
   url: string;
   productId?: string;
+  /** Optional variant this image represents (e.g. the "Red" swatch). */
+  variantId?: string;
   alt?: string;
-  originalBytes: number;
+  originalBytes?: number;
+  /** Make this the product's primary (card/hero) image. */
+  isPrimary?: boolean;
 }
 
 // Simulated compression ratio (optimized = 35% of original ≈ 65% saved).
@@ -29,22 +33,68 @@ export class ImageService {
   async create(ctx: TenantContext, input: CreateImageInput) {
     await this.assertStore(ctx, input.storeId);
     if (!input.url?.trim()) throw new ValidationError('An image URL is required.');
-    const originalBytes = Math.round(input.originalBytes);
-    if (!Number.isFinite(originalBytes) || originalBytes <= 0) throw new ValidationError('originalBytes must be a positive number.');
+    // originalBytes is optional now (real uploads compute it); default a nominal size.
+    const originalBytes = input.originalBytes && input.originalBytes > 0 ? Math.round(input.originalBytes) : 100_000;
     if (input.productId) {
       const p = await this.prisma.product.findFirst({ where: { id: input.productId, storeId: input.storeId }, select: { id: true } });
       if (!p) throw new NotFoundError('Product', input.productId);
     }
-    return this.prisma.imageAsset.create({
+    if (input.variantId) {
+      const v = await this.prisma.productVariant.findFirst({ where: { id: input.variantId, tenantId: ctx.tenantId }, select: { id: true } });
+      if (!v) throw new NotFoundError('ProductVariant', input.variantId);
+    }
+    // Append to the end of the product's gallery; auto-primary if it's the first.
+    let position = 0;
+    let isPrimary = Boolean(input.isPrimary);
+    if (input.productId) {
+      const agg = await this.prisma.imageAsset.aggregate({ where: { productId: input.productId }, _max: { position: true }, _count: true });
+      position = (agg._max.position ?? -1) + 1;
+      if (agg._count === 0) isPrimary = true; // first image is primary by default
+    }
+    const created = await this.prisma.imageAsset.create({
       data: {
         tenantId: ctx.tenantId,
         storeId: input.storeId,
         productId: input.productId,
+        variantId: input.variantId,
         url: input.url.trim(),
         alt: input.alt,
+        position,
+        isPrimary,
         originalBytes,
       },
     });
+    if (isPrimary && input.productId) await this.demoteOtherPrimaries(input.productId, created.id);
+    return created;
+  }
+
+  /** Ordered gallery for a product (primary first, then by position). */
+  async productImages(productId: string) {
+    return this.prisma.imageAsset.findMany({
+      where: { productId },
+      orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /** Make one image the product's primary (card/hero). */
+  async setPrimary(ctx: TenantContext, id: string) {
+    const img = await this.load(ctx, id);
+    if (!img.productId) throw new ValidationError('Image is not attached to a product.');
+    await this.demoteOtherPrimaries(img.productId, id);
+    return this.prisma.imageAsset.update({ where: { id }, data: { isPrimary: true } });
+  }
+
+  /** Reorder a product's gallery to the given image-id order. */
+  async reorder(ctx: TenantContext, productId: string, orderedIds: string[]) {
+    await this.prisma.product.findFirstOrThrow({ where: { id: productId, tenantId: ctx.tenantId } }).catch(() => { throw new NotFoundError('Product', productId); });
+    await this.prisma.$transaction(
+      orderedIds.map((id, i) => this.prisma.imageAsset.updateMany({ where: { id, productId, tenantId: ctx.tenantId }, data: { position: i } })),
+    );
+    return this.productImages(productId);
+  }
+
+  private async demoteOtherPrimaries(productId: string, keepId: string) {
+    await this.prisma.imageAsset.updateMany({ where: { productId, isPrimary: true, id: { not: keepId } }, data: { isPrimary: false } });
   }
 
   async list(ctx: TenantContext, opts: { storeId: string; productId?: string }) {

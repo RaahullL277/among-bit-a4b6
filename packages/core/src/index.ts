@@ -95,6 +95,7 @@ export {
 } from './services/subscription.service.js';
 export { SeoService, type SeoSettingsInput } from './services/seo.service.js';
 export { ImageService, type CreateImageInput } from './services/image.service.js';
+export { CatalogService, type OptionInput, type AttributeInput, type PriceTierInput, type FilterInput } from './services/catalog.service.js';
 export { PartnerAuthService, type PartnerContext, type PartnerSessionResult, type PartnerLoginOutcome, type PartnerTwoFactorPending } from './services/partner-auth.service.js';
 export { PartnerService, type CreatePartnerInput, type AddClientInput, type CreateClientInput } from './services/partner.service.js';
 export {

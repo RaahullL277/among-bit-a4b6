@@ -616,6 +616,16 @@ model Product {
   // SEO overrides (fall back to store templates/title when unset).
   metaTitle       String?
   metaDescription String?
+  // --- Merchandising fields (multi-vertical catalog) ---
+  brand           String?
+  productType     String?  // e.g. "Ring", "Smartphone", "Serum", "Sensor"
+  countryOfOrigin String?
+  ingredients     String?  // cosmetics / wellness
+  warrantyMonths  Int?
+  warrantyTerms   String?
+  // B2B: minimum order quantity + quoted lead time (days).
+  moq             Int?
+  leadTimeDays    Int?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -623,9 +633,15 @@ model Product {
   variants ProductVariant[]
   reviews  Review[]
   images   ImageAsset[]
+  options     ProductOption[]
+  attributes  ProductAttribute[]
+  assets      ProductAsset[]
+  collections ProductCollection[]
 
   @@index([tenantId])
   @@index([storeId])
+  @@index([storeId, brand])
+  @@index([storeId, productType])
 }
 
 // The customisable "harness" for the listing agent and its content-writer /
@@ -669,7 +685,17 @@ model ProductVariant {
   inventory Int     @default(0)
   // Units held for not-yet-paid orders (checkout→capture). available = inventory - reserved.
   reserved  Int     @default(0)
+  // Map of option name → value, e.g. { "Size": "M", "Color": "Red" }. Resolves a
+  // variant from the storefront option selectors (see ProductOption).
   options   Json?
+  // --- Logistics / compliance (multi-vertical) ---
+  barcode     String?  // EAN/UPC/ISBN
+  weightGrams Int?
+  lengthMm    Int?
+  widthMm     Int?
+  heightMm    Int?
+  batchNumber String?
+  expiryAt    DateTime?
   // Last computed stock health, used to detect transitions for alerting.
   lastStockStatus StockStatus?
 
@@ -680,23 +706,46 @@ model ProductVariant {
   competitorPrices CompetitorPrice[]
   stockMovements   StockMovement[]
   reservations     StockReservation[]
+  images           ImageAsset[]
+  priceTiers       PriceTier[]
 
   @@index([tenantId])
   @@index([productId])
 }
 
 model Collection {
-  id        String   @id @default(cuid())
-  tenantId  String
-  storeId   String
-  title     String
-  handle    String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  tenantId    String
+  storeId     String
+  title       String
+  handle      String
+  description String?
+  imageUrl    String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store    Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products ProductCollection[]
 
   @@unique([storeId, handle])
   @@index([tenantId])
+  @@index([storeId, position])
+}
+
+// Product ↔ Collection membership (a product can be in many categories).
+model ProductCollection {
+  id           String @id @default(cuid())
+  tenantId     String
+  collectionId String
+  productId    String
+  position     Int    @default(0)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, productId])
+  @@index([productId])
+  @@index([collectionId, position])
 }
 
 model Customer {
@@ -1648,20 +1697,27 @@ model ImageAsset {
   tenantId       String
   storeId        String
   productId      String?
+  // Optional variant this image represents (e.g. the "Red" swatch photo).
+  variantId      String?
   url            String
   alt            String?
+  // Gallery ordering + the primary (card/hero) image flag.
+  position       Int      @default(0)
+  isPrimary      Boolean  @default(false)
   originalBytes  Int
   optimizedBytes Int?
   optimized      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  store   Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([storeId])
-  @@index([productId])
+  @@index([productId, position])
+  @@index([variantId])
 }
 
 // ---------------------------------------------------------------------------
@@ -2219,4 +2275,95 @@ model LegalAcceptance {
   @@index([tenantId])
   @@index([storeId, acceptedAt])
   @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// Catalog merchandising: structured options, attributes, assets, B2B pricing
+// ---------------------------------------------------------------------------
+
+// A variant axis for a product, e.g. "Size" or "Colour". Its values are the
+// choices a buyer picks; the chosen combination resolves to a ProductVariant
+// (matched against the variant's `options` map).
+model ProductOption {
+  id        String  @id @default(cuid())
+  tenantId  String
+  productId String
+  name      String
+  position  Int     @default(0)
+
+  product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  ProductOptionValue[]
+
+  @@unique([productId, name])
+  @@index([productId])
+}
+
+model ProductOptionValue {
+  id       String @id @default(cuid())
+  tenantId String
+  optionId String
+  value    String
+  position Int    @default(0)
+
+  option ProductOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, value])
+  @@index([optionId])
+}
+
+// A spec / attribute key-value (material, RAM, net weight, dosage, etc.).
+// `filterable` surfaces it as a storefront facet.
+model ProductAttribute {
+  id         String  @id @default(cuid())
+  tenantId   String
+  productId  String
+  name       String
+  value      String
+  unit       String?
+  position   Int     @default(0)
+  filterable Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+enum ProductAssetType {
+  DATASHEET
+  CERTIFICATE
+  SIZE_CHART
+  MANUAL
+  OTHER
+}
+
+// A downloadable document attached to a product (datasheet, hallmark/quality
+// certificate, size chart, user manual). Images live in ImageAsset.
+model ProductAsset {
+  id        String           @id @default(cuid())
+  tenantId  String
+  storeId   String
+  productId String
+  type      ProductAssetType @default(OTHER)
+  url       String
+  title     String?
+  position  Int              @default(0)
+  createdAt DateTime         @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// B2B quantity price-break: at/above `minQuantity` units, charge `priceMinor`/unit.
+model PriceTier {
+  id          String @id @default(cuid())
+  tenantId    String
+  variantId   String
+  minQuantity Int
+  priceMinor  Int
+
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, minQuantity])
+  @@index([variantId])
 }
