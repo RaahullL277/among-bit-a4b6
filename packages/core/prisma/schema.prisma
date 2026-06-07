@@ -101,6 +101,7 @@ enum NotificationEvent {
   SUPPORT_ESCALATED
   SUPPORT_AGENT_REPLY
   LOGIN_CODE
+  STORE_ADVISORY
 }
 
 // Lifecycle of a return / RMA.
@@ -2482,4 +2483,18 @@ model StoreBuildLead {
 
   @@index([source, status])
   @@index([email])
+}
+
+// Dedupe ledger for proactive store-advisory notifications: the last time a
+// given recommendation code was pushed to a store's owner, so the worker
+// doesn't re-send the same alert every run.
+model AdvisoryDispatch {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  code       String
+  lastSentAt DateTime @default(now())
+
+  @@unique([storeId, code])
+  @@index([tenantId])
 }

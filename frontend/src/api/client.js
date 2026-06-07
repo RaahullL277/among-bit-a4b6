@@ -132,6 +132,8 @@ export const api = {
     update: (id, body) => request(`/stores/${id}`, { method: 'PATCH', body }),
     getTaxIdentity: (id) => request(`/stores/${id}/tax-identity`),
     setTaxIdentity: (id, body) => request(`/stores/${id}/tax-identity`, { method: 'PUT', body }),
+    // Deterministic "next best actions" + health for a store.
+    advisor: (id) => request(`/stores/${id}/advisor`),
   },
   invoices: {
     list: (storeId, from, to) => request(`/invoices?${qs({ storeId, from, to })}`),

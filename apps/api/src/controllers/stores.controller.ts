@@ -31,6 +31,13 @@ export class StoresController {
     return this.commerce.stores.update(t, id, body);
   }
 
+  // --- Store Operations Advisor: deterministic "next best actions" ----------
+  @Get(':id/advisor')
+  @Permissions('stores:read')
+  advisor(@Tenant() t: TenantContext, @Param('id') id: string): Promise<unknown> {
+    return this.commerce.advisor.evaluate(t, id);
+  }
+
   // --- Seller tax identity (GSTIN, legal name, registered address; item 1) ---
   @Get(':id/tax-identity')
   @Permissions('stores:read')

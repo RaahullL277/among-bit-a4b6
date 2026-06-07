@@ -114,6 +114,15 @@ export {
 export { TemplateService } from './services/template.service.js';
 export { STORE_TEMPLATES, type StoreTemplate, type StoreCategory } from './templates/store-templates.js';
 export { LeadService, type SubmitLeadInput, type BuildAssetInput } from './services/lead.service.js';
+export {
+  AdvisorService,
+  ADVISOR_THRESHOLDS,
+  type StoreAdvisory,
+  type Recommendation,
+  type ExecutableAction,
+  type AdvisorCategory,
+  type Severity,
+} from './services/advisor.service.js';
 export { CohortService, type TrackEventInput, type Temperature } from './services/cohort.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {

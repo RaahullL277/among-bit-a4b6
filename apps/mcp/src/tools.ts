@@ -1665,6 +1665,17 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.subscriptions.setStatus(ctx, a.subscriptionId, a.status)),
   );
 
+  // --- Store Operations Advisor ---------------------------------------------
+  server.registerTool(
+    'get_store_actions',
+    {
+      description:
+        'Deterministic "what to do next" for a store: a prioritized list of recommendations (readiness, inventory, fulfillment, catalog, SEO, pricing, reviews, returns, engagement) plus a health score. Each recommendation carries an executable action (the exact tool + args) you can run to resolve it. Use this to decide which other tools to call to help the owner run their store better.',
+      inputSchema: { storeId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.advisor.evaluate(ctx, a.storeId)),
+  );
+
   // --- SEO & images ---------------------------------------------------------
   server.registerTool(
     'seo_audit',

@@ -11,8 +11,11 @@ config();
 import { getCommerce } from '@acp/core';
 
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 60_000);
+// The store advisor is a heavier full-store scan; run it on its own slow cadence.
+const ADVISORY_INTERVAL_MS = Number(process.env.ADVISORY_INTERVAL_MS ?? 6 * 60 * 60_000);
 const commerce = getCommerce();
 let running = false;
+let lastAdvisoryAt = 0;
 
 async function tick() {
   if (running) return; // avoid overlapping runs
@@ -54,6 +57,16 @@ async function tick() {
     if (engagement.ran) {
       // eslint-disable-next-line no-console
       console.log(`[worker] engagement: ran ${engagement.ran}/${engagement.scanned} stores, ${engagement.sent} messages sent`);
+    }
+    // Store advisor: push critical "next best action" alerts to owners, deduped
+    // per code per day, on a slow cadence.
+    if (Date.now() - lastAdvisoryAt >= ADVISORY_INTERVAL_MS) {
+      lastAdvisoryAt = Date.now();
+      const advisory = await commerce.advisor.runDueAdvisories();
+      if (advisory.dispatched) {
+        // eslint-disable-next-line no-console
+        console.log(`[worker] advisor: ${advisory.dispatched} critical alerts sent across ${advisory.scanned} stores`);
+      }
     }
   } catch (err) {
     // eslint-disable-next-line no-console

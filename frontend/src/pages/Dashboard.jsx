@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp, AlertTriangle, AlertCircle, Lightbulb, Activity, ArrowRight } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -21,6 +22,72 @@ const RANGES = [
   { label: 'Last 30 days', days: 30 },
   { label: 'Last 90 days', days: 90 },
 ];
+
+// Map a recommendation to the admin page where the owner resolves it.
+const ROUTE_FOR_CODE = {
+  READINESS_NO_PAYMENT: '/integrations', READINESS_NO_SHIPPING: '/integrations',
+  READINESS_NO_PRODUCTS: '/products', READINESS_NO_LEGAL: '/legal', READINESS_NO_TAX_IDENTITY: '/settings',
+  FULFILLMENT_STALE_PENDING: '/carts', ENGAGEMENT_MISSING_CONTACT: '/settings',
+};
+const ROUTE_FOR_CATEGORY = {
+  readiness: '/integrations', inventory: '/stock', fulfillment: '/orders', catalog: '/products',
+  seo: '/seo', pricing: '/pricing', reviews: '/reviews', returns: '/returns', engagement: '/marketing',
+};
+const routeFor = (r) => ROUTE_FOR_CODE[r.code] ?? ROUTE_FOR_CATEGORY[r.category] ?? '/dashboard';
+
+const SEVERITY = {
+  critical: { icon: AlertCircle, chip: 'bg-rose-50 text-rose-700', dot: 'text-rose-500', label: 'Critical' },
+  warning: { icon: AlertTriangle, chip: 'bg-amber-50 text-amber-700', dot: 'text-amber-500', label: 'Warning' },
+  opportunity: { icon: Lightbulb, chip: 'bg-indigo-50 text-indigo-700', dot: 'text-indigo-500', label: 'Opportunity' },
+};
+const GRADE_TINT = { A: 'bg-emerald-50 text-emerald-700', B: 'bg-lime-50 text-lime-700', C: 'bg-amber-50 text-amber-700', D: 'bg-rose-50 text-rose-700' };
+
+// Deterministic "store health + next best actions" panel.
+function AdvisorCard({ storeId }) {
+  const { data, loading, error } = useAsync(() => api.stores.advisor(storeId), [storeId]);
+  if (loading || error || !data) return null;
+  const { health, counts, recommendations } = data;
+  const top = recommendations.slice(0, 6);
+
+  return (
+    <Card>
+      <CardHeader title="Store health & next best actions" subtitle={health.summary} action={
+        <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${GRADE_TINT[health.grade] ?? GRADE_TINT.C}`}>{health.grade}</span>
+      } />
+      <div className="px-5 pb-2 pt-1 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+        <span className="inline-flex items-center gap-1.5"><Activity size={14} className="text-slate-400" /> Health {health.score}/100 · readiness {health.readiness}%</span>
+        {counts.critical > 0 && <span className="text-rose-600">{counts.critical} critical</span>}
+        {counts.warning > 0 && <span className="text-amber-600">{counts.warning} warning</span>}
+        {counts.opportunity > 0 && <span className="text-indigo-600">{counts.opportunity} opportunity</span>}
+      </div>
+      {top.length === 0 ? (
+        <div className="px-5 py-6 text-sm text-slate-500">Everything looks healthy — no action needed right now. 🎉</div>
+      ) : (
+        <ul className="divide-y divide-slate-50">
+          {top.map((r) => {
+            const sev = SEVERITY[r.severity] ?? SEVERITY.opportunity;
+            const Icon = sev.icon;
+            return (
+              <li key={r.code} className="flex items-start gap-3 px-5 py-3">
+                <Icon size={18} className={`mt-0.5 shrink-0 ${sev.dot}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-slate-900">{r.title}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${sev.chip}`}>{sev.label}</span>
+                  </div>
+                  <p className="mt-0.5 text-sm text-slate-500">{r.detail}</p>
+                </div>
+                <Link to={routeFor(r)} className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                  {r.action?.label ?? 'Resolve'} <ArrowRight size={12} />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
 
 function Stat({ icon: Icon, label, value, tint }) {
   return (
@@ -73,6 +140,8 @@ export default function Dashboard() {
         </div>
       </div>
       <ErrorBanner message={error} />
+
+      {storeId && <AdvisorCard storeId={storeId} />}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={IndianRupee} label="Revenue (paid)" value={formatMoney(summary?.revenueMinor)} tint="bg-amber-50 text-amber-600" />
