@@ -1,12 +1,14 @@
 import type { PageSection } from '../services/page.service.js';
 
-export type StoreCategory = 'fashion' | 'lifestyle' | 'cosmetics' | 'jewellery';
+export type StoreCategory = 'fashion' | 'lifestyle' | 'cosmetics' | 'jewellery' | 'kitchenware' | 'perfumes';
 
 export interface StoreTemplate {
   id: string;
   category: StoreCategory;
   name: string;
   description: string;
+  /** The customer segment this template is designed for (who it's for). */
+  segment?: string;
   theme: { primaryColor: string; accentColor: string };
   /** Default hero subheading used when launching from this template. */
   tagline: string;
@@ -15,11 +17,14 @@ export interface StoreTemplate {
 }
 
 // Per-template content; the section layout is composed by `build` below so the
-// 20 templates stay consistent while differing in palette, copy, and FAQ.
+// templates stay consistent while differing in palette, copy, FAQ, and the
+// customer segment each one targets.
 interface Spec {
   id: string;
   name: string;
   description: string;
+  /** The shopper segment this template is tuned for. */
+  segment?: string;
   primary: string;
   accent: string;
   heading: string;
@@ -52,6 +57,16 @@ const FAQ: Record<StoreCategory, { q: string; a: string }[]> = {
     { q: 'How do I care for my piece?', a: 'Store dry, avoid perfume contact, and clean gently with a soft cloth.' },
     { q: 'What about returns & warranty?', a: '15-day returns on unworn pieces, plus a warranty against manufacturing defects.' },
   ],
+  kitchenware: [
+    { q: 'Is the cookware induction & gas compatible?', a: 'Compatibility is listed on every product — most pieces work on gas, induction, and ceramic hobs.' },
+    { q: 'How do I clean and care for it?', a: 'Each item ships with care guidance; most are easy to hand-wash, and dishwasher-safe pieces are clearly marked.' },
+    { q: 'What about warranty and returns?', a: '15-day returns on unused items in original packaging, plus a warranty against manufacturing defects.' },
+  ],
+  perfumes: [
+    { q: 'How long does the scent last?', a: 'Longevity is noted per fragrance — eau de parfum lasts longest, while mists and colognes are lighter for daytime.' },
+    { q: 'Are the fragrances long-lasting and safe for skin?', a: 'We share notes, concentration, and ingredients on every page; spray on pulse points and avoid broken skin.' },
+    { q: 'Can I return an opened bottle?', a: 'Unopened bottles can be returned within 14 days. Try our discovery/sample sizes first to find your match.' },
+  ],
 };
 
 function build(category: StoreCategory, s: Spec): StoreTemplate {
@@ -66,6 +81,7 @@ function build(category: StoreCategory, s: Spec): StoreTemplate {
     category,
     name: s.name,
     description: s.description,
+    segment: s.segment,
     theme: { primaryColor: s.primary, accentColor: s.accent },
     tagline: s.tagline,
     sections,
@@ -104,10 +120,38 @@ const JEWELLERY: Spec[] = [
   { id: 'jewellery-diamond-noir', name: 'Diamond Noir', description: 'Noir-and-ice modern diamond jewellery.', primary: '#0A0A0A', accent: '#8FD3F4', heading: 'Brilliance, refined.', tagline: 'Modern diamond and crystal jewellery.', cta: 'Shop diamonds', storyTitle: 'Cut to shine', storyBody: 'Precision-set stones in sleek modern settings, made to catch the light.', gridTitle: 'Featured' },
 ];
 
-/** All 20 store templates — 5 each for fashion, lifestyle, cosmetics, jewellery. */
+// Kitchenware — five storefronts, each tuned to a distinct shopper segment:
+// professional cooks, budget first-home buyers, eco households, design-led
+// urbanites, and traditional Indian-cuisine families.
+const KITCHENWARE: Spec[] = [
+  { id: 'kitchenware-pro-chef', name: 'Pro Chef', segment: 'Serious home cooks & professional chefs', description: 'Charcoal-and-copper professional cookware for people who take cooking seriously.', primary: '#1C1F22', accent: '#B87333', heading: 'Cook like a pro.', tagline: 'Restaurant-grade cookware and knives, built to perform.', cta: 'Shop professional', storyTitle: 'Tools that earn their place', storyBody: 'Heavy-gauge pans, full-tang knives, and precision tools chosen by people who cook every day — made to take the heat for years.', gridTitle: 'The pro range' },
+  { id: 'kitchenware-first-kitchen', name: 'First Kitchen', segment: 'Students, newlyweds & first-home buyers on a budget', description: 'Bright, friendly starter kitchen at value prices.', primary: '#263238', accent: '#FFB703', heading: 'Everything to get started.', tagline: 'Affordable essentials to set up your very first kitchen.', cta: 'Shop starter sets', storyTitle: 'Your kitchen, sorted', storyBody: 'Wallet-friendly bundles with everything a new home needs — pots, pans, and tools that just work, without the markup.', gridTitle: 'Starter essentials' },
+  { id: 'kitchenware-eco-conscious', name: 'Conscious Kitchen', segment: 'Eco-conscious, plastic-free households', description: 'Earthy, sustainable kitchenware in bamboo and natural materials.', primary: '#33402E', accent: '#94A684', heading: 'Kinder to your kitchen.', tagline: 'Plastic-free, responsibly made essentials for a greener home.', cta: 'Shop sustainable', storyTitle: 'Made to last, made to care', storyBody: 'Bamboo, stainless steel, and natural fibres — durable goods that cut the plastic and the waste without the compromise.', gridTitle: 'Sustainable picks' },
+  { id: 'kitchenware-modern-minimal', name: 'Modern Table', segment: 'Design-led urban millennials', description: 'Sleek matte-black minimalism for the design-conscious home.', primary: '#1A1A1A', accent: '#C9C2B6', heading: 'Designed for the modern table.', tagline: 'Minimal, considered pieces that look as good as they cook.', cta: 'Shop the collection', storyTitle: 'Form meets function', storyBody: 'Matte finishes, clean lines, and a calm palette — cookware and tableware curated for a kitchen you want to show off.', gridTitle: 'New & considered' },
+  { id: 'kitchenware-heritage-indian', name: 'Heritage Rasoi', segment: 'Traditional Indian families & regional-cuisine cooks', description: 'Warm brass, copper, and cast-iron cookware rooted in Indian tradition.', primary: '#4A2C1A', accent: '#C8772E', heading: 'The taste of tradition.', tagline: 'Brass, copper, and cast iron for authentic Indian cooking.', cta: 'Shop heritage', storyTitle: 'The way it was always made', storyBody: 'Hand-finished kadhais, tawas, and serveware in time-honoured metals — the cookware your dishes were meant for.', gridTitle: 'Heritage cookware' },
+];
+
+// Perfumes — five storefronts, each tuned to a distinct shopper segment:
+// niche-luxury connoisseurs, budget-conscious Gen-Z, natural/attar buyers,
+// gender-neutral minimalists, and occasion/gift shoppers.
+const PERFUMES: Spec[] = [
+  { id: 'perfumes-luxury-niche', name: 'Maison Noir', segment: 'Luxury & niche-fragrance connoisseurs', description: 'Opulent black-and-gold house for niche and designer fragrances.', primary: '#0C0C0C', accent: '#C5A253', heading: 'An olfactory signature.', tagline: 'Rare, long-lasting parfums for the true connoisseur.', cta: 'Discover the maison', storyTitle: 'Composed, not manufactured', storyBody: 'A tightly curated house of niche and designer parfums — rich concentrations, rare materials, and scents worth collecting.', gridTitle: 'The collection' },
+  { id: 'perfumes-everyday-genz', name: 'Daily Mist', segment: 'Gen-Z & students — affordable everyday scents', description: 'Bright, playful body mists and everyday fragrances at friendly prices.', primary: '#2D2A40', accent: '#FF6B9D', heading: 'A scent for every day.', tagline: 'Fun, affordable mists and sprays to match your mood.', cta: 'Shop the mists', storyTitle: 'Smell good, spend less', storyBody: 'Light, layerable body mists and everyday scents in playful notes — easy to love, easy on the wallet.', gridTitle: 'Everyday favourites' },
+  { id: 'perfumes-natural-attar', name: 'Pure Attar', segment: 'Clean-beauty & traditional attar / ittar buyers', description: 'Amber-and-sandalwood house for alcohol-free, oil-based attars.', primary: '#3B2A1A', accent: '#C99659', heading: 'Pure, alcohol-free attars.', tagline: 'Traditional oil-based ittars, crafted from natural materials.', cta: 'Shop attars', storyTitle: 'The original perfume', storyBody: 'Alcohol-free, skin-kind attars distilled the traditional way — oud, rose, musk, and sandalwood that bloom with your skin.', gridTitle: 'Signature attars' },
+  { id: 'perfumes-unisex-modern', name: 'Neutral', segment: 'Modern, gender-neutral minimalists', description: 'Calm, gender-neutral minimalism for contemporary fragrance.', primary: '#2B2E2C', accent: '#A6B0A2', heading: 'Fragrance without labels.', tagline: 'Clean, unisex scents for everyone.', cta: 'Shop unisex', storyTitle: 'Scent, simplified', storyBody: 'Modern, gender-neutral compositions in a quiet minimalist palette — wearable, versatile, and made for anyone.', gridTitle: 'Unisex edit' },
+  { id: 'perfumes-gifting-occasion', name: 'The Gift Edit', segment: 'Gift shoppers & festive / occasion buyers', description: 'Blush-and-rose-gold house built around gift sets and occasions.', primary: '#3A2A2E', accent: '#D8A7B1', heading: 'The art of gifting scent.', tagline: 'Beautifully boxed fragrance sets for every occasion.', cta: 'Shop gift sets', storyTitle: 'Wrapped and ready', storyBody: 'Elegant gift sets, festive editions, and ready-to-give boxes — make every birthday, wedding, and Diwali unforgettable.', gridTitle: 'Gift sets & editions' },
+];
+
+/**
+ * All 30 store templates — 5 each for fashion, lifestyle, cosmetics, jewellery,
+ * kitchenware, and perfumes. Within kitchenware and perfumes, the five share a
+ * vertical but each targets a distinct customer segment (see `segment`).
+ */
 export const STORE_TEMPLATES: StoreTemplate[] = [
   ...FASHION.map((s) => build('fashion', s)),
   ...LIFESTYLE.map((s) => build('lifestyle', s)),
   ...COSMETICS.map((s) => build('cosmetics', s)),
   ...JEWELLERY.map((s) => build('jewellery', s)),
+  ...KITCHENWARE.map((s) => build('kitchenware', s)),
+  ...PERFUMES.map((s) => build('perfumes', s)),
 ];

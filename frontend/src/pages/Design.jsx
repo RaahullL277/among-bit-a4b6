@@ -300,7 +300,7 @@ function ThemeCard({ storeId }) {
   );
 }
 
-const TEMPLATE_CATEGORIES = ['', 'fashion', 'lifestyle', 'cosmetics', 'jewellery'];
+const TEMPLATE_CATEGORIES = ['', 'fashion', 'lifestyle', 'cosmetics', 'jewellery', 'kitchenware', 'perfumes'];
 
 // Ready-made store designs (theme + storefront layout) by vertical.
 function TemplatesCard({ storeId, onApplied }) {
@@ -343,6 +343,7 @@ function TemplatesCard({ storeId, onApplied }) {
                 <span className="text-sm font-medium text-slate-900">{t.name}</span>
                 <Badge>{t.category}</Badge>
               </div>
+              {t.segment && <p className="mt-1 text-[11px] font-medium text-slate-400">For: {t.segment}</p>}
               <p className="mt-0.5 flex-1 text-xs text-slate-500">{t.description}</p>
               <Button variant="secondary" className="mt-2" loading={applying === t.id} onClick={() => apply(t)}>
                 Apply template

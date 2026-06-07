@@ -30,7 +30,7 @@ export interface LaunchStoreInput {
   brandColor?: string;
   accentColor?: string;
   products?: LaunchProductInput[];
-  /** Start from a design template (fashion/lifestyle/cosmetics/jewellery). */
+  /** Start from a design template (fashion/lifestyle/cosmetics/jewellery/kitchenware/perfumes). */
   templateId?: string;
   /** Publish the storefront immediately (default true). */
   publish?: boolean;

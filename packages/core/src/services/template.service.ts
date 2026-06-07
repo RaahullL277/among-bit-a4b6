@@ -5,9 +5,10 @@ import { STORE_TEMPLATES, type StoreCategory, type StoreTemplate } from '../temp
 
 /**
  * Store design templates: ready-made theme + storefront home-page layouts,
- * tailored per vertical (fashion / lifestyle / cosmetics / jewellery). Applying
- * a template sets the store theme and publishes a `home` page from the
- * template's sections — the merchant's own products fill the product grid.
+ * tailored per vertical (fashion / lifestyle / cosmetics / jewellery /
+ * kitchenware / perfumes — the last two segmented by shopper type). Applying a
+ * template sets the store theme and publishes a `home` page from the template's
+ * sections — the merchant's own products fill the product grid.
  */
 export class TemplateService {
   constructor(

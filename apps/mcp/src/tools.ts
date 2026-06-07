@@ -104,8 +104,8 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'list_store_templates',
     {
-      description: 'List ready-made store design templates (theme + storefront layout). Optionally filter by category: fashion, lifestyle, cosmetics, jewellery.',
-      inputSchema: { category: z.enum(['fashion', 'lifestyle', 'cosmetics', 'jewellery']).optional() },
+      description: 'List ready-made store design templates (theme + storefront layout, with the customer segment each targets). Optionally filter by category: fashion, lifestyle, cosmetics, jewellery, kitchenware, perfumes.',
+      inputSchema: { category: z.enum(['fashion', 'lifestyle', 'cosmetics', 'jewellery', 'kitchenware', 'perfumes']).optional() },
     },
     async (a: any) => ok(commerce.templates.list(a?.category)),
   );

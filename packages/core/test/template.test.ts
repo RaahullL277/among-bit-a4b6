@@ -6,21 +6,32 @@ import { STORE_TEMPLATES } from '../src/templates/store-templates.js';
 import { NotFoundError, type TenantContext } from '../src/context.js';
 
 const hasDb = Boolean(process.env.DATABASE_URL);
-const CATEGORIES = ['fashion', 'lifestyle', 'cosmetics', 'jewellery'] as const;
+const CATEGORIES = ['fashion', 'lifestyle', 'cosmetics', 'jewellery', 'kitchenware', 'perfumes'] as const;
 
 describe('store templates (catalog)', () => {
-  it('ships 5 templates for each of the four categories (20 total)', () => {
-    expect(STORE_TEMPLATES).toHaveLength(20);
+  it('ships 5 templates for each of the six categories (30 total)', () => {
+    expect(STORE_TEMPLATES).toHaveLength(30);
     for (const cat of CATEGORIES) {
       expect(STORE_TEMPLATES.filter((t) => t.category === cat)).toHaveLength(5);
     }
     // Every template has a distinct id, a theme, and home-page sections.
     const ids = new Set(STORE_TEMPLATES.map((t) => t.id));
-    expect(ids.size).toBe(20);
+    expect(ids.size).toBe(30);
     for (const t of STORE_TEMPLATES) {
       expect(t.theme.primaryColor).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(t.theme.accentColor).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(t.sections.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('kitchenware and perfumes each target five distinct customer segments', () => {
+    for (const cat of ['kitchenware', 'perfumes'] as const) {
+      const items = STORE_TEMPLATES.filter((t) => t.category === cat);
+      expect(items).toHaveLength(5);
+      // Each template names the shopper segment it's built for, and they're distinct.
+      const segments = items.map((t) => t.segment);
+      expect(segments.every((s) => typeof s === 'string' && s!.length > 0)).toBe(true);
+      expect(new Set(segments).size).toBe(5);
     }
   });
 });
@@ -46,7 +57,7 @@ describe.skipIf(!hasDb)('template service (apply)', () => {
   });
 
   it('lists templates and filters by category', () => {
-    expect(commerce.templates.list()).toHaveLength(20);
+    expect(commerce.templates.list()).toHaveLength(30);
     const jewellery = commerce.templates.list('jewellery');
     expect(jewellery).toHaveLength(5);
     expect(jewellery.every((t) => t.category === 'jewellery')).toBe(true);
