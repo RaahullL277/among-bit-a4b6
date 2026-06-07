@@ -580,6 +580,7 @@ model Store {
   legalPolicies       LegalPolicy[]
   legalAcceptances    LegalAcceptance[]
   importJobs          ImportJob[]
+  discounts           Discount[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -2376,4 +2377,28 @@ model PriceTier {
 
   @@unique([variantId, minQuantity])
   @@index([variantId])
+}
+
+// A storefront coupon/discount code (percent or fixed off), with optional
+// minimum spend, redemption cap, and validity window. Applied at checkout.
+model Discount {
+  id             String       @id @default(cuid())
+  tenantId       String
+  storeId        String
+  code           String       // stored uppercased; case-insensitive at apply
+  type           DiscountType @default(PERCENT)
+  value          Int          // PERCENT: 0..100 · FIXED: minor units off
+  minSpendMinor  Int          @default(0)
+  maxRedemptions Int?         // null = unlimited
+  redeemedCount  Int          @default(0)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, code])
+  @@index([tenantId])
 }

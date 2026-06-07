@@ -56,6 +56,7 @@ export const api = {
   removeItem: (cid, variantId) => req(`/storefront/carts/${cid}/items/${variantId}`, { method: 'DELETE' }),
   checkout: (cid, body) => req(`/storefront/carts/${cid}/checkout`, { method: 'POST', body }),
   checkoutQuote: (cid) => req(`/storefront/carts/${cid}/quote`),
+  validateDiscount: (cid, code) => req(`/storefront/carts/${cid}/discount?code=${encodeURIComponent(code)}`),
   supportConfig: (id) => req(`/storefront/${id}/support/config`),
   supportChat: (id, body) => req(`/storefront/${id}/support/chat`, { method: 'POST', body }),
   productReviews: (id, pid) => req(`/storefront/${id}/products/${pid}/reviews`),

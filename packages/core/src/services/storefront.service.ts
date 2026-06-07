@@ -28,6 +28,7 @@ export class StorefrontService {
     private readonly invoices?: InvoiceService,
     private readonly legal?: LegalService,
     private readonly catalog?: import('./catalog.service.js').CatalogService,
+    private readonly discounts?: import('./discount.service.js').DiscountService,
   ) {}
 
   /** Attach the primary image url to each product card (by product id). */
@@ -291,7 +292,7 @@ export class StorefrontService {
    */
   async checkout(
     cartId: string,
-    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string } = {},
+    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string } = {},
   ) {
     const { ctx, storeId } = await this.ctxForCart(cartId);
     const settings = await this.checkoutSettings?.resolve(storeId);
@@ -302,6 +303,14 @@ export class StorefrontService {
       }
     }
     return this.carts.checkoutCart(ctx, cartId, opts);
+  }
+
+  /** Validate a coupon code against a cart's subtotal (preview the discount). */
+  async validateDiscount(cartId: string, code: string) {
+    const { ctx, storeId } = await this.ctxForCart(cartId);
+    const cart = await this.carts.getCart(ctx, cartId);
+    const subtotalMinor = (cart.items ?? []).reduce((s: number, i: any) => s + i.unitPriceMinor * i.quantity, 0);
+    return (await this.discounts?.validate(storeId, code, subtotalMinor)) ?? { valid: false, discountMinor: 0, reason: 'unavailable' };
   }
 
   /** Public price breakdown for a cart (subtotal, discount, tax, shipping, total). */

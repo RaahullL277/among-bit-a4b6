@@ -523,6 +523,38 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.catalog.setPriceTiers(ctx, a.variantId, a.tiers)),
   );
 
+  // --- Discount / coupon codes ----------------------------------------------
+  server.registerTool(
+    'create_discount',
+    {
+      description: 'Create a storefront coupon code: percent or fixed off, with optional minimum spend, redemption cap, and validity window. Shoppers enter it at checkout.',
+      inputSchema: {
+        storeId: z.string(),
+        code: z.string().describe('e.g. WELCOME10'),
+        type: z.enum(['PERCENT', 'FIXED']).optional(),
+        value: z.number().int().positive().describe('PERCENT: 1–100 · FIXED: minor units off'),
+        minSpendMinor: z.number().int().nonnegative().optional(),
+        maxRedemptions: z.number().int().positive().nullable().optional(),
+        startsAt: z.string().optional(),
+        expiresAt: z.string().optional(),
+        active: z.boolean().optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.discounts.create(ctx, a)),
+  );
+
+  server.registerTool(
+    'list_discounts',
+    { description: 'List a store\'s discount codes with usage counts.', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.discounts.list(ctx, a.storeId)),
+  );
+
+  server.registerTool(
+    'set_discount_active',
+    { description: 'Enable or disable a discount code.', inputSchema: { id: z.string(), active: z.boolean() } },
+    tool((ctx, a: any) => commerce.discounts.setActive(ctx, a.id, a.active)),
+  );
+
   // --- Customers ------------------------------------------------------------
   server.registerTool(
     'create_customer',

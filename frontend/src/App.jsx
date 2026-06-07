@@ -26,6 +26,7 @@ import Notifications from './pages/Notifications';
 import Support from './pages/Support';
 import Reviews from './pages/Reviews';
 import Bundles from './pages/Bundles';
+import Discounts from './pages/Discounts';
 import Loyalty from './pages/Loyalty';
 import Subscriptions from './pages/Subscriptions';
 import Design from './pages/Design';
@@ -67,6 +68,7 @@ function AuthedApp() {
           <Route path="/support" element={<Support />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/bundles" element={<Bundles />} />
+          <Route path="/discounts" element={<Discounts />} />
           <Route path="/loyalty" element={<Loyalty />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/design" element={<Design />} />

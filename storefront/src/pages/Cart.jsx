@@ -18,6 +18,9 @@ export default function Cart() {
   const [address, setAddress] = useState(() => JSON.parse(localStorage.getItem('shopper.address') || 'null') || emptyAddress);
   const [policies, setPolicies] = useState([]);
   const [marketingOptIn, setMarketingOptIn] = useState(false); // optional, off by default
+  const [code, setCode] = useState('');
+  const [discount, setDiscount] = useState(null);
+  const [codeMsg, setCodeMsg] = useState('');
 
   useEffect(() => {
     if (cartId) api.checkoutQuote(cartId).then(setQuote).catch(() => setQuote(null));
@@ -49,6 +52,17 @@ export default function Cart() {
     }
   }
 
+  async function applyCode() {
+    setCodeMsg('');
+    const c = code.trim();
+    if (!c) return;
+    try {
+      const r = await api.validateDiscount(cartId, c);
+      if (r.valid) { setDiscount(r); setCodeMsg(''); }
+      else { setDiscount(null); setCodeMsg('That code can’t be applied.'); }
+    } catch { setDiscount(null); setCodeMsg('Could not check that code.'); }
+  }
+
   async function checkout() {
     setLoading(true);
     setError('');
@@ -56,9 +70,9 @@ export default function Cart() {
       const redeemPoints = redeem && rewards?.pointsBalance >= (rewards?.minRedeemPoints ?? 0) ? rewards.pointsBalance : undefined;
       const hasAddress = address.line1 || address.pincode;
       if (hasAddress) localStorage.setItem('shopper.address', JSON.stringify(address));
-      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined });
+      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined, discountCode: discount ? code.trim() : undefined });
       clear();
-      navigate('/confirmation', { state: res });
+      navigate('/confirmation', { state: { ...res, email } });
     } catch (e) {
       setError(e.message);
       setLoading(false);
@@ -87,13 +101,21 @@ export default function Cart() {
         ))}
         <div className="space-y-1 px-5 py-4 text-sm">
           <Row label="Subtotal" value={money(quote?.subtotalMinor ?? total)} />
+          {discount && <Row label={`Discount (${code.trim().toUpperCase()})`} value={`-${money(discount.discountMinor)}`} muted />}
           {quote?.shippingMinor > 0 && <Row label="Shipping" value={money(quote.shippingMinor)} />}
           {quote?.shippingMinor === 0 && quote?.subtotalMinor != null && <Row label="Shipping" value="Free" muted />}
           {quote?.taxMinor > 0 && <Row label={`${quote.taxLabel}${quote.pricesIncludeTax ? ' (incl.)' : ''}`} value={money(quote.taxMinor)} muted={quote.pricesIncludeTax} />}
           <div className="flex items-center justify-between border-t border-stone-100 pt-2">
             <span className="font-semibold text-stone-900">Total</span>
-            <span className="text-lg font-semibold text-stone-900">{money(quote?.totalMinor ?? total)}</span>
+            <span className="text-lg font-semibold text-stone-900">{money(Math.max(0, (quote?.totalMinor ?? total) - (discount?.discountMinor ?? 0)))}</span>
           </div>
+          {/* Coupon code */}
+          <div className="flex gap-2 pt-2">
+            <input value={code} onChange={(e) => { setCode(e.target.value); setDiscount(null); }} placeholder="Discount code" className="flex-1 rounded-lg border border-stone-300 px-3 py-1.5 text-sm" />
+            <button type="button" onClick={applyCode} disabled={!code.trim()} className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium hover:bg-stone-50 disabled:opacity-50">Apply</button>
+          </div>
+          {discount && <p className="text-xs text-emerald-600">Code applied — you save {money(discount.discountMinor)}.</p>}
+          {codeMsg && <p className="text-xs text-rose-500">{codeMsg}</p>}
         </div>
       </div>
 

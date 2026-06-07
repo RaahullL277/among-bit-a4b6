@@ -165,6 +165,12 @@ export const api = {
     updateVariant: (variantId, body) => request(`/products/variants/${variantId}`, { method: 'PATCH', body }),
     addVariant: (id, body) => request(`/products/${id}/variants`, { method: 'POST', body }),
   },
+  discounts: {
+    list: (storeId) => request(`/discounts?${qs({ storeId })}`),
+    create: (body) => request('/discounts', { method: 'POST', body }),
+    setActive: (id, active) => request(`/discounts/${id}/active`, { method: 'POST', body: { active } }),
+    remove: (id) => request(`/discounts/${id}`, { method: 'DELETE' }),
+  },
   catalog: {
     collections: (storeId) => request(`/catalog/collections?${qs({ storeId })}`),
     createCollection: (body) => request('/catalog/collections', { method: 'POST', body }),

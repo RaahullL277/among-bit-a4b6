@@ -139,6 +139,11 @@ export class StorefrontController {
     return this.commerce.storefront.checkoutQuote(cartId);
   }
 
+  @Get('carts/:cartId/discount')
+  validateDiscount(@Param('cartId') cartId: string, @Query('code') code: string): Promise<unknown> {
+    return this.commerce.storefront.validateDiscount(cartId, code ?? '');
+  }
+
   @Post('carts/:cartId/checkout')
   checkout(@Param('cartId') cartId: string, @Body() body: any) {
     return this.commerce.storefront.checkout(cartId, body ?? {});

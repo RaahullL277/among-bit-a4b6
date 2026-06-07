@@ -4,6 +4,7 @@ import type { PaymentService } from './payment.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { OfferService } from './offer.service.js';
 import type { LoyaltyService } from './loyalty.service.js';
+import type { DiscountService } from './discount.service.js';
 
 const cartInclude = { items: true } as const;
 
@@ -33,6 +34,7 @@ export class CartService {
     private readonly notifications: NotificationService,
     private readonly offers?: OfferService,
     private readonly loyalty?: LoyaltyService,
+    private readonly discounts?: DiscountService,
   ) {}
 
   /** Find a store customer by email, creating one if needed (for loyalty). */
@@ -164,7 +166,7 @@ export class CartService {
   async checkoutCart(
     ctx: TenantContext,
     cartId: string,
-    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string } = {},
+    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string } = {},
   ) {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
@@ -176,9 +178,18 @@ export class CartService {
     let customerId = cart.customerId ?? undefined;
     if (!customerId && opts.email) customerId = await this.resolveCustomer(ctx, cart.storeId, opts.email);
 
-    // Auto-apply any bundle saving the cart qualifies for (no coupon codes).
+    // Auto-apply any bundle saving the cart qualifies for.
     const offer = this.offers ? await this.offers.computeCartDiscount(ctx, cart.storeId, items) : undefined;
     let discountMinor = offer?.discountMinor ?? 0;
+
+    // Apply a coupon/discount code (validated against the subtotal).
+    let appliedCode: string | undefined;
+    if (opts.discountCode && this.discounts) {
+      const v = await this.discounts.validate(cart.storeId, opts.discountCode, subtotalMinor);
+      if (!v.valid) throw new ValidationError('That discount code can\'t be applied to this order.');
+      discountMinor += v.discountMinor;
+      appliedCode = v.code;
+    }
 
     // Redeem loyalty points for a discount, capped at the remaining order value.
     if (opts.redeemPoints && customerId && this.loyalty) {
@@ -200,6 +211,7 @@ export class CartService {
     });
 
     await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });
+    if (appliedCode) await this.discounts?.redeem(cart.storeId, appliedCode);
     // The cart is intentionally NOT marked CONVERTED/RECOVERED here: the order is
     // only PENDING. If the shopper abandons the hosted checkout before paying, the
     // cart must stay ACTIVE/ABANDONED so recovery can still reach them. The cart is

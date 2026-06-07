@@ -13,6 +13,7 @@ import { HealthController } from './controllers/health.controller.js';
 import { StoresController } from './controllers/stores.controller.js';
 import { ProductsController } from './controllers/products.controller.js';
 import { CatalogController } from './controllers/catalog.controller.js';
+import { DiscountsController } from './controllers/discounts.controller.js';
 import { CustomersController } from './controllers/customers.controller.js';
 import { OrdersController } from './controllers/orders.controller.js';
 import { PaymentsController } from './controllers/payments.controller.js';
@@ -58,6 +59,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     StoresController,
     ProductsController,
     CatalogController,
+    DiscountsController,
     CustomersController,
     OrdersController,
     PaymentsController,
