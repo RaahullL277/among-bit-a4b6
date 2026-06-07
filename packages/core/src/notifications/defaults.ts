@@ -117,6 +117,13 @@ export const DEFAULT_TEMPLATES: Record<NotificationEvent, ChannelTemplates> = {
     },
     WHATSAPP: { body: '🆘 A {{storeName}} support chat was escalated{{reasonSuffix}}. Check your support inbox.' },
   },
+  SUPPORT_AGENT_REPLY: {
+    EMAIL: {
+      subject: 'A reply from {{storeName}} support',
+      body: 'Hi{{customerName}},\n\nOur team replied to your support chat:\n\n"{{reply}}"\n\nReply to this email or reopen the chat to continue.',
+    },
+    WHATSAPP: { body: '{{storeName}} support replied: "{{reply}}"' },
+  },
 };
 
 type RecipientChannels = Partial<Record<RecipientType, NotificationChannel[]>>;
@@ -138,6 +145,7 @@ export const DEFAULT_PREFERENCES: Record<NotificationEvent, RecipientChannels> =
   RETURN_REJECTED: { CUSTOMER: ['EMAIL'] },
   RETURN_REFUNDED: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
   SUPPORT_ESCALATED: { STORE_OWNER: ['EMAIL'] },
+  SUPPORT_AGENT_REPLY: { CUSTOMER: ['EMAIL', 'WHATSAPP'] },
 };
 
 /** Replace {{key}} tokens from `data`; unknown tokens become empty strings. */

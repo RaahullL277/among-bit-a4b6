@@ -127,7 +127,8 @@ export class Commerce {
     this.orders = new OrderService(prisma, this.notifications, this.stock);
     this.loyalty = new LoyaltyService(prisma);
     this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices, this.legal);
-    this.messaging = new MessagingService(prisma, this.integrations);
+    this.customerSupport = new CustomerSupportService(prisma, this.notifications, this.catalog);
+    this.messaging = new MessagingService(prisma, this.integrations, this.customerSupport);
     this.offers = new OfferService(prisma);
     this.carts = new CartService(prisma, this.payments, this.notifications, this.offers, this.loyalty);
     this.subscriptions = new SubscriptionService(prisma, this.payments);
@@ -138,7 +139,6 @@ export class Commerce {
     this.platform = new PlatformService(prisma);
     this.platformAnalytics = new PlatformAnalyticsService(prisma);
     this.supportAssistant = new SupportAssistantService(this.platform, this.platformAnalytics);
-    this.customerSupport = new CustomerSupportService(prisma, this.notifications);
     this.reviews = new ReviewService(prisma);
     this.pages = new PageService(prisma);
     this.returns = new ReturnService(prisma, this.payments, this.notifications, this.stock, this.invoices);

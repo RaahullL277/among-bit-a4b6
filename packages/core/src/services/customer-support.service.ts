@@ -3,10 +3,13 @@ import { NotFoundError, ValidationError, type TenantContext } from '../context.j
 import { getAssistant } from '../assistant/registry.js';
 import type { AssistantReply, ChatMessage, ToolSpec } from '../assistant/types.js';
 import type { NotificationService } from './notification.service.js';
+import type { CatalogService } from './catalog.service.js';
 
 const DEFAULT_CONFIG = { enabled: true, displayName: 'Assistant', greeting: null as string | null, persona: null as string | null };
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 const ORDER_RE = /#?\s*(\d{1,9})\b/;
+const MAX_MESSAGE_LEN = 2000; // cap public input to bound LLM/DB cost
+const HISTORY_LIMIT = 20;     // last N turns sent to the model
 
 function money(minor: number | undefined, currency = 'INR'): string {
   const n = minor ?? 0;
@@ -28,6 +31,7 @@ export class CustomerSupportService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly notifications?: NotificationService,
+    private readonly catalog?: CatalogService,
   ) {}
 
   private async getStore(ctx: TenantContext, storeId: string) {
@@ -41,7 +45,9 @@ export class CustomerSupportService {
   async getConfig(ctx: TenantContext, storeId: string) {
     await this.getStore(ctx, storeId);
     const row = await this.prisma.supportBotConfig.findUnique({ where: { storeId } });
-    return row ?? { storeId, ...DEFAULT_CONFIG, isDefault: true };
+    // llmActive: true = Claude (real reasoning); false = deterministic keyword stub.
+    const llmActive = Boolean(process.env.ANTHROPIC_API_KEY);
+    return { ...(row ?? { storeId, ...DEFAULT_CONFIG, isDefault: true }), llmActive };
   }
 
   async setConfig(
@@ -83,8 +89,14 @@ export class CustomerSupportService {
       throw new ValidationError('The assistant is currently unavailable for this store.');
     }
     if (!input.message?.trim()) throw new ValidationError('A message is required.');
+    const message = input.message.trim().slice(0, MAX_MESSAGE_LEN); // cap input
+    input = { ...input, message };
 
     const ctx: TenantContext = { tenantId: store.tenantId };
+    // UI artifacts the tools surface to the widget: rich product cards + actions.
+    const products: any[] = [];
+    const actions: any[] = [];
+    const pushProduct = (p: any) => { if (p && !products.some((x) => x.id === p.id)) products.push(p); };
 
     // Load or create the conversation.
     let conversation = input.conversationId
@@ -112,22 +124,81 @@ export class CustomerSupportService {
     // Build store-scoped, customer-safe tools.
     let escalated: { reason?: string; email?: string } | null = null;
 
+    const cardFor = (p: any) => ({
+      id: p.id,
+      title: p.title,
+      brand: p.brand ?? undefined,
+      priceMinor: p.variants?.[0]?.priceMinor ?? null,
+      currency: p.variants?.[0]?.currency ?? store.currency,
+      imageUrl: p.images?.[0]?.url ?? null,
+    });
+
     const searchProducts = async (query?: string) => {
-      const products = await this.prisma.product.findMany({
+      const all = await this.prisma.product.findMany({
         where: { tenantId: ctx.tenantId, storeId: store.id, status: 'ACTIVE' },
-        include: { variants: true },
+        include: { variants: { orderBy: { priceMinor: 'asc' } }, images: { where: { isPrimary: true }, take: 1 } },
         take: 50,
       });
       const q = query?.toLowerCase().trim();
       const matched = q
-        ? products.filter((p) => `${p.title} ${p.description ?? ''}`.toLowerCase().includes(q))
-        : products;
-      return (matched.length ? matched : products).slice(0, 5).map((p) => ({
-        id: p.id,
-        title: p.title,
-        description: p.description ?? undefined,
-        price: money(p.variants[0]?.priceMinor, p.variants[0]?.currency),
-      }));
+        ? all.filter((p) => `${p.title} ${p.description ?? ''} ${p.brand ?? ''}`.toLowerCase().includes(q))
+        : all;
+      const top = (matched.length ? matched : all).slice(0, 6);
+      top.forEach((p) => pushProduct(cardFor(p)));
+      return top.map((p) => ({ id: p.id, title: p.title, brand: p.brand ?? undefined, description: p.description ?? undefined, price: money(p.variants[0]?.priceMinor, p.variants[0]?.currency) }));
+    };
+
+    // Full product detail (variants, options, stock, images, key specs).
+    const getProduct = async (args: { productId?: string }) => {
+      if (!args.productId) return { error: 'product_id_required' };
+      const p = await this.prisma.product.findFirst({
+        where: { id: args.productId, storeId: store.id, status: 'ACTIVE' },
+        include: { variants: { orderBy: { priceMinor: 'asc' } }, images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], take: 1 }, attributes: { orderBy: { position: 'asc' }, take: 8 }, options: { include: { values: true } } },
+      });
+      if (!p) return { error: 'product_not_found' };
+      pushProduct(cardFor(p));
+      return {
+        id: p.id, title: p.title, brand: p.brand ?? undefined, description: p.description ?? undefined,
+        warrantyMonths: p.warrantyMonths ?? undefined,
+        options: p.options.map((o) => ({ name: o.name, values: o.values.map((v) => v.value) })),
+        variants: p.variants.map((v) => ({ id: v.id, title: v.title, price: money(v.priceMinor, v.currency), inStock: (v.inventory - v.reserved) > 0, options: v.options ?? undefined })),
+        specs: p.attributes.map((a) => `${a.name}: ${a.value}${a.unit ? ` ${a.unit}` : ''}`),
+      };
+    };
+
+    // Browse by category / brand / price.
+    const browseCatalog = async (args: { collection?: string; brand?: string; maxPriceMinor?: number; minPriceMinor?: number }) => {
+      const cards = (await this.catalog?.filter(store.id, { collection: args.collection, brand: args.brand, maxPriceMinor: args.maxPriceMinor, minPriceMinor: args.minPriceMinor, limit: 6 })) ?? [];
+      cards.forEach((c: any) => pushProduct(c));
+      return cards.map((c: any) => ({ id: c.id, title: c.title, brand: c.brand, price: money(c.priceMinor, c.currency) }));
+    };
+
+    // Add a variant to the shopper's cart (executed client-side by the widget).
+    const addToCart = async (args: { variantId?: string; quantity?: number }) => {
+      if (!args.variantId) return { error: 'variant_id_required' };
+      const v = await this.prisma.productVariant.findFirst({
+        where: { id: args.variantId, tenantId: ctx.tenantId, product: { storeId: store.id, status: 'ACTIVE' } },
+        include: { product: { select: { title: true } } },
+      });
+      if (!v) return { error: 'variant_not_found' };
+      if ((v.inventory - v.reserved) <= 0) return { error: 'out_of_stock' };
+      const quantity = Math.max(1, Math.min(99, Math.round(args.quantity ?? 1)));
+      actions.push({ type: 'add_to_cart', variantId: v.id, quantity, title: v.product.title, priceMinor: v.priceMinor });
+      return { added: true, title: v.product.title, quantity, price: money(v.priceMinor, v.currency) };
+    };
+
+    // Store policies (returns, shipping, published legal docs).
+    const getPolicies = async () => {
+      const [rp, cs, legal] = await Promise.all([
+        this.prisma.returnPolicy.findUnique({ where: { storeId: store.id } }),
+        this.prisma.checkoutSettings.findUnique({ where: { storeId: store.id } }),
+        this.prisma.legalPolicy.findMany({ where: { storeId: store.id, status: 'PUBLISHED' }, select: { type: true, title: true } }),
+      ]);
+      return {
+        returns: rp ? { enabled: rp.enabled, windowDays: rp.returnWindowDays, restockingFeePercent: rp.restockingFeePercent, cancelWindowHours: rp.cancelWindowHours } : { windowDays: 30, enabled: true },
+        shipping: cs ? { flatShipping: money(cs.flatShippingMinor, store.currency), freeShippingOver: cs.freeShippingOverMinor ? money(cs.freeShippingOverMinor, store.currency) : null } : null,
+        legalDocuments: legal.map((l) => l.title),
+      };
     };
 
     const getOrderStatus = async (args: { orderNumber?: number; email?: string; phone?: string }) => {
@@ -162,9 +233,33 @@ export class CustomerSupportService {
     const tools: ToolSpec[] = [
       {
         name: 'search_products',
-        description: 'Search the active catalog by keyword (or list products if no query). Returns titles and prices.',
+        description: 'Search the active catalog by keyword (or list products if no query). Returns titles, brands and prices. The product cards are shown to the shopper.',
         inputSchema: { type: 'object', properties: { query: { type: 'string' } }, additionalProperties: false },
         run: (i: any) => searchProducts(i?.query),
+      },
+      {
+        name: 'get_product',
+        description: 'Get full detail for one product (variants, options, in-stock, key specs, warranty) by its id — use after search to answer questions and recommend a specific variant.',
+        inputSchema: { type: 'object', properties: { productId: { type: 'string' } }, required: ['productId'], additionalProperties: false },
+        run: (i: any) => getProduct(i ?? {}),
+      },
+      {
+        name: 'browse_catalog',
+        description: 'Browse products filtered by category (collection handle), brand, or price range. Returns matching product cards.',
+        inputSchema: { type: 'object', properties: { collection: { type: 'string' }, brand: { type: 'string' }, minPriceMinor: { type: 'integer' }, maxPriceMinor: { type: 'integer' } }, additionalProperties: false },
+        run: (i: any) => browseCatalog(i ?? {}),
+      },
+      {
+        name: 'add_to_cart',
+        description: 'Add a specific variant to the shopper\'s cart so they can check out. Confirm the variant (size/colour) first. quantity defaults to 1.',
+        inputSchema: { type: 'object', properties: { variantId: { type: 'string' }, quantity: { type: 'integer' } }, required: ['variantId'], additionalProperties: false },
+        run: (i: any) => addToCart(i ?? {}),
+      },
+      {
+        name: 'get_policies',
+        description: 'Get the store\'s return/refund window, shipping fees, and the names of its published legal policies. Use for "what\'s your return policy / shipping cost".',
+        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+        run: () => getPolicies(),
       },
       {
         name: 'get_order_status',
@@ -192,16 +287,17 @@ export class CustomerSupportService {
 
     const system =
       `You are a friendly sales & support assistant for the online store "${store.name}" (currency ${store.currency}). ` +
-      `Help shoppers find products and check their order status. Use the tools to get real data — never invent products, ` +
-      `prices, or order details. To check an order you need the order number AND the email or phone used on it; ask for ` +
-      `whatever is missing. If you cannot help, or the customer wants a human, refund, or complaint handled, use ` +
-      `escalate_to_human. Be concise and warm.` +
+      `Help shoppers discover products, answer questions, and complete a purchase. Use the tools for real data — never invent ` +
+      `products, prices, specs, stock, policies, or order details. search_products / browse_catalog to find items, get_product ` +
+      `for detail (variants, stock, specs), add_to_cart once the shopper picks a variant (confirm size/colour first), ` +
+      `get_policies for returns/shipping, and get_order_status (needs the order number AND the email or phone on it). ` +
+      `If you can't help, or the customer wants a human, refund, or complaint handled, use escalate_to_human. Be concise and warm.` +
       (store.supportBotConfig?.persona ? `\n\nAdditional instructions: ${store.supportBotConfig.persona}` : '');
 
-    const history: ChatMessage[] = conversation.messages.map((m) => ({
-      role: m.sender === 'CUSTOMER' ? 'user' : 'assistant',
-      content: m.body,
-    }));
+    // Only the last N turns are sent to the model (bounded cost/latency).
+    const history: ChatMessage[] = conversation.messages
+      .slice(-HISTORY_LIMIT)
+      .map((m) => ({ role: m.sender === 'CUSTOMER' ? 'user' : ('assistant' as const), content: m.body }));
     history.push({ role: 'user', content: input.message });
 
     const stub = async (msgs: ChatMessage[]): Promise<AssistantReply> => {
@@ -230,6 +326,30 @@ export class CustomerSupportService {
         }
         const ship = r.shipment ? ` Shipment: ${r.shipment.status}${r.shipment.trackingUrl ? ` — track at ${r.shipment.trackingUrl}` : ''}.` : '';
         return done(`Order #${r.number} is ${r.status} (payment ${r.payment ?? 'pending'}), total ${r.total}.${ship}`, ['get_order_status']);
+      }
+      if (/return|exchange|shipping|delivery (cost|charge|fee)|policy|policies|warranty/.test(lower)) {
+        const pol: any = await getPolicies();
+        const r = pol.returns;
+        const ship = pol.shipping ? ` Shipping: ${pol.shipping.flatShipping}${pol.shipping.freeShippingOver ? ` (free over ${pol.shipping.freeShippingOver})` : ''}.` : '';
+        const docs = pol.legalDocuments?.length ? ` See: ${pol.legalDocuments.join(', ')}.` : '';
+        return done(`Returns: ${r.enabled ? `accepted within ${r.windowDays} days` : 'not accepted'}.${ship}${docs}`, ['get_policies']);
+      }
+      if (/\badd to cart\b|\bbuy\b|purchase|i'?ll take|add it|order this/.test(lower)) {
+        const matches = await searchProducts(last);
+        const first = matches[0];
+        if (first) {
+          const variant = await this.prisma.productVariant.findFirst({ where: { productId: first.id }, orderBy: { priceMinor: 'asc' } });
+          if (variant) {
+            const r: any = await addToCart({ variantId: variant.id, quantity: 1 });
+            if (r.added) return done(`Added ${r.title} (${r.price}) to your cart. Ready to check out?`, ['search_products', 'add_to_cart']);
+          }
+        }
+        return done('Which item would you like? Tell me the product name and I’ll add it for you.', ['search_products']);
+      }
+      if (/categor|collection|browse|what do you (sell|have)/.test(lower)) {
+        const cards = await browseCatalog({});
+        if (!cards.length) return done('Our catalog is being set up — check back soon!', ['browse_catalog']);
+        return done(`Here's a selection:\n${cards.map((c: any) => `• ${c.title} — ${c.price}`).join('\n')}`, ['browse_catalog']);
       }
       if (/hi|hello|hey|namaste/.test(lower) && lower.length < 16) {
         return done(store.supportBotConfig?.greeting ?? `Hi! How can I help you shop at ${store.name} today?`, []);
@@ -281,7 +401,9 @@ export class CustomerSupportService {
       conversationId: conversation.id,
       reply: result.reply,
       status: escalated ? 'ESCALATED' : conversation.status,
-      provider: result.provider,
+      // Rich product suggestion cards + client-side actions (e.g. add-to-cart).
+      products,
+      actions,
       toolsUsed: result.toolsUsed,
     };
   }
@@ -318,18 +440,57 @@ export class CustomerSupportService {
     return c;
   }
 
-  /** A human agent replies; re-opens the conversation. */
+  /** A human agent replies; re-opens the conversation and notifies the customer. */
   async reply(ctx: TenantContext, id: string, body: string) {
     const c = await this.getConversation(ctx, id);
     if (!body?.trim()) throw new ValidationError('Reply body is required.');
     await this.prisma.supportMessage.create({
       data: { tenantId: ctx.tenantId, conversationId: c.id, sender: 'AGENT', body },
     });
+    // Close the handoff loop: email/WhatsApp the customer that a human replied.
+    await this.notifications
+      ?.notify(ctx, {
+        storeId: c.storeId,
+        event: 'SUPPORT_AGENT_REPLY',
+        recipientType: 'CUSTOMER',
+        data: {
+          customerName: c.contactName ? ` ${c.contactName}` : '',
+          customerEmail: c.contactEmail ?? undefined,
+          reply: body.trim().slice(0, 400),
+        },
+      })
+      .catch(() => undefined);
     return this.prisma.supportConversation.update({
       where: { id: c.id },
       data: { status: 'OPEN', lastMessageAt: new Date() },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
+  }
+
+  // --- Bot analytics (P2-9) -------------------------------------------------
+
+  /** Deflection/escalation metrics + top tools for a store's support bot. */
+  async botAnalytics(ctx: TenantContext, storeId: string) {
+    await this.getStore(ctx, storeId);
+    const [grouped, msgs] = await Promise.all([
+      this.prisma.supportConversation.groupBy({ by: ['status'], where: { tenantId: ctx.tenantId, storeId }, _count: true }),
+      this.prisma.supportMessage.findMany({ where: { tenantId: ctx.tenantId, conversation: { storeId }, sender: 'BOT' }, select: { toolsUsed: true }, take: 2000, orderBy: { createdAt: 'desc' } }),
+    ]);
+    const counts = { OPEN: 0, ESCALATED: 0, RESOLVED: 0 } as Record<string, number>;
+    for (const g of grouped) counts[g.status] = g._count;
+    const total = counts.OPEN + counts.ESCALATED + counts.RESOLVED;
+    const toolFreq: Record<string, number> = {};
+    for (const m of msgs) for (const t of m.toolsUsed) toolFreq[t] = (toolFreq[t] ?? 0) + 1;
+    const topTools = Object.entries(toolFreq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, count]) => ({ name, count }));
+    return {
+      conversations: total,
+      open: counts.OPEN,
+      escalated: counts.ESCALATED,
+      resolved: counts.RESOLVED,
+      escalationRate: total ? Math.round((counts.ESCALATED / total) * 100) : 0,
+      deflectionRate: total ? Math.round(((total - counts.ESCALATED) / total) * 100) : 0,
+      topTools,
+    };
   }
 
   async setStatus(ctx: TenantContext, id: string, status: SupportConversationStatus) {
