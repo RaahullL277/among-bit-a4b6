@@ -113,6 +113,7 @@ export {
 } from './services/onboarding.service.js';
 export { TemplateService } from './services/template.service.js';
 export { STORE_TEMPLATES, type StoreTemplate, type StoreCategory } from './templates/store-templates.js';
+export { LeadService, type SubmitLeadInput, type BuildAssetInput } from './services/lead.service.js';
 export { CohortService, type TrackEventInput, type Temperature } from './services/cohort.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {

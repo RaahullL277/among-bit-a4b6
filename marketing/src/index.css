@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+
+body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: #1e1b2e; background: #ffffff; }
+
+/* Subtle aurora gradient used behind hero sections. */
+.aurora {
+  background:
+    radial-gradient(60% 50% at 15% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(50% 45% at 95% 10%, rgba(217, 70, 239, 0.14), transparent 55%),
+    radial-gradient(45% 40% at 50% 100%, rgba(20, 184, 166, 0.10), transparent 60%);
+}

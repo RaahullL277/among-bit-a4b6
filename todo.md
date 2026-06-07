@@ -54,6 +54,8 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 - [ ] Multi-location / warehouse inventory (large architectural change).
 - [x] Buyer accounts / order history / saved addresses — email-OTP buyer login (`CustomerAuthService`, `CustomerSession`/`CustomerAddress`), storefront Account page, reuse at checkout. See `STOREFRONT_AUDIT.md` P1-4.
 - [x] Storefront P0/P1/P2 audit build — cart editing, discount codes, SEO/OG, post-payment confirmation, mobile nav, trust bar/ratings, recently-viewed, cart cross-sell, skeletons, PWA manifest, PDP breadcrumbs. See `STOREFRONT_AUDIT.md`.
+- [x] Store templates — 30 designs across 6 verticals (fashion/lifestyle/cosmetics/jewellery + kitchenware/perfumes); kitchenware & perfumes segmented by shopper type (`StoreTemplate.segment`).
+- [x] Marketing landing pages (`acp-marketing`) — ecom.imagine.bo (merchants, with Shopify/Woo/Dukaan comparison) + ecompartner.imagine.bo (partners): why-us/benefits/features/value/reviews + a "start building" prompt bar with image/file import → `POST /leads/store-build` (`LeadService`, `StoreBuildLead`). See `marketing/README.md`.
 - [ ] Outstanding hardening — true SSR/prerender, custom-domain routing, saved payment methods, multi-currency/i18n. See `STOREFRONT_AUDIT.md` follow-ups.
 
 ## Authentication (audited + extended 2026-06-06 — see AUTH_AUDIT.md)

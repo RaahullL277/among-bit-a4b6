@@ -49,6 +49,7 @@ import { StoreImportService } from './services/import.service.js';
 import { AuditService } from './services/audit.service.js';
 import { AppService } from './services/app.service.js';
 import { ListingService } from './services/listing.service.js';
+import { LeadService } from './services/lead.service.js';
 
 /**
  * The single service layer shared by every transport. The REST API and the MCP
@@ -106,6 +107,7 @@ export class Commerce {
   readonly audit: AuditService;
   readonly apps: AppService;
   readonly listing: ListingService;
+  readonly leads: LeadService;
 
   constructor(prisma: PrismaClient = getPrisma()) {
     this.prisma = prisma;
@@ -162,6 +164,7 @@ export class Commerce {
     this.audit = new AuditService(prisma);
     this.apps = new AppService(prisma);
     this.listing = new ListingService(prisma, this.products, this.images);
+    this.leads = new LeadService(prisma);
   }
 }
 

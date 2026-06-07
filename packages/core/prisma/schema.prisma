@@ -2447,3 +2447,39 @@ model Discount {
   @@unique([storeId, code])
   @@index([tenantId])
 }
+
+// Who a store-build lead came from: a merchant (ecom.imagine.bo) or a partner
+// agency (ecompartner.imagine.bo).
+enum StoreBuildSource {
+  MERCHANT
+  PARTNER
+}
+
+enum StoreBuildStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  ARCHIVED
+}
+
+// A "start building your store" request captured from a marketing landing page:
+// the prompt describing the store + an asset manifest (uploaded images/files)
+// the agentic builder uses to bootstrap a store. No tenant yet — this is a lead.
+model StoreBuildLead {
+  id           String           @id @default(cuid())
+  source       StoreBuildSource @default(MERCHANT)
+  status       StoreBuildStatus @default(NEW)
+  email        String
+  // What the prospect typed into the builder bar ("I sell handmade candles…").
+  prompt       String
+  businessName String?
+  // Manifest of imported images/files: [{ name, type, size, dataUrl? }].
+  assets       Json             @default("[]")
+  // Light attribution for the marketing site.
+  referrer     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([source, status])
+  @@index([email])
+}
