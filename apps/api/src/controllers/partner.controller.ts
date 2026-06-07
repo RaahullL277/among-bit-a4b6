@@ -33,6 +33,35 @@ export class PartnerController {
     return this.commerce.partnerAuth.verifyMagicLink(body.token);
   }
 
+  // --- Google / Apple OAuth (sign-in for existing partners only) ------------
+  @PartnerPublic()
+  @Post('auth/oauth')
+  oauth(@Body() body: { provider: 'GOOGLE' | 'APPLE'; idToken: string }) {
+    return this.commerce.partnerAuth.oauthLogin(body);
+  }
+
+  // --- Two-factor (TOTP) ----------------------------------------------------
+  @PartnerPublic()
+  @Post('auth/2fa/verify')
+  verifyTwoFactor(@Body() body: { challengeToken: string; code: string }) {
+    return this.commerce.partnerAuth.verifyTwoFactor(body.challengeToken, body.code);
+  }
+
+  @Post('auth/2fa/setup')
+  setupTwoFactor(@Partner() p: PartnerContext): Promise<unknown> {
+    return this.commerce.partnerAuth.setupTwoFactor(p);
+  }
+
+  @Post('auth/2fa/enable')
+  enableTwoFactor(@Partner() p: PartnerContext, @Body() body: { code: string }) {
+    return this.commerce.partnerAuth.enableTwoFactor(p, body.code);
+  }
+
+  @Post('auth/2fa/disable')
+  disableTwoFactor(@Partner() p: PartnerContext, @Body() body: { code: string }) {
+    return this.commerce.partnerAuth.disableTwoFactor(p, body.code);
+  }
+
   @Get('auth/me')
   me(@Partner() p: PartnerContext) {
     return this.commerce.partnerAuth.me(p);

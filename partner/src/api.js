@@ -29,6 +29,11 @@ export const api = {
   auth: {
     requestLink: (email) => req('/partner/auth/request-link', { method: 'POST', body: { email } }),
     verify: (token) => req('/partner/auth/verify', { method: 'POST', body: { token } }),
+    oauth: (body) => req('/partner/auth/oauth', { method: 'POST', body }),
+    verifyTwoFactor: (challengeToken, code) => req('/partner/auth/2fa/verify', { method: 'POST', body: { challengeToken, code } }),
+    setup2fa: () => req('/partner/auth/2fa/setup', { method: 'POST' }),
+    enable2fa: (code) => req('/partner/auth/2fa/enable', { method: 'POST', body: { code } }),
+    disable2fa: (code) => req('/partner/auth/2fa/disable', { method: 'POST', body: { code } }),
     me: () => req('/partner/auth/me'),
     logout: (token) => req('/partner/auth/logout', { method: 'POST', body: { token } }),
   },

@@ -63,7 +63,7 @@ export {
   type Interval,
 } from './services/analytics.service.js';
 export { ShippingService, type CreateShipmentInput } from './services/shipping.service.js';
-export { PlatformAuthService, type PlatformSessionResult } from './services/platform-auth.service.js';
+export { PlatformAuthService, type PlatformSessionResult, type PlatformLoginOutcome, type PlatformTwoFactorPending } from './services/platform-auth.service.js';
 export { PlatformService } from './services/platform.service.js';
 export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
 export { SupportAssistantService } from './services/support-assistant.service.js';
@@ -95,7 +95,7 @@ export {
 } from './services/subscription.service.js';
 export { SeoService, type SeoSettingsInput } from './services/seo.service.js';
 export { ImageService, type CreateImageInput } from './services/image.service.js';
-export { PartnerAuthService, type PartnerContext, type PartnerSessionResult } from './services/partner-auth.service.js';
+export { PartnerAuthService, type PartnerContext, type PartnerSessionResult, type PartnerLoginOutcome, type PartnerTwoFactorPending } from './services/partner-auth.service.js';
 export { PartnerService, type CreatePartnerInput, type AddClientInput, type CreateClientInput } from './services/partner.service.js';
 export {
   PricingService,

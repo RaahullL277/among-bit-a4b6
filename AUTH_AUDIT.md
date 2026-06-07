@@ -40,15 +40,15 @@ across all three planes and the sign-in methods added for the merchant plane.
 - RBAC enforced centrally at the guard via declarative `@Permissions`; partner delegation is client-governed and a partner can't escalate itself.
 - Tenant suspension is re-checked on every merchant session resolve.
 
-**Gaps addressed in this change (merchant plane):**
-- Was **passwordless-only** (magic link). Added: **email + password**, **phone-number OTP**, **Google/Apple OAuth**, and **TOTP two-factor**.
+**Gaps addressed:**
+- Merchant plane was **passwordless-only** (magic link). Added: **email + password**, **phone-number OTP**, **Google/Apple OAuth**, and **TOTP two-factor**.
+- **Platform-operator and partner planes** now also support **Google/Apple OAuth** (sign-in for existing accounts only — never auto-provisioned) and **TOTP two-factor** (challenge after the magic-link/OAuth first factor), reusing the same crypto primitives + injectable verifier. REST: `POST /platform/auth/{oauth,2fa/setup,2fa/enable,2fa/disable,2fa/verify}` and `POST /partner/auth/{oauth,2fa/*}`; both consoles handle the 2FA login challenge and have a self-serve Security page. Models: `PlatformUser`/`Partner` gained `twoFactorSecret`/`twoFactorEnabledAt`; new `PlatformOAuthIdentity`, `PartnerOAuthIdentity`, `PlatformTwoFactorChallenge`, `PartnerTwoFactorChallenge`.
 
 **Remaining recommendations (follow-ups, not yet done):**
-- **2FA for platform operators** — highest-value next step (operator accounts are cross-tenant). Same TOTP primitives can be reused on `PlatformUser`.
-- **Merchant magic-link enumeration** — `auth.requestMagicLink` issues a token for any email (the merchant flow predates the platform's enumeration-safe pattern); align it to return success without revealing existence. (Password/OAuth/OTP login errors are already generic.)
+- **Merchant magic-link enumeration** — `auth.requestMagicLink` issues a token for any email (the merchant flow predates the platform's enumeration-safe pattern); align it to return success without revealing existence. (Password/OAuth/OTP login errors are already generic; platform/partner magic-link is already enumeration-safe.)
 - **Merchant session TTL** — 30 days is long; consider 7 days or sliding expiry (also noted in `AUDIT.md` P2).
 - **OTP/login rate-limiting** — OTP has per-code attempt locking (5) + 5-min TTL; add per-identifier request throttling at the edge to prevent SMS-bombing.
-- **OAuth on partner/platform planes** and **passkeys/WebAuthn** — future.
+- **Passkeys/WebAuthn** — future. Phone-OTP + password on the operator/partner planes (currently merchant-only) if desired.
 
 ---
 

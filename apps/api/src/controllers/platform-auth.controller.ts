@@ -32,6 +32,35 @@ export class PlatformAuthController {
     return this.commerce.platformAuth.verifyMagicLink(body.token);
   }
 
+  // --- Google / Apple OAuth (sign-in for existing staff only) ---------------
+  @PlatformPublic()
+  @Post('oauth')
+  oauth(@Body() body: { provider: 'GOOGLE' | 'APPLE'; idToken: string }) {
+    return this.commerce.platformAuth.oauthLogin(body);
+  }
+
+  // --- Two-factor (TOTP) ----------------------------------------------------
+  @PlatformPublic()
+  @Post('2fa/verify')
+  verifyTwoFactor(@Body() body: { challengeToken: string; code: string }) {
+    return this.commerce.platformAuth.verifyTwoFactor(body.challengeToken, body.code);
+  }
+
+  @Post('2fa/setup')
+  setupTwoFactor(@Platform() p: PlatformContext): Promise<unknown> {
+    return this.commerce.platformAuth.setupTwoFactor(p);
+  }
+
+  @Post('2fa/enable')
+  enableTwoFactor(@Platform() p: PlatformContext, @Body() body: { code: string }) {
+    return this.commerce.platformAuth.enableTwoFactor(p, body.code);
+  }
+
+  @Post('2fa/disable')
+  disableTwoFactor(@Platform() p: PlatformContext, @Body() body: { code: string }) {
+    return this.commerce.platformAuth.disableTwoFactor(p, body.code);
+  }
+
   @Get('me')
   me(@Platform() p: PlatformContext) {
     return this.commerce.platformAuth.me(p);

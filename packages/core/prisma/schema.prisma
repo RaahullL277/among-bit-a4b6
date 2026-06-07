@@ -1187,10 +1187,45 @@ model PlatformUser {
   email     String       @unique
   name      String?
   role      PlatformRole @default(READ_ONLY)
+  // TOTP two-factor: encrypted secret + when it was enabled (active iff set).
+  twoFactorSecret    String?
+  twoFactorEnabledAt DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  sessions PlatformSession[]
+  sessions        PlatformSession[]
+  oauthIdentities PlatformOAuthIdentity[]
+  twoFactorChallenges PlatformTwoFactorChallenge[]
+}
+
+// Social-login identity linked to a platform-operator account (sign-in only;
+// operators are never auto-created from OAuth).
+model PlatformOAuthIdentity {
+  id             String        @id @default(cuid())
+  platformUserId String
+  provider       OAuthProvider
+  providerUserId String
+  email          String?
+  createdAt      DateTime      @default(now())
+
+  user PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([platformUserId])
+}
+
+// Short-lived 2FA challenge for a platform operator (post first-factor).
+model PlatformTwoFactorChallenge {
+  id             String   @id @default(cuid())
+  platformUserId String
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  user PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId])
 }
 
 model PlatformSession {
@@ -1641,11 +1676,46 @@ model Partner {
   email             String   @unique
   // The partner's commission on client GMV, in percent.
   commissionPercent Int      @default(10)
+  // TOTP two-factor: encrypted secret + when it was enabled (active iff set).
+  twoFactorSecret    String?
+  twoFactorEnabledAt DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   clients  PartnerClient[]
   sessions PartnerSession[]
+  oauthIdentities PartnerOAuthIdentity[]
+  twoFactorChallenges PartnerTwoFactorChallenge[]
+}
+
+// Social-login identity linked to a partner account (sign-in only; partners are
+// never auto-created from OAuth).
+model PartnerOAuthIdentity {
+  id             String        @id @default(cuid())
+  partnerId      String
+  provider       OAuthProvider
+  providerUserId String
+  email          String?
+  createdAt      DateTime      @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([partnerId])
+}
+
+// Short-lived 2FA challenge for a partner (post first-factor).
+model PartnerTwoFactorChallenge {
+  id         String   @id @default(cuid())
+  partnerId  String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
 }
 
 // Links a partner to a client tenant, with the recurring fee the client pays

@@ -61,7 +61,7 @@ verification needs live GSTN/PAN/bank credentials, like P0-1 payments).
 - [x] Phone-number OTP login (hashed code, 5-min TTL, attempt lockout).
 - [x] Google + Apple OAuth (tokeninfo / Apple JWKS; injectable verifier; OAuthIdentity linking).
 - [x] TOTP two-factor (setup/enable/disable + login challenge/verify; encrypted secret).
-- [ ] (Follow-up) 2FA for **platform operators** (reuse TOTP primitives on PlatformUser).
-- [ ] (Follow-up) Make merchant `requestMagicLink` enumeration-safe (match platform plane).
+- [x] 2FA + OAuth for **platform operators and partners** (Google/Apple sign-in for existing accounts only; TOTP challenge; self-serve Security page in both consoles).
+- [ ] (Follow-up) Make merchant `requestMagicLink` enumeration-safe (match platform/partner planes).
 - [ ] (Follow-up) Per-identifier rate-limiting on OTP/login at the edge; global SMS sender wired into OtpSender for real OTP delivery.
-- [ ] (Follow-up) Passkeys/WebAuthn; OAuth for partner/platform planes.
+- [ ] (Follow-up) Passkeys/WebAuthn; phone-OTP/password on the operator/partner planes if desired.

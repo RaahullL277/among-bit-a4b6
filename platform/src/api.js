@@ -29,6 +29,11 @@ export const api = {
   auth: {
     requestLink: (email) => req('/platform/auth/request-link', { method: 'POST', body: { email } }),
     verify: (token) => req('/platform/auth/verify', { method: 'POST', body: { token } }),
+    oauth: (body) => req('/platform/auth/oauth', { method: 'POST', body }),
+    verifyTwoFactor: (challengeToken, code) => req('/platform/auth/2fa/verify', { method: 'POST', body: { challengeToken, code } }),
+    setup2fa: () => req('/platform/auth/2fa/setup', { method: 'POST' }),
+    enable2fa: (code) => req('/platform/auth/2fa/enable', { method: 'POST', body: { code } }),
+    disable2fa: (code) => req('/platform/auth/2fa/disable', { method: 'POST', body: { code } }),
     me: () => req('/platform/auth/me'),
     logout: (token) => req('/platform/auth/logout', { method: 'POST', body: { token } }),
   },

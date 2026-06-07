@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Users, LayoutDashboard, Building2, CalendarClock, LogOut } from 'lucide-react';
+import { Users, LayoutDashboard, Building2, CalendarClock, LogOut, ShieldCheck } from 'lucide-react';
 import { AuthProvider, useAuth } from './auth';
 import { api, BASE_URL } from './api';
 import Dashboard from './pages/Dashboard';
@@ -14,12 +14,16 @@ function Login() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [challenge, setChallenge] = useState('');
+  const [code, setCode] = useState('');
+
+  const handle = (r) => { if (r?.twoFactorRequired) setChallenge(r.challengeToken); else signIn(r.token); };
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('token');
     if (!t) return;
     setLoading(true);
-    api.auth.verify(t).then((r) => signIn(r.token)).catch((e) => setError(e.message)).finally(() => {
+    api.auth.verify(t).then(handle).catch((e) => setError(e.message)).finally(() => {
       setLoading(false);
       window.history.replaceState({}, '', '/');
     });
@@ -31,13 +35,15 @@ function Login() {
     setError('');
     setLoading(true);
     try {
-      if (!sent) {
+      if (challenge) {
+        const r = await api.auth.verifyTwoFactor(challenge, code.trim());
+        signIn(r.token);
+      } else if (!sent) {
         const r = await api.auth.requestLink(email);
         setSent(true);
         if (r.devLink) setToken(new URL(r.devLink).searchParams.get('token') ?? '');
       } else {
-        const r = await api.auth.verify(token.trim());
-        signIn(r.token);
+        handle(await api.auth.verify(token.trim()));
       }
     } catch (e2) {
       setError(e2.message);
@@ -54,28 +60,44 @@ function Login() {
           <h1 className="text-lg font-semibold text-white">Partner Portal</h1>
           <p className="text-xs text-slate-400">Agency &amp; reseller access.</p>
         </div>
-        <label className="mb-1 block text-xs text-slate-400">Partner email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white"
-          placeholder="you@agency.com"
-        />
-        {sent && (
+        {challenge ? (
           <>
-            <label className="mb-1 block text-xs text-slate-400">Login token</label>
+            <label className="mb-1 block text-xs text-slate-400">Authenticator code</label>
             <input
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="numeric"
+              autoFocus
               className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white"
-              placeholder="ptml_…"
+              placeholder="123456"
             />
+          </>
+        ) : (
+          <>
+            <label className="mb-1 block text-xs text-slate-400">Partner email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white"
+              placeholder="you@agency.com"
+            />
+            {sent && (
+              <>
+                <label className="mb-1 block text-xs text-slate-400">Login token</label>
+                <input
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="mb-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white"
+                  placeholder="ptml_…"
+                />
+              </>
+            )}
           </>
         )}
         {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-        <button disabled={loading || !email} className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-          {sent ? 'Verify & sign in' : 'Send magic link'}
+        <button disabled={loading || (challenge ? code.trim().length < 6 : !email)} className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          {challenge ? 'Verify code' : sent ? 'Verify & sign in' : 'Send magic link'}
         </button>
         <p className="mt-3 text-center text-xs text-slate-500">{BASE_URL}</p>
       </form>
@@ -87,7 +109,50 @@ const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/clients', label: 'Clients', icon: Building2 },
   { to: '/renewals', label: 'Renewals', icon: CalendarClock },
+  { to: '/security', label: 'Security', icon: ShieldCheck },
 ];
+
+// Self-serve TOTP two-factor for the signed-in partner.
+function TwoFactorPanel() {
+  const [me, setMe] = useState(null);
+  const [setup, setSetup] = useState(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const load = () => api.auth.me().then(setMe).catch(() => undefined);
+  useEffect(() => { load(); }, []);
+  const on = me?.auth?.twoFactorEnabled;
+  const run = (k, fn) => async () => { setBusy(k); setError(''); try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(''); } };
+  const begin = run('setup', async () => setSetup(await api.auth.setup2fa()));
+  const enable = run('enable', async () => { await api.auth.enable2fa(code.trim()); setSetup(null); setCode(''); load(); });
+  const disable = run('disable', async () => { await api.auth.disable2fa(code.trim()); setCode(''); load(); });
+  return (
+    <div className="max-w-lg space-y-4">
+      <h1 className="text-lg font-semibold text-white">Security</h1>
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-5">
+        <div className="mb-2 text-sm font-medium text-white">Two-factor authentication {on ? <span className="ml-1 rounded bg-emerald-900 px-2 py-0.5 text-xs text-emerald-300">on</span> : <span className="text-xs text-slate-400">off</span>}</div>
+        {error && <p className="mb-2 text-sm text-rose-400">{error}</p>}
+        {!on && !setup && <button onClick={begin} disabled={busy === 'setup'} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">Set up 2FA</button>}
+        {!on && setup && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-400">Add this secret to your authenticator, then enter the code to enable.</p>
+            <div className="break-all rounded bg-slate-900 p-2 font-mono text-xs text-slate-200">{setup.secret}</div>
+            <div className="flex gap-2">
+              <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="123456" className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-white" />
+              <button onClick={enable} disabled={busy === 'enable' || code.trim().length < 6} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">Enable</button>
+            </div>
+          </div>
+        )}
+        {on && (
+          <div className="flex gap-2">
+            <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" placeholder="Code to disable" className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-white" />
+            <button onClick={disable} disabled={busy === 'disable' || code.trim().length < 6} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">Disable 2FA</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Shell() {
   const { me, signOut } = useAuth();
@@ -125,6 +190,7 @@ function Shell() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/renewals" element={<Renewals />} />
+          <Route path="/security" element={<TwoFactorPanel />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>

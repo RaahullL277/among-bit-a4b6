@@ -230,3 +230,22 @@ export function otpauthUrl(secretBase32: string, label: string, issuer: string):
   const enc = encodeURIComponent;
   return `otpauth://totp/${enc(issuer)}:${enc(label)}?secret=${secretBase32}&issuer=${enc(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }
+
+// ---------------------------------------------------------------------------
+// 2FA secret sealing (encrypt a TOTP secret string for at-rest storage)
+// ---------------------------------------------------------------------------
+
+/** Encrypt a secret string into a storable token (serialized AES-GCM blob). */
+export function sealSecret(plaintext: string): string {
+  return JSON.stringify(encryptJson(plaintext));
+}
+
+/** Decrypt a sealed secret; returns null if absent or undecryptable. */
+export function openSecret(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  try {
+    return decryptJson<string>(JSON.parse(stored));
+  } catch {
+    return null;
+  }
+}
