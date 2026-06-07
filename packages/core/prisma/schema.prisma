@@ -100,6 +100,7 @@ enum NotificationEvent {
   RETURN_REFUNDED
   SUPPORT_ESCALATED
   SUPPORT_AGENT_REPLY
+  LOGIN_CODE
 }
 
 // Lifecycle of a return / RMA.
@@ -780,9 +781,53 @@ model Customer {
   behaviorEvents     BehaviorEvent[]
   cohortMemberships  CohortMembership[]
   engagementMessages EngagementMessage[]
+  sessions       CustomerSession[]
+  addresses      CustomerAddress[]
 
   @@index([tenantId])
   @@index([storeId])
+}
+
+// A logged-in buyer session (email-OTP). The raw token is returned once to the
+// storefront; only its hash is persisted and looked up by.
+model CustomerSession {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  customerId String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([tenantId])
+}
+
+// A buyer's saved delivery address, reusable at checkout.
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  customerId String
+  name       String?
+  phone      String?
+  line1      String
+  line2      String?
+  city       String?
+  state      String?
+  pincode    String?
+  country    String   @default("IN")
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([tenantId])
 }
 
 model Order {

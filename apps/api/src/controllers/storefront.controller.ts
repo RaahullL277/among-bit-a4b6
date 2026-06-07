@@ -1,6 +1,11 @@
-import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { getCommerce } from '@acp/core';
 import { Public } from '../common/public.decorator.js';
+
+/** Extract a bearer token from an Authorization header (buyer session). */
+function bearer(auth?: string): string {
+  return auth?.replace(/^Bearer\s+/i, '').trim() ?? '';
+}
 
 /**
  * Public, unauthenticated storefront API. Keyed by store id and cart id
@@ -164,6 +169,52 @@ export class StorefrontController {
   @Post(':storeId/unsubscribe')
   unsubscribe(@Param('storeId') storeId: string, @Body() body: { email: string }) {
     return this.commerce.customers.unsubscribe(storeId, body?.email);
+  }
+
+  // --- Buyer accounts (email-OTP login + session) ---------------------------
+  @Post(':storeId/account/login')
+  requestLoginCode(@Param('storeId') storeId: string, @Body() body: { email: string }) {
+    return this.commerce.customerAuth.requestOtp(storeId, body?.email);
+  }
+
+  @Post(':storeId/account/verify')
+  verifyLoginCode(@Param('storeId') storeId: string, @Body() body: { email: string; code: string; name?: string }) {
+    return this.commerce.customerAuth.verifyOtp(storeId, body?.email, body?.code, body?.name);
+  }
+
+  @Post('account/logout')
+  accountLogout(@Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.logout(bearer(auth));
+  }
+
+  @Get('account/me')
+  accountMe(@Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.me(bearer(auth));
+  }
+
+  @Get('account/orders')
+  accountOrders(@Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.myOrders(bearer(auth));
+  }
+
+  @Get('account/addresses')
+  accountAddresses(@Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.listAddresses(bearer(auth));
+  }
+
+  @Post('account/addresses')
+  addAddress(@Body() body: any, @Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.addAddress(bearer(auth), body ?? {});
+  }
+
+  @Patch('account/addresses/:id')
+  updateAddress(@Param('id') id: string, @Body() body: any, @Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.updateAddress(bearer(auth), id, body ?? {});
+  }
+
+  @Delete('account/addresses/:id')
+  removeAddress(@Param('id') id: string, @Headers('authorization') auth?: string) {
+    return this.commerce.customerAuth.removeAddress(bearer(auth), id);
   }
 
   // --- Support chatbot (public) ---------------------------------------------

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Heart, Search as SearchIcon, Menu, X } from 'lucide-react';
+import { ShoppingCart, Heart, Search as SearchIcon, Menu, X, User } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
 import { trackLand } from './track';
 import ChatWidget from './ChatWidget';
 import { CartProvider, useCart } from './cart';
+import { AccountProvider, useAccount } from './account';
 import Home from './pages/Home';
 import Product from './pages/Product';
 import Cart from './pages/Cart';
@@ -15,10 +16,12 @@ import Search from './pages/Search';
 import Track from './pages/Track';
 import Wishlist from './pages/Wishlist';
 import Shop from './pages/Shop';
+import Account from './pages/Account';
 import Legal from './pages/Legal';
 
 function Header({ storeName }) {
   const { itemCount } = useCart();
+  const { signedIn } = useAccount();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false); // mobile drawer
@@ -48,6 +51,7 @@ function Header({ storeName }) {
           <Link to="/subscriptions" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Subscriptions</Link>
           <Link to="/returns" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Returns</Link>
           <Link to="/shop" className="text-sm font-medium text-stone-700 hover:text-stone-900">Shop</Link>
+          <Link to="/account" className={`hover:text-stone-900 ${signedIn ? 'text-[var(--brand)]' : 'text-stone-700'}`} title="Account"><User size={20} /></Link>
           <Link to="/wishlist" className="text-stone-700 hover:text-stone-900" title="Wishlist"><Heart size={20} /></Link>
           <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
             <ShoppingCart size={20} />
@@ -85,6 +89,7 @@ function Header({ storeName }) {
           </form>
           <nav className="flex flex-col gap-1 text-sm">
             <Link to="/shop" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 font-medium text-stone-800 hover:bg-stone-100">Shop</Link>
+            <Link to="/account" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">{signedIn ? 'My account' : 'Sign in'}</Link>
             <Link to="/wishlist" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Wishlist</Link>
             <Link to="/track" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Track order</Link>
             <Link to="/subscriptions" onClick={() => setOpen(false)} className="rounded-lg px-2 py-2 text-stone-600 hover:bg-stone-100">Subscriptions</Link>
@@ -155,6 +160,7 @@ export default function App() {
   if (missing) return <StoreGate />;
 
   return (
+    <AccountProvider>
     <CartProvider>
       <Header storeName={storeName} />
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -169,6 +175,7 @@ export default function App() {
           <Route path="/track" element={<Track />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/shop" element={<Shop />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/legal/:type" element={<Legal />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -177,6 +184,7 @@ export default function App() {
       <Footer />
       <ChatWidget />
     </CartProvider>
+    </AccountProvider>
   );
 }
 

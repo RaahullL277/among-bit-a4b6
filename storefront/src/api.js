@@ -12,10 +12,25 @@ export function setStoreId(id) {
   localStorage.setItem('store.id', id);
 }
 
-async function req(path, { method = 'GET', body } = {}) {
+// Buyer session token (email-OTP login), persisted per browser.
+const TOKEN_KEY = 'account.token';
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
+export function setToken(t) {
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+async function req(path, { method = 'GET', body, auth = false } = {}) {
+  const headers = { 'content-type': 'application/json' };
+  if (auth) {
+    const t = getToken();
+    if (t) headers.authorization = `Bearer ${t}`;
+  }
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -78,6 +93,19 @@ export const api = {
   manageSubscription: (id, subId, body) =>
     req(`/storefront/${id}/subscriptions/${subId}/manage`, { method: 'POST', body }),
   productSeo: (id, pid) => req(`/storefront/${id}/products/${pid}/seo`),
+
+  // --- Buyer accounts (email-OTP) ---
+  account: {
+    requestCode: (id, email) => req(`/storefront/${id}/account/login`, { method: 'POST', body: { email } }),
+    verifyCode: (id, body) => req(`/storefront/${id}/account/verify`, { method: 'POST', body }),
+    logout: () => req(`/storefront/account/logout`, { method: 'POST', auth: true }),
+    me: () => req(`/storefront/account/me`, { auth: true }),
+    orders: () => req(`/storefront/account/orders`, { auth: true }),
+    addresses: () => req(`/storefront/account/addresses`, { auth: true }),
+    addAddress: (body) => req(`/storefront/account/addresses`, { method: 'POST', body, auth: true }),
+    updateAddress: (addrId, body) => req(`/storefront/account/addresses/${addrId}`, { method: 'PATCH', body, auth: true }),
+    removeAddress: (addrId) => req(`/storefront/account/addresses/${addrId}`, { method: 'DELETE', auth: true }),
+  },
 };
 
 // Apply SEO meta to the document head (title, description, canonical, JSON-LD).

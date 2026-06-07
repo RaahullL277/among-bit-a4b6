@@ -68,6 +68,7 @@ export { PlatformService } from './services/platform.service.js';
 export { PlatformAnalyticsService, type PlatformRange } from './services/platform-analytics.service.js';
 export { SupportAssistantService } from './services/support-assistant.service.js';
 export { CustomerSupportService } from './services/customer-support.service.js';
+export { CustomerAuthService, type CustomerSessionContext, type AddressInput } from './services/customer-auth.service.js';
 export { ReviewService, type SubmitReviewInput } from './services/review.service.js';
 export {
   OfferService,

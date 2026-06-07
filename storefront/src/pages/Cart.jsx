@@ -3,15 +3,24 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
 import { identify } from '../track';
 import { useCart } from '../cart';
+import { useAccount } from '../account';
 
 const emptyAddress = { name: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', gstin: '' };
 
+// Map a saved CustomerAddress to the checkout address shape.
+function pickAddress(a) {
+  return { name: a.name ?? '', phone: a.phone ?? '', line1: a.line1 ?? '', line2: a.line2 ?? '', city: a.city ?? '', state: a.state ?? '', pincode: a.pincode ?? '', gstin: '' };
+}
+
 export default function Cart() {
   const { cart, cartId, clear, setQty, removeItem } = useCart();
+  const { customer, signedIn } = useAccount();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [saveAddress, setSaveAddress] = useState(false);
   const [rewards, setRewards] = useState(null); // {enabled, pointsBalance, ...}
   const [redeem, setRedeem] = useState(false);
   const [quote, setQuote] = useState(null);
@@ -29,6 +38,17 @@ export default function Cart() {
   useEffect(() => {
     api.legalPolicies(STORE_ID).then(setPolicies).catch(() => setPolicies([]));
   }, []);
+
+  // Signed-in buyers: prefill email and offer their saved addresses.
+  useEffect(() => {
+    if (!signedIn) return;
+    if (customer?.email && !email) setEmail(customer.email);
+    api.account.addresses().then((list) => {
+      setSavedAddresses(list);
+      const def = list.find((a) => a.isDefault) ?? list[0];
+      if (def) setAddress((cur) => (cur.line1 || cur.pincode ? cur : pickAddress(def)));
+    }).catch(() => undefined);
+  }, [signedIn, customer]);
 
   if (!cart || !cart.items?.length) {
     return (
@@ -70,6 +90,10 @@ export default function Cart() {
       const redeemPoints = redeem && rewards?.pointsBalance >= (rewards?.minRedeemPoints ?? 0) ? rewards.pointsBalance : undefined;
       const hasAddress = address.line1 || address.pincode;
       if (hasAddress) localStorage.setItem('shopper.address', JSON.stringify(address));
+      // Signed-in buyers can save this address to their account for next time.
+      if (signedIn && saveAddress && address.line1) {
+        await api.account.addAddress(address).catch(() => undefined);
+      }
       const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined, discountCode: discount ? code.trim() : undefined });
       clear();
       navigate('/confirmation', { state: { ...res, email } });
@@ -121,6 +145,20 @@ export default function Cart() {
 
       <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
         <div className="text-sm font-medium text-stone-900">Delivery address</div>
+        {savedAddresses.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {savedAddresses.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setAddress(pickAddress(a))}
+                className="rounded-full border border-stone-300 px-3 py-1 text-xs text-stone-600 hover:border-stone-400"
+              >
+                {a.name || 'Address'}{a.pincode ? ` · ${a.pincode}` : ''}{a.isDefault ? ' · Default' : ''}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input value={address.name} onChange={(e) => setAddress({ ...address, name: e.target.value })} placeholder="Full name" className="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm" />
           <input value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} placeholder="Phone" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" />
@@ -131,6 +169,12 @@ export default function Cart() {
           <input value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} placeholder="State" className="rounded-lg border border-stone-300 px-3 py-2 text-sm" />
           <input value={address.gstin} onChange={(e) => setAddress({ ...address, gstin: e.target.value.toUpperCase() })} placeholder="GSTIN (optional, for business invoice)" className="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm" />
         </div>
+        {signedIn && (
+          <label className="mt-3 flex items-center gap-2 text-sm text-stone-600">
+            <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
+            Save this address to my account
+          </label>
+        )}
       </div>
 
       <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">

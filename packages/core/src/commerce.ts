@@ -23,6 +23,7 @@ import { PlatformService } from './services/platform.service.js';
 import { PlatformAnalyticsService } from './services/platform-analytics.service.js';
 import { SupportAssistantService } from './services/support-assistant.service.js';
 import { CustomerSupportService } from './services/customer-support.service.js';
+import { CustomerAuthService } from './services/customer-auth.service.js';
 import { ReviewService } from './services/review.service.js';
 import { OfferService } from './services/offer.service.js';
 import { PageService } from './services/page.service.js';
@@ -84,6 +85,7 @@ export class Commerce {
   readonly platformAnalytics: PlatformAnalyticsService;
   readonly supportAssistant: SupportAssistantService;
   readonly customerSupport: CustomerSupportService;
+  readonly customerAuth: CustomerAuthService;
   readonly reviews: ReviewService;
   readonly offers: OfferService;
   readonly pages: PageService;
@@ -130,6 +132,7 @@ export class Commerce {
     this.loyalty = new LoyaltyService(prisma);
     this.payments = new PaymentService(prisma, this.integrations, this.notifications, this.marketing, this.loyalty, this.stock, this.checkoutSettings, this.invoices, this.legal);
     this.customerSupport = new CustomerSupportService(prisma, this.notifications, this.catalog);
+    this.customerAuth = new CustomerAuthService(prisma, this.notifications);
     this.messaging = new MessagingService(prisma, this.integrations, this.customerSupport);
     this.offers = new OfferService(prisma);
     this.discounts = new DiscountService(prisma);
