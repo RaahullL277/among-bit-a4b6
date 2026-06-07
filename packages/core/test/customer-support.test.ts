@@ -135,6 +135,26 @@ describe.skipIf(!hasDb)('customer support chatbot (stub)', () => {
     expect(stats.topTools.length).toBeGreaterThan(0);
   });
 
+  it('hands off to a human after 2 rebuttals when support is available', async () => {
+    await commerce.customerSupport.setConfig(ctx, { storeId, enabled: true, humanHandoffEnabled: true, supportEmail: 'help@support.example' });
+    const first = await commerce.customerSupport.chat({ storeId, message: "that's not what I asked", contact: { email: 'up@example.com' } });
+    expect(first.status).not.toBe('ESCALATED'); // 1st rebuttal — not yet
+    const second = await commerce.customerSupport.chat({ storeId, conversationId: first.conversationId, message: 'still not helpful' });
+    expect(second.status).toBe('ESCALATED');
+    expect(second.toolsUsed).toContain('escalate_to_human');
+    expect(second.reply).toMatch(/connected you with our team|reply here shortly/i);
+  });
+
+  it('tells the customer support will reach out when no human is available', async () => {
+    await commerce.customerSupport.setConfig(ctx, { storeId, enabled: true, humanHandoffEnabled: false });
+    const first = await commerce.customerSupport.chat({ storeId, message: 'that does not help' });
+    expect(first.status).not.toBe('ESCALATED');
+    const second = await commerce.customerSupport.chat({ storeId, conversationId: first.conversationId, message: 'this is useless' });
+    expect(second.status).toBe('ESCALATED');
+    expect(second.reply).toMatch(/get in touch|email or phone/i);
+    await commerce.customerSupport.setConfig(ctx, { storeId, enabled: true, humanHandoffEnabled: true });
+  });
+
   it('P2-8: inbound WhatsApp is answered by the real bot (not an echo)', async () => {
     await commerce.integrations.configure(ctx, { storeId, provider: 'WHATSAPP', credentials: { phoneNumberId: 'p', token: 't' } });
     const res = await commerce.messaging.handleInbound(ctx, storeId, JSON.stringify({ from: '+919812345678', body: 'do you have chai?' }));

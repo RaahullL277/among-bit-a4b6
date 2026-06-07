@@ -43,6 +43,21 @@ Audited 2026-06-07. Covers the storefront sales/support bot
 - **P2-9 No bot analytics.** Added `botAnalytics` (conversations, escalation rate,
   deflection rate, top tools) surfaced on the admin Support page.
 
+## Auto-handoff after repeated rebuttals (added 2026-06-07)
+After **`maxRebuttals` (default 2)** unresolved/pushback turns, the chat is
+handed off deterministically (regardless of LLM/stub):
+- **Human available** (`humanHandoffEnabled` + a support/owner email or phone) →
+  the conversation is escalated, the owner is notified, and the customer is told
+  a team member will reply in the chat shortly.
+- **Not available** → still escalated for follow-up, and the customer is told
+  support will get in touch via email/phone (with the support contact, and a
+  prompt for their contact if missing).
+A human agent reply resets the rebuttal counter. Configurable per store
+(`configure_support_bot` / admin Assistant settings): `humanHandoffEnabled`,
+`supportEmail`, `supportPhone`, `maxRebuttals`. Rebuttals are detected by a
+dissatisfaction heuristic ("not helpful", "that's not what I asked", "still
+not…", "useless", etc.).
+
 ## Not in this pass (follow-ups)
 Streaming responses; CSAT capture; inbox SLA/assignment; prompt-injection
 hardening of tool outputs; custom knowledge-base ingestion; proactive/

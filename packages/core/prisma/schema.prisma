@@ -1330,6 +1330,13 @@ model SupportBotConfig {
   greeting    String?
   // Extra persona/instructions appended to the system prompt.
   persona     String?
+  // Human handoff: whether a person is available to take over a chat, the
+  // public support contact, and how many unresolved/pushback turns trigger an
+  // automatic handoff.
+  humanHandoffEnabled Boolean @default(true)
+  supportEmail String?
+  supportPhone String?
+  maxRebuttals Int     @default(2)
   updatedAt   DateTime @updatedAt
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -1346,6 +1353,8 @@ model SupportConversation {
   contactEmail  String?
   status        SupportConversationStatus @default(OPEN)
   escalationReason String?
+  // Count of customer pushback/unresolved turns; drives auto-handoff.
+  rebuttals     Int                       @default(0)
   lastMessageAt DateTime                  @default(now())
   createdAt     DateTime                  @default(now())
   updatedAt     DateTime                  @updatedAt

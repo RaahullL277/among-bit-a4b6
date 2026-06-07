@@ -52,7 +52,10 @@ export class CustomerSupportService {
 
   async setConfig(
     ctx: TenantContext,
-    input: { storeId: string; enabled?: boolean; displayName?: string; greeting?: string; persona?: string },
+    input: {
+      storeId: string; enabled?: boolean; displayName?: string; greeting?: string; persona?: string;
+      humanHandoffEnabled?: boolean; supportEmail?: string; supportPhone?: string; maxRebuttals?: number;
+    },
   ) {
     await this.getStore(ctx, input.storeId);
     const data = {
@@ -60,12 +63,34 @@ export class CustomerSupportService {
       displayName: input.displayName?.trim() || 'Assistant',
       greeting: input.greeting ?? null,
       persona: input.persona ?? null,
+      humanHandoffEnabled: input.humanHandoffEnabled ?? true,
+      supportEmail: input.supportEmail?.trim() || null,
+      supportPhone: input.supportPhone?.trim() || null,
+      maxRebuttals: input.maxRebuttals != null ? Math.max(1, Math.min(5, Math.round(input.maxRebuttals))) : 2,
     };
     return this.prisma.supportBotConfig.upsert({
       where: { storeId: input.storeId },
       create: { tenantId: ctx.tenantId, storeId: input.storeId, ...data },
       update: data,
     });
+  }
+
+  /** Heuristic: does this customer message signal dissatisfaction / pushback? */
+  private looksLikeRebuttal(message: string): boolean {
+    const s = message.toLowerCase();
+    return (
+      /\bnot (helpful|working|right|correct|what i)\b/.test(s) ||
+      /\bunhelpful\b/.test(s) ||
+      /(did|does)(n'?t| not) (help|work|answer)/.test(s) ||
+      /\bstill (not|doesn'?t|isn'?t|won'?t|having)\b/.test(s) ||
+      /that'?s (wrong|not right|incorrect|not what)/.test(s) ||
+      /\b(useless|frustrat\w*|terrible|ridiculous|nonsense)\b/.test(s) ||
+      /not (satisfied|good enough|helping)/.test(s) ||
+      /you don'?t understand/.test(s) ||
+      /that (doesn'?t|does not) (answer|help)/.test(s) ||
+      /\btry again\b/.test(s) ||
+      /that'?s not what i (asked|meant|wanted)/.test(s)
+    );
   }
 
   /** Public config a storefront widget needs (no tenant scoping). */
@@ -361,7 +386,32 @@ export class CustomerSupportService {
       return done(`Here are some options:\n${lines.join('\n')}\nWant details on any of these?`, ['search_products']);
     };
 
-    const result = await getAssistant().run({ system, messages: history, tools, stub });
+    // Count customer pushback / unresolved turns and auto-hand off at the cap.
+    const cfg = store.supportBotConfig;
+    const maxRebuttals = cfg?.maxRebuttals ?? 2;
+    const isRebuttal = this.looksLikeRebuttal(input.message);
+    const rebuttals = (conversation.rebuttals ?? 0) + (isRebuttal ? 1 : 0);
+
+    let result: AssistantReply;
+    if (isRebuttal && rebuttals >= maxRebuttals && conversation.status !== 'ESCALATED') {
+      // Two (or `maxRebuttals`) unresolved replies → hand off deterministically.
+      const supportEmail = cfg?.supportEmail || store.ownerEmail || null;
+      const supportPhone = cfg?.supportPhone || store.ownerPhone || null;
+      const humanAvailable = (cfg?.humanHandoffEnabled ?? true) && Boolean(supportEmail || supportPhone);
+      escalated = { reason: `Auto-handoff after ${rebuttals} unresolved replies`, email: input.contact?.email };
+      let reply: string;
+      if (humanAvailable) {
+        reply = `I'm sorry I couldn't sort this out. I've connected you with our team — a member of ${store.name} support will reply here shortly.`;
+      } else {
+        const reach = [supportEmail ? `email${supportEmail ? ` (${supportEmail})` : ''}` : null, supportPhone ? `phone${supportPhone ? ` (${supportPhone})` : ''}` : null].filter(Boolean);
+        const reachLine = reach.length ? ` You can also reach us via ${reach.join(' or ')}.` : '';
+        const needContact = input.contact?.email ? '' : ' Please share your email or phone so the team can follow up.';
+        reply = `I'm sorry I couldn't resolve this. Our support team will get in touch with you directly.${reachLine}${needContact}`;
+      }
+      result = { reply, toolsUsed: ['escalate_to_human'], provider: 'stub' };
+    } else {
+      result = await getAssistant().run({ system, messages: history, tools, stub });
+    }
 
     await this.prisma.supportMessage.create({
       data: {
@@ -376,6 +426,7 @@ export class CustomerSupportService {
       where: { id: conversation.id },
       data: {
         lastMessageAt: new Date(),
+        rebuttals,
         ...(escalated ? { status: 'ESCALATED', escalationReason: (escalated as any).reason, contactEmail: (escalated as any).email ?? conversation.contactEmail } : {}),
       },
     });
@@ -462,7 +513,7 @@ export class CustomerSupportService {
       .catch(() => undefined);
     return this.prisma.supportConversation.update({
       where: { id: c.id },
-      data: { status: 'OPEN', lastMessageAt: new Date() },
+      data: { status: 'OPEN', lastMessageAt: new Date(), rebuttals: 0 },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
   }

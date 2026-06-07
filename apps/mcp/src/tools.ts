@@ -1833,13 +1833,17 @@ export function registerTools(server: McpServer, session: Session) {
   server.registerTool(
     'configure_support_bot',
     {
-      description: 'Set up the storefront sales & support chatbot: enable it and set its name, greeting, and persona/instructions.',
+      description: 'Set up the storefront sales & support chatbot: enable it, set name/greeting/persona, and configure human handoff — whether a person is available, the support email/phone, and how many unresolved replies trigger handoff (the bot connects the customer to your team, or tells them support will reach out).',
       inputSchema: {
         storeId: z.string(),
         enabled: z.boolean().optional(),
         displayName: z.string().optional(),
         greeting: z.string().optional(),
         persona: z.string().optional().describe('Tone, policies, what to emphasize'),
+        humanHandoffEnabled: z.boolean().optional().describe('Whether a human is available to take over escalated chats'),
+        supportEmail: z.string().optional(),
+        supportPhone: z.string().optional(),
+        maxRebuttals: z.number().int().min(1).max(5).optional().describe('Unresolved/pushback replies before auto-handoff (default 2)'),
       },
     },
     tool((ctx, a: any) => commerce.customerSupport.setConfig(ctx, a)),

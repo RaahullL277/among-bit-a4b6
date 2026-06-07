@@ -23,7 +23,10 @@ function BotConfig({ storeId, open, onClose }) {
   const { data } = useAsync(() => (open ? api.support.getConfig(storeId) : Promise.resolve(null)), [storeId, open]);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
-  const cfg = form ?? (data ? { enabled: data.enabled, displayName: data.displayName, greeting: data.greeting ?? '', persona: data.persona ?? '' } : null);
+  const cfg = form ?? (data ? {
+    enabled: data.enabled, displayName: data.displayName, greeting: data.greeting ?? '', persona: data.persona ?? '',
+    humanHandoffEnabled: data.humanHandoffEnabled ?? true, supportEmail: data.supportEmail ?? '', supportPhone: data.supportPhone ?? '', maxRebuttals: data.maxRebuttals ?? 2,
+  } : null);
 
   async function save(e) {
     e.preventDefault();
@@ -55,6 +58,29 @@ function BotConfig({ storeId, open, onClose }) {
           <Field label="Persona / extra instructions" hint="Tone, policies, what to emphasize.">
             <Textarea value={cfg.persona} onChange={(e) => setForm({ ...cfg, persona: e.target.value })} />
           </Field>
+
+          <div className="border-t border-slate-100 pt-4">
+            <div className="mb-2 text-sm font-medium text-slate-700">Human handoff</div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={cfg.humanHandoffEnabled} onChange={(e) => setForm({ ...cfg, humanHandoffEnabled: e.target.checked })} />
+              A human is available to take over escalated chats
+            </label>
+            <p className="mt-1 text-xs text-slate-400">
+              After {cfg.maxRebuttals} unresolved replies the chat is handed off. If a human is available, the customer is connected to your team; otherwise they're told support will reach out via email/phone.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Field label="Hand off after (replies)">
+                <Input type="number" min="1" max="5" value={cfg.maxRebuttals} onChange={(e) => setForm({ ...cfg, maxRebuttals: Math.max(1, Math.min(5, parseInt(e.target.value, 10) || 2)) })} />
+              </Field>
+              <Field label="Support email" hint="Shown to customers + escalations">
+                <Input value={cfg.supportEmail} onChange={(e) => setForm({ ...cfg, supportEmail: e.target.value })} placeholder="help@store.com" />
+              </Field>
+              <Field label="Support phone">
+                <Input value={cfg.supportPhone} onChange={(e) => setForm({ ...cfg, supportPhone: e.target.value })} placeholder="+91…" />
+              </Field>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
             <Button type="submit" loading={saving}>Save</Button>
