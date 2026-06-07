@@ -39,7 +39,13 @@ export default function Home() {
         return (
           <div key={p.id} className="flex flex-col rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <Link to={`/product/${p.id}`} className="flex-1">
-              <div className="mb-3 flex h-32 items-center justify-center rounded-xl bg-stone-100 text-3xl">🛍️</div>
+              <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-xl bg-stone-100">
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                ) : (
+                  <span className="text-3xl">🛍️</span>
+                )}
+              </div>
               <div className="font-medium text-stone-900">{p.title}</div>
               {ratings[p.id]?.count > 0 && (
                 <div className="mt-1 flex items-center gap-1">

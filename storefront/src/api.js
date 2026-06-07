@@ -28,6 +28,14 @@ export const api = {
   store: (id) => req(`/storefront/${id}`),
   products: (id) => req(`/storefront/${id}/products`),
   search: (id, q) => req(`/storefront/${id}/search?q=${encodeURIComponent(q)}`),
+  collections: (id) => req(`/storefront/${id}/collections`),
+  facets: (id) => req(`/storefront/${id}/facets`),
+  catalog: (id, params = {}) => {
+    const qsv = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v != null && v !== '') qsv.set(k, Array.isArray(v) ? v.join(',') : v);
+    return req(`/storefront/${id}/catalog?${qsv.toString()}`);
+  },
+  resolveVariant: (id, productId, selected) => req(`/storefront/${id}/products/${productId}/resolve-variant`, { method: 'POST', body: { selected } }),
   trackOrder: (id, number, email) =>
     req(`/storefront/${id}/track?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
   // Direct URL to the buyer's printable GST tax invoice (verified by number + email).

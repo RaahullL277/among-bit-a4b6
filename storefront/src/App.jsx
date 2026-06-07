@@ -14,6 +14,7 @@ import Subscriptions from './pages/Subscriptions';
 import Search from './pages/Search';
 import Track from './pages/Track';
 import Wishlist from './pages/Wishlist';
+import Shop from './pages/Shop';
 import Legal from './pages/Legal';
 
 function Header({ storeName }) {
@@ -40,6 +41,7 @@ function Header({ storeName }) {
         <Link to="/track" className="text-sm text-stone-500 hover:text-stone-800">Track</Link>
         <Link to="/subscriptions" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Subscriptions</Link>
         <Link to="/returns" className="hidden text-sm text-stone-500 hover:text-stone-800 md:inline">Returns</Link>
+        <Link to="/shop" className="text-sm font-medium text-stone-700 hover:text-stone-900">Shop</Link>
         <Link to="/wishlist" className="text-stone-700 hover:text-stone-900" title="Wishlist"><Heart size={20} /></Link>
         <Link to="/cart" className="relative inline-flex items-center gap-1.5 text-stone-700 hover:text-stone-900">
           <ShoppingCart size={20} />
@@ -121,6 +123,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/track" element={<Track />} />
           <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/shop" element={<Shop />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/legal/:type" element={<Legal />} />
           <Route path="*" element={<Navigate to="/" replace />} />
