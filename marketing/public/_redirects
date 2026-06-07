@@ -1,0 +1,4 @@
+# SPA fallback for static hosts (Netlify/Cloudflare Pages): every path serves
+# the app, which then host-routes ecom.imagine.bo -> merchant and
+# ecompartner.imagine.bo -> partner (see src/host.js).
+/*    /index.html   200

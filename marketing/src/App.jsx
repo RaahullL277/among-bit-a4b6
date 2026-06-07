@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Landing from './pages/Landing';
 import { MERCHANT, PARTNER } from './content';
+import { resolveAudience } from './host';
 
 // ecompartner.imagine.bo serves the partner site at "/"; ecom.imagine.bo serves
 // merchants. In dev (or a single deployment), both are reachable by route too.
 const host = typeof window !== 'undefined' ? window.location.hostname : '';
-const PARTNER_HOST = /(^|\.)ecompartner\./i.test(host) || /partner/i.test(host);
+const PARTNER_HOST = resolveAudience(host) === 'partner';
 
 function useDocMeta(content) {
   const loc = useLocation();
