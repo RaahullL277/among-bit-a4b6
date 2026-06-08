@@ -339,6 +339,8 @@ export const api = {
     topProducts: (storeId, from, limit) => request(`/analytics/top-products?${qs({ storeId, from, limit })}`),
     agentSales: (storeId, from) => request(`/analytics/agent-sales?${qs({ storeId, from })}`),
     searchInsights: (storeId, from) => request(`/analytics/search-insights?${qs({ storeId, from })}`),
+    storeTrends: (storeId) => request(`/analytics/store-trends?${qs({ storeId })}`),
+    marketTrends: (storeId) => request(`/analytics/market-trends?${qs({ storeId })}`),
   },
   stock: {
     status: (storeId) => request(`/stores/${storeId}/stock`),

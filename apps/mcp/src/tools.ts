@@ -1090,6 +1090,26 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'get_store_trends',
+    {
+      description:
+        "Internal momentum (deterministic): what's rising or falling in the store's OWN searches and sales this window vs the previous one — rising search terms (incl. unmet ones), and rising/declining products by units sold.",
+      inputSchema: { storeId: z.string().optional(), windowDays: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.trends.storeTrends(ctx, a)),
+  );
+
+  server.registerTool(
+    'get_market_trends',
+    {
+      description:
+        "External category/segment market trends for the store's vertical, via a pluggable provider. NOTE: returns SAMPLE data (report.sample = true) until a real trends provider is configured — do not present it as live market data.",
+      inputSchema: { storeId: z.string(), category: z.string().optional(), segment: z.string().optional(), region: z.string().optional() },
+    },
+    tool((ctx, a: any) => commerce.trends.marketTrends(ctx, a)),
+  );
+
+  server.registerTool(
     'get_agent_sales',
     {
       description: 'AI-assistant sales attribution: paid orders and revenue driven by each shopping assistant (Claude, ChatGPT, …) over a date range, and their share of total revenue.',

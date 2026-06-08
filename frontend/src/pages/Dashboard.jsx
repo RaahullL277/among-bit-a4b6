@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp, AlertTriangle, AlertCircle, Lightbulb, Activity, ArrowRight, Search as SearchIcon, PackageSearch } from 'lucide-react';
+import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp, AlertTriangle, AlertCircle, Lightbulb, Activity, ArrowRight, Search as SearchIcon, PackageSearch, Flame, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -135,6 +135,72 @@ function SearchDemandCard({ storeId, from }) {
   );
 }
 
+// Trends: internal momentum (real) + external category trends (sample stub).
+function TrendsCard({ storeId }) {
+  const { data: store } = useAsync(() => api.analytics.storeTrends(storeId), [storeId]);
+  const { data: market } = useAsync(() => api.analytics.marketTrends(storeId), [storeId]);
+  const risingSearches = store?.risingSearches ?? [];
+  const risingProducts = store?.risingProducts ?? [];
+  const hasInternal = risingSearches.length || risingProducts.length;
+  const marketTrends = (market?.trends ?? []).filter((t) => t.direction !== 'steady').slice(0, 8);
+
+  if (!hasInternal && !marketTrends.length) return null;
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader title="Rising in your store" subtitle="Searches & sales gaining momentum vs last period" />
+        <div className="space-y-4 p-5">
+          {risingProducts.length > 0 && (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Products</div>
+              {risingProducts.slice(0, 5).map((p) => (
+                <div key={p.productId} className="flex items-center justify-between py-1 text-sm">
+                  <span className="font-medium text-slate-900">{p.title}{p.isNew && <span className="ml-1.5 rounded bg-emerald-50 px-1 text-[10px] font-semibold text-emerald-600">NEW</span>}</span>
+                  <span className="inline-flex items-center gap-1 text-emerald-600"><ArrowUp size={13} />{p.delta} units</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {risingSearches.length > 0 && (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Searches</div>
+              {risingSearches.slice(0, 5).map((s) => (
+                <div key={s.query} className="flex items-center justify-between py-1 text-sm">
+                  <span className="font-medium text-slate-900">{s.query}{s.unmet && <span className="ml-1.5 rounded bg-amber-50 px-1 text-[10px] font-semibold text-amber-700">UNMET</span>}</span>
+                  <span className="inline-flex items-center gap-1 text-emerald-600"><ArrowUp size={13} />+{s.delta}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!hasInternal && <EmptyState icon={Flame} title="Not enough activity yet" />}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Category trends" subtitle={market?.basedOn?.category ? `Vertical: ${market.basedOn.category}` : 'Your category & segment'} action={
+          market?.sample ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">SAMPLE</span> : null
+        } />
+        {marketTrends.length ? (
+          <>
+            <ul className="divide-y divide-slate-50">
+              {marketTrends.map((t) => (
+                <li key={t.term} className="flex items-center justify-between px-5 py-2 text-sm">
+                  <span className="font-medium capitalize text-slate-900">{t.term}</span>
+                  <span className={`inline-flex items-center gap-1 ${t.direction === 'rising' ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {t.direction === 'rising' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}{t.changePercent > 0 ? '+' : ''}{t.changePercent}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {market?.note && <p className="px-5 py-3 text-xs text-slate-400">{market.note}</p>}
+          </>
+        ) : <EmptyState icon={TrendingUp} title="No category trends" />}
+      </Card>
+    </div>
+  );
+}
+
 function Stat({ icon: Icon, label, value, tint }) {
   return (
     <Card className="p-5">
@@ -259,6 +325,8 @@ export default function Dashboard() {
       </div>
 
       <SearchDemandCard storeId={storeId} from={from} />
+
+      {storeId && <TrendsCard storeId={storeId} />}
     </div>
   );
 }

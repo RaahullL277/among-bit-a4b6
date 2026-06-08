@@ -123,6 +123,18 @@ export {
   type AdvisorCategory,
   type Severity,
 } from './services/advisor.service.js';
+export { TrendsService, type StoreTrendsInput, type TrendMover } from './services/trends.service.js';
+export {
+  getMarketTrendsProvider,
+} from './adapters/registry.js';
+export {
+  StubMarketTrendsAdapter,
+  HttpMarketTrendsAdapter,
+  type MarketTrendsProvider,
+  type MarketTrend,
+  type MarketTrendReport,
+  type MarketTrendQuery,
+} from './adapters/trends.js';
 export { CohortService, type TrackEventInput, type Temperature } from './services/cohort.service.js';
 export { MarketingService } from './services/marketing.service.js';
 export {

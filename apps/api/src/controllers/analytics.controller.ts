@@ -76,4 +76,26 @@ export class AnalyticsController {
   ) {
     return this.commerce.analytics.searchInsights(t, { storeId, from, to, limit: limit ? Number(limit) : undefined });
   }
+
+  // Internal momentum: what's rising/falling in the store's own searches & sales.
+  @Get('store-trends')
+  storeTrends(
+    @Tenant() t: TenantContext,
+    @Query('storeId') storeId?: string,
+    @Query('windowDays') windowDays?: string,
+  ) {
+    return this.commerce.trends.storeTrends(t, { storeId, windowDays: windowDays ? Number(windowDays) : undefined });
+  }
+
+  // External category/segment trends (pluggable provider; sample stub today).
+  @Get('market-trends')
+  marketTrends(
+    @Tenant() t: TenantContext,
+    @Query('storeId') storeId: string,
+    @Query('category') category?: string,
+    @Query('segment') segment?: string,
+    @Query('region') region?: string,
+  ) {
+    return this.commerce.trends.marketTrends(t, { storeId, category, segment, region });
+  }
 }

@@ -9,6 +9,7 @@ import { WhatsAppAdapter, type MessagingProvider } from './messaging.js';
 import { ResendAdapter, type EmailProvider } from './email.js';
 import { Msg91Adapter, type SmsProvider } from './sms.js';
 import { DelhiveryAdapter, type ShippingProvider } from './shipping.js';
+import { StubMarketTrendsAdapter, type MarketTrendsProvider } from './trends.js';
 import {
   BrevoAdapter,
   KlaviyoAdapter,
@@ -108,3 +109,11 @@ export const CHANNEL_PROVIDER: Record<NotificationChannel, ProviderName> = {
   SMS: 'MSG91',
   WHATSAPP: 'WHATSAPP',
 };
+
+/**
+ * The active market-trends provider. Defaults to the deterministic sample stub;
+ * swap to a real (network) provider here once one is configured.
+ */
+export function getMarketTrendsProvider(): MarketTrendsProvider {
+  return new StubMarketTrendsAdapter();
+}
