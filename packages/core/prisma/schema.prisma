@@ -290,6 +290,28 @@ enum CohortKind {
   SEARCH_INTENT // grouped by what shoppers searched for on the store
 }
 
+// Storefront experiments: how a visitor is assigned to a page/theme variant.
+enum ExperimentMode {
+  SPLIT     // random, sticky weighted split (A/B test)
+  TARGETED  // rule-based by cohort (if known) / acquisition (UTM)
+}
+
+enum ExperimentStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  ENDED
+}
+
+// What a TARGETED variant matches a visitor on.
+enum AudienceKind {
+  ALL                  // fallback / control
+  COHORT               // matches a Cohort.key (needs a known customer)
+  ACQUISITION_SOURCE   // matches Customer.acqSource / utm_source
+  ACQUISITION_CAMPAIGN // matches Customer.acqCampaign / utm_campaign
+}
+
+
 // Lifecycle/merchandising moment an engagement automation reacts to. Each has a
 // library of 5 ready-to-use templates per channel.
 enum EngagementTrigger {
@@ -557,6 +579,7 @@ model Store {
   bundles      Bundle[]
   pages        StorePage[]
   theme        StoreTheme?
+  experiments  StoreExperiment[]
   returns      Return[]
   returnPolicy ReturnPolicy?
   listingAgentConfig ListingAgentConfig?
@@ -857,6 +880,9 @@ model Order {
   // agentChannel names the assistant when source = "agent".
   source       String?
   agentChannel AgentChannel?
+  // Storefront-experiment attribution: which variant the buyer was shown.
+  experimentId        String?
+  experimentVariantId String?
   // External reference when migrated from another platform (e.g. Shopify order id),
   // used to de-duplicate historical-order imports.
   sourceRef    String?
@@ -1941,6 +1967,9 @@ model BehaviorEvent {
   term        String?
   query       String? // on-site search query (for SEARCH events)
   resultCount Int?    // # of results a SEARCH returned (0 = unmet demand)
+  // Storefront-experiment attribution (which variant this visitor was shown).
+  experimentId        String?
+  experimentVariantId String?
   createdAt   DateTime          @default(now())
 
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -2497,5 +2526,55 @@ model AdvisoryDispatch {
   lastSentAt DateTime @default(now())
 
   @@unique([storeId, code])
+  @@index([tenantId])
+}
+
+// A storefront experiment: N variants of a page (+ theme) on one slug, served by
+// either a random sticky SPLIT (A/B) or a rule-based TARGETED assignment.
+model StoreExperiment {
+  id               String           @id @default(cuid())
+  tenantId         String
+  storeId          String
+  slug             String           // the page slug it governs, e.g. "home"
+  name             String
+  mode             ExperimentMode   @default(SPLIT)
+  status           ExperimentStatus @default(DRAFT)
+  startedAt        DateTime?
+  endedAt          DateTime?
+  winningVariantId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  store    Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  variants ExperimentVariant[]
+
+  @@unique([storeId, slug]) // one experiment per surface
+  @@index([tenantId])
+  @@index([storeId, status])
+}
+
+// One variant of an experiment: its own page sections + optional theme override,
+// a SPLIT weight, and (for TARGETED) an audience rule.
+model ExperimentVariant {
+  id              String       @id @default(cuid())
+  tenantId        String
+  storeId         String
+  experimentId    String
+  name            String
+  isControl       Boolean      @default(false)
+  weight          Int          @default(50) // SPLIT: relative weight
+  sections        Json         @default("[]")
+  metaTitle       String?
+  metaDescription String?
+  themeOverride   Json?        // partial StoreTheme; null = store default
+  audienceKind    AudienceKind @default(ALL)
+  audienceValue   String?      // cohort key / utm value for TARGETED
+  priority        Int          @default(0) // higher wins when multiple rules match
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  experiment StoreExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId])
   @@index([tenantId])
 }

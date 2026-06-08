@@ -28,6 +28,9 @@ export interface TrackEventInput {
   query?: string;
   /** For SEARCH events: how many results the query returned (0 = unmet demand). */
   resultCount?: number;
+  /** Storefront-experiment attribution (which variant the visitor was shown). */
+  experimentId?: string;
+  experimentVariantId?: string;
 }
 
 interface Feat {
@@ -148,6 +151,8 @@ export class CohortService {
         term: input.term,
         query: input.query ? input.query.trim().slice(0, 120) : undefined,
         resultCount: typeof input.resultCount === 'number' ? Math.max(0, Math.trunc(input.resultCount)) : undefined,
+        experimentId: input.experimentId,
+        experimentVariantId: input.experimentVariantId,
       },
     });
     return { tracked: true, customerId: customerId ?? null };

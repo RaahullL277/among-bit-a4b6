@@ -166,7 +166,7 @@ export class CartService {
   async checkoutCart(
     ctx: TenantContext,
     cartId: string,
-    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string } = {},
+    opts: { provider?: any; email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string; experimentId?: string; experimentVariantId?: string } = {},
   ) {
     const cart = await this.getCart(ctx, cartId);
     if (!cart.items.length) throw new ValidationError('Cannot check out an empty cart.');
@@ -210,7 +210,10 @@ export class CartService {
       acceptanceIp: opts.acceptanceIp,
     });
 
-    await this.prisma.order.update({ where: { id: result.order.id }, data: { cartId } });
+    await this.prisma.order.update({
+      where: { id: result.order.id },
+      data: { cartId, experimentId: opts.experimentId, experimentVariantId: opts.experimentVariantId },
+    });
     if (appliedCode) await this.discounts?.redeem(cart.storeId, appliedCode);
     // The cart is intentionally NOT marked CONVERTED/RECOVERED here: the order is
     // only PENDING. If the shopper abandons the hosted checkout before paying, the

@@ -30,6 +30,7 @@ import Discounts from './pages/Discounts';
 import Loyalty from './pages/Loyalty';
 import Subscriptions from './pages/Subscriptions';
 import Design from './pages/Design';
+import Experiments from './pages/Experiments';
 import Seo from './pages/Seo';
 import Images from './pages/Images';
 import Marketing from './pages/Marketing';
@@ -72,6 +73,7 @@ function AuthedApp() {
           <Route path="/loyalty" element={<Loyalty />} />
           <Route path="/subscriptions" element={<Subscriptions />} />
           <Route path="/design" element={<Design />} />
+          <Route path="/experiments" element={<Experiments />} />
           <Route path="/seo" element={<Seo />} />
           <Route path="/images" element={<Images />} />
           <Route path="/marketing" element={<Marketing />} />

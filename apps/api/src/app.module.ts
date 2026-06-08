@@ -31,6 +31,7 @@ import { OffersController } from './controllers/offers.controller.js';
 import { PagesController } from './controllers/pages.controller.js';
 import { TemplatesController } from './controllers/templates.controller.js';
 import { LeadsController } from './controllers/leads.controller.js';
+import { ExperimentsController } from './controllers/experiments.controller.js';
 import { CohortsController } from './controllers/cohorts.controller.js';
 import { EngagementController } from './controllers/engagement.controller.js';
 import { ShopabilityController } from './controllers/shopability.controller.js';
@@ -78,6 +79,7 @@ import { WebhooksController } from './controllers/webhooks.controller.js';
     PagesController,
     TemplatesController,
     LeadsController,
+    ExperimentsController,
     CohortsController,
     EngagementController,
     ShopabilityController,

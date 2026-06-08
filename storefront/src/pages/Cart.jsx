@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, money, STORE_ID } from '../api';
-import { identify } from '../track';
+import { identify, getExperiment } from '../track';
 import { useCart } from '../cart';
 import { useAccount } from '../account';
 import ProductRail from '../ProductRail';
@@ -107,7 +107,8 @@ export default function Cart() {
       if (signedIn && saveAddress && address.line1) {
         await api.account.addAddress(address).catch(() => undefined);
       }
-      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined, discountCode: discount ? code.trim() : undefined });
+      const exp = getExperiment(); // attribute the order to its storefront variant
+      const res = await api.checkout(cartId, { email: email || undefined, redeemPoints, shippingAddress: hasAddress ? address : undefined, marketingOptIn: marketingOptIn || undefined, discountCode: discount ? code.trim() : undefined, experimentId: exp?.id, experimentVariantId: exp?.variantId });
       clear();
       navigate('/confirmation', { state: { ...res, email } });
     } catch (e) {

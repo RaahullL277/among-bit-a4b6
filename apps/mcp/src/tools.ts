@@ -1549,6 +1549,61 @@ export function registerTools(server: McpServer, session: Session) {
     tool((ctx, a: any) => commerce.pages.setTheme(ctx, a)),
   );
 
+  // --- Storefront experiments (A/B + cohort-targeted variants) --------------
+  const expVariantShape = {
+    name: z.string(),
+    weight: z.number().int().optional().describe('SPLIT mode: relative traffic weight'),
+    sections: z.array(z.any()).optional().describe('page sections; omit to clone the live page'),
+    themeOverride: z.record(z.any()).nullable().optional(),
+    audienceKind: z.enum(['ALL', 'COHORT', 'ACQUISITION_SOURCE', 'ACQUISITION_CAMPAIGN']).optional(),
+    audienceValue: z.string().nullable().optional().describe('cohort key or utm value for TARGETED'),
+    priority: z.number().int().optional(),
+  };
+  server.registerTool(
+    'create_experiment',
+    {
+      description:
+        'Create a storefront experiment on a page slug (default "home"). mode SPLIT = random sticky A/B; TARGETED = rule-based by cohort (if the visitor is known) else acquisition/UTM. A Control variant is auto-cloned from the live page; pass challenger variants.',
+      inputSchema: {
+        storeId: z.string(),
+        name: z.string(),
+        slug: z.string().optional(),
+        mode: z.enum(['SPLIT', 'TARGETED']).optional(),
+        variants: z.array(z.object(expVariantShape)).optional(),
+      },
+    },
+    tool((ctx, a: any) => commerce.experiments.create(ctx, a)),
+  );
+  server.registerTool(
+    'list_experiments',
+    { description: 'List storefront experiments for a store (with variants).', inputSchema: { storeId: z.string() } },
+    tool((ctx, a: any) => commerce.experiments.list(ctx, a.storeId)),
+  );
+  server.registerTool(
+    'add_experiment_variant',
+    { description: 'Add a variant to an experiment (clones the live page when sections are omitted).', inputSchema: { experimentId: z.string(), ...expVariantShape } },
+    tool((ctx, a: any) => { const { experimentId, ...v } = a; return commerce.experiments.addVariant(ctx, experimentId, v); }),
+  );
+  server.registerTool(
+    'set_experiment_status',
+    { description: 'Start (RUNNING), PAUSE, ENDED, or reset to DRAFT an experiment.', inputSchema: { experimentId: z.string(), status: z.enum(['DRAFT', 'RUNNING', 'PAUSED', 'ENDED']) } },
+    tool((ctx, a: any) => commerce.experiments.setStatus(ctx, a.experimentId, a.status)),
+  );
+  server.registerTool(
+    'get_experiment_results',
+    {
+      description:
+        'Per-variant funnel (exposures → clicks → add-to-cart → paid → revenue/visitor), the auto-selected primary metric (deepest stage with enough signal), uplift + significance vs control, and the suggested winner.',
+      inputSchema: { experimentId: z.string() },
+    },
+    tool((ctx, a: any) => commerce.experiments.results(ctx, a.experimentId)),
+  );
+  server.registerTool(
+    'promote_experiment_variant',
+    { description: 'Promote a variant: copy its sections + theme onto the live published page and end the experiment.', inputSchema: { experimentId: z.string(), variantId: z.string() } },
+    tool((ctx, a: any) => commerce.experiments.promoteWinner(ctx, a.experimentId, a.variantId)),
+  );
+
   // --- Returns / RMA --------------------------------------------------------
   server.registerTool(
     'get_return_policy',

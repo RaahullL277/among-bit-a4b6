@@ -59,9 +59,26 @@ export function identify(email, type = 'CLICK') {
   send(type, { email });
 }
 
+// The storefront-experiment assignment for this visitor (set once App resolves
+// the home experience), persisted so the cart page can tag the order too.
+const EXP_KEY = `acp.exp.${STORE_ID}`;
+export function setExperiment(a) {
+  if (a?.id && a?.variantId) localStorage.setItem(EXP_KEY, JSON.stringify({ id: a.id, variantId: a.variantId }));
+}
+export function getExperiment() {
+  try { return JSON.parse(localStorage.getItem(EXP_KEY) || 'null'); } catch { return null; }
+}
+export function getAnonId() { return anonId(); }
+export function getAttribution() { return attribution() || {}; }
+
 function send(type, { productId, email, query, resultCount } = {}) {
   const a = attribution() || {};
+  const exp = getExperiment();
   api
-    .track(STORE_ID, { type, productId, email, query, resultCount, anonymousId: anonId(), source: a.source, medium: a.medium, campaign: a.campaign, term: a.term })
+    .track(STORE_ID, {
+      type, productId, email, query, resultCount, anonymousId: anonId(),
+      source: a.source, medium: a.medium, campaign: a.campaign, term: a.term,
+      experimentId: exp?.id, experimentVariantId: exp?.variantId,
+    })
     .catch(() => undefined);
 }

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Heart, Search as SearchIcon, Menu, X, User } from 'lucide-react';
 import { api, STORE_ID, setStoreId } from './api';
-import { trackLand } from './track';
+import { trackLand, track, getAnonId, getAttribution, setExperiment } from './track';
+import { ExperimentContext } from './experiment';
 import ChatWidget from './ChatWidget';
 import { CartProvider, useCart } from './cart';
 import { AccountProvider, useAccount } from './account';
@@ -137,6 +138,7 @@ function applyTheme(theme) {
 export default function App() {
   const [storeName, setStoreName] = useState('');
   const [missing, setMissing] = useState(false);
+  const [homeExp, setHomeExp] = useState(null); // resolved A/B + cohort variant
 
   useEffect(() => {
     if (!STORE_ID) {
@@ -150,17 +152,30 @@ export default function App() {
       const d = document.querySelector('meta[name="description"]'); if (d) d.setAttribute('content', `Shop ${s.name} — secure checkout, fast delivery, easy returns.`);
       const ot = document.querySelector('meta[property="og:title"]'); if (ot) ot.setAttribute('content', s.name);
     }).catch(() => setMissing(true));
-    api.theme(STORE_ID).then((t) => {
-      applyTheme(t);
-      if (t?.logoText) setStoreName(t.logoText);
-    }).catch(() => undefined);
     trackLand(); // capture acquisition attribution + landing
+
+    // Resolve the home-page experiment for this visitor: a variant's theme +
+    // page when one is running, otherwise the store's default theme.
+    const attr = getAttribution();
+    api.experience(STORE_ID, 'home', { anonymousId: getAnonId(), utm_source: attr.source, utm_campaign: attr.campaign })
+      .then((res) => {
+        if (res?.experiment) {
+          applyTheme(res.theme);
+          setExperiment({ id: res.experiment.id, variantId: res.experiment.variantId });
+          setHomeExp(res);
+          track('VIEW'); // exposure for this variant (tagged via setExperiment)
+        } else {
+          return api.theme(STORE_ID).then((t) => { applyTheme(t); if (t?.logoText) setStoreName(t.logoText); });
+        }
+      })
+      .catch(() => api.theme(STORE_ID).then((t) => applyTheme(t)).catch(() => undefined));
   }, []);
 
   if (missing) return <StoreGate />;
 
   return (
     <AccountProvider>
+    <ExperimentContext.Provider value={homeExp}>
     <CartProvider>
       <Header storeName={storeName} />
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -184,6 +199,7 @@ export default function App() {
       <Footer />
       <ChatWidget />
     </CartProvider>
+    </ExperimentContext.Provider>
     </AccountProvider>
   );
 }

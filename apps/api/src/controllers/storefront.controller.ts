@@ -217,6 +217,27 @@ export class StorefrontController {
     return this.commerce.customerAuth.removeAddress(bearer(auth), id);
   }
 
+  // --- Storefront experiments (public): resolve the variant for this visitor --
+  @Get(':storeId/experience/:slug')
+  async experience(
+    @Param('storeId') storeId: string,
+    @Param('slug') slug: string,
+    @Query() q: any,
+    @Headers('authorization') auth?: string,
+  ): Promise<unknown> {
+    // Resolve a known buyer from their session token (enables cohort targeting).
+    let customerId: string | undefined;
+    const token = bearer(auth);
+    if (token) {
+      try { customerId = (await this.commerce.customerAuth.resolveSession(token)).customerId; } catch { /* anonymous */ }
+    }
+    return this.commerce.experiments.resolveExperience(storeId, slug, {
+      anonymousId: q?.anonymousId,
+      customerId,
+      acquisition: { source: q?.utm_source, campaign: q?.utm_campaign },
+    });
+  }
+
   // --- Support chatbot (public) ---------------------------------------------
   @Get(':storeId/support/config')
   supportConfig(@Param('storeId') storeId: string) {

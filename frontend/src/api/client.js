@@ -277,6 +277,17 @@ export const api = {
     templates: (category) => request(`/templates?${qs({ category })}`),
     applyTemplate: (body) => request('/templates/apply', { method: 'POST', body }),
   },
+  experiments: {
+    list: (storeId) => request(`/experiments?${qs({ storeId })}`),
+    get: (id) => request(`/experiments/${id}`),
+    results: (id) => request(`/experiments/${id}/results`),
+    create: (body) => request('/experiments', { method: 'POST', body }),
+    addVariant: (id, body) => request(`/experiments/${id}/variants`, { method: 'POST', body }),
+    updateVariant: (variantId, body) => request(`/experiments/variants/${variantId}`, { method: 'PATCH', body }),
+    removeVariant: (variantId) => request(`/experiments/variants/${variantId}`, { method: 'DELETE' }),
+    setStatus: (id, status) => request(`/experiments/${id}/status`, { method: 'POST', body: { status } }),
+    promote: (id, variantId) => request(`/experiments/${id}/promote`, { method: 'POST', body: { variantId } }),
+  },
   support: {
     getConfig: (storeId) => request(`/support/bot-config?${qs({ storeId })}`),
     setConfig: (body) => request('/support/bot-config', { method: 'PUT', body }),

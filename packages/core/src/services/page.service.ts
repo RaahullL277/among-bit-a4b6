@@ -220,6 +220,11 @@ export class PageService {
     };
   }
 
+  /** Public wrapper so experiments can render variant sections with live data. */
+  async renderSections(storeId: string, sections: PageSection[]) {
+    return this.resolveSections(storeId, sections);
+  }
+
   /** Attach live product data to product_grid / featured_product sections. */
   private async resolveSections(storeId: string, sections: PageSection[]) {
     const wantIds = new Set<string>();

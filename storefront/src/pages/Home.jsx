@@ -7,16 +7,20 @@ import PageRenderer from '../PageRenderer';
 import TrustBar from '../TrustBar';
 import RecentlyViewed from '../RecentlyViewed';
 import { SkeletonGrid } from '../Skeleton';
+import { useHomeExperience } from '../experiment';
 
 export default function Home() {
   const { addToCart } = useCart();
+  const homeExp = useHomeExperience(); // resolved A/B / cohort variant (or null)
   const [page, setPage] = useState(undefined); // undefined = loading, null = none
   const [products, setProducts] = useState(null);
   const [ratings, setRatings] = useState({});
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Prefer a merchant-designed published "home" page; fall back to the catalog grid.
+    // If an experiment assigned this visitor a home variant, render it.
+    if (homeExp?.page?.sections?.length) { setPage(homeExp.page); return; }
+    // Else prefer a merchant-designed published "home" page; fall back to the catalog grid.
     api.page(STORE_ID, 'home')
       .then((p) => {
         setPage(p);
@@ -27,7 +31,7 @@ export default function Home() {
         });
       })
       .catch((e) => setError(e.message));
-  }, []);
+  }, [homeExp]);
 
   if (error) return <p className="text-rose-600">{error}</p>;
   if (page === undefined) return <div><TrustBar /><SkeletonGrid /></div>;

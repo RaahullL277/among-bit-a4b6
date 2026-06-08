@@ -9,6 +9,7 @@ import type { IntegrationService } from './integration.service.js';
 import type { LegalService } from './legal.service.js';
 import type { NotificationService } from './notification.service.js';
 import type { AnalyticsService } from './analytics.service.js';
+import type { ExperimentService } from './experiment.service.js';
 
 /**
  * Store Operations Advisor — a DETERMINISTIC engine that inspects a store's live
@@ -22,7 +23,7 @@ import type { AnalyticsService } from './analytics.service.js';
 export type Severity = 'critical' | 'warning' | 'opportunity';
 export type AdvisorCategory =
   | 'readiness' | 'inventory' | 'fulfillment' | 'catalog'
-  | 'seo' | 'pricing' | 'reviews' | 'returns' | 'engagement' | 'demand';
+  | 'seo' | 'pricing' | 'reviews' | 'returns' | 'engagement' | 'demand' | 'experiments';
 
 export interface ExecutableAction {
   label: string;
@@ -73,6 +74,7 @@ export class AdvisorService {
     private readonly integrations: IntegrationService,
     private readonly legal: LegalService,
     private readonly analytics?: AnalyticsService,
+    private readonly experiments?: ExperimentService,
     private readonly notifications?: NotificationService,
   ) {}
 
@@ -97,6 +99,7 @@ export class AdvisorService {
       this.checkReturns(ctx, storeId),
       this.checkEngagement(storeId),
       this.checkDemand(ctx, storeId),
+      this.checkExperiments(ctx, storeId),
     ]);
 
     const recommendations = [readinessRecs, ...groups].flat();
@@ -418,6 +421,26 @@ export class AdvisorService {
       evidence: { unmetDemand: top.map((t) => ({ query: t.query, searches: t.searches })), totalMissedSearches: totalMissed },
       action: { label: 'Add a product for the top demand', tool: 'create_product', rest: { method: 'POST', path: '/products' }, args: { storeId, title: top[0].query } },
     }];
+  }
+
+  /** A running storefront experiment has a statistically significant winner. */
+  private async checkExperiments(ctx: TenantContext, storeId: string): Promise<Recommendation[]> {
+    if (!this.experiments) return [];
+    const running = await this.experiments.list(ctx, storeId).then((xs) => xs.filter((x: any) => x.status === 'RUNNING')).catch(() => []);
+    const recs: Recommendation[] = [];
+    for (const exp of running) {
+      const res = await this.experiments.results(ctx, exp.id).catch(() => null);
+      if (!res?.winnerVariantId) continue;
+      const winner = res.variants.find((v: any) => v.variantId === res.winnerVariantId);
+      recs.push({
+        code: 'EXPERIMENT_WINNER_READY', category: 'experiments', severity: 'opportunity', impact: 58,
+        title: `Experiment "${exp.name}" has a winner`,
+        detail: `Variant "${winner?.name}" is winning on ${res.primaryMetric}${winner?.uplift != null ? ` (+${Math.round(winner.uplift * 100)}%)` : ''} with significance. Promote it to make it live for everyone.`,
+        evidence: { experimentId: exp.id, winnerVariantId: res.winnerVariantId, primaryMetric: res.primaryMetric },
+        action: { label: 'Promote the winner', tool: 'promote_experiment_variant', rest: { method: 'POST', path: `/experiments/${exp.id}/promote` }, args: { experimentId: exp.id, variantId: res.winnerVariantId } },
+      });
+    }
+    return recs;
   }
 
   // --- Proactive owner notifications (worker) -------------------------------

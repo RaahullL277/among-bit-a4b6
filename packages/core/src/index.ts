@@ -124,6 +124,7 @@ export {
   type Severity,
 } from './services/advisor.service.js';
 export { TrendsService, type StoreTrendsInput, type TrendMover } from './services/trends.service.js';
+export { ExperimentService, type VisitorContext, type ExperimentVariantInput } from './services/experiment.service.js';
 export {
   getMarketTrendsProvider,
 } from './adapters/registry.js';

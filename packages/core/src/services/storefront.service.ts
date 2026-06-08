@@ -292,7 +292,7 @@ export class StorefrontService {
    */
   async checkout(
     cartId: string,
-    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string } = {},
+    opts: { email?: string; redeemPoints?: number; shippingAddress?: Record<string, unknown>; marketingOptIn?: boolean; acceptanceIp?: string; discountCode?: string; experimentId?: string; experimentVariantId?: string } = {},
   ) {
     const { ctx, storeId } = await this.ctxForCart(cartId);
     const settings = await this.checkoutSettings?.resolve(storeId);

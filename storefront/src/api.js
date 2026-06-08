@@ -83,6 +83,13 @@ export const api = {
   track: (id, body) => req(`/storefront/${id}/track`, { method: 'POST', body }),
   theme: (id) => req(`/storefront/${id}/theme`),
   page: (id, slug) => req(`/storefront/${id}/pages/${slug}`),
+  // Resolve the storefront variant for this visitor (A/B + cohort experiments).
+  // Sends the buyer session token (auth) so cohort targeting can apply.
+  experience: (id, slug, params = {}) => {
+    const qsv = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v != null && v !== '') qsv.set(k, v);
+    return req(`/storefront/${id}/experience/${slug}?${qsv.toString()}`, { auth: true });
+  },
   orderLookup: (id, number, email) =>
     req(`/storefront/${id}/order-lookup?number=${encodeURIComponent(number)}&email=${encodeURIComponent(email)}`),
   requestReturn: (id, body) => req(`/storefront/${id}/returns`, { method: 'POST', body }),

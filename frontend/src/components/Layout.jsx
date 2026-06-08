@@ -35,6 +35,7 @@ import {
   FileText,
   Scale,
   DownloadCloud,
+  FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useStores } from '../context/StoreContext';
@@ -45,6 +46,7 @@ const nav = [
   { to: '/stores', label: 'Stores', icon: Store },
   { to: '/import', label: 'Import / Migrate', icon: DownloadCloud, perm: 'products:write' },
   { to: '/design', label: 'Design', icon: Palette },
+  { to: '/experiments', label: 'Experiments', icon: FlaskConical, perm: 'orders:read' },
   { to: '/seo', label: 'SEO & Speed', icon: Search },
   { to: '/images', label: 'Images', icon: Image },
   { to: '/products', label: 'Products', icon: Package },
