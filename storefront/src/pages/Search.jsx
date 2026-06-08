@@ -12,8 +12,12 @@ export default function Search() {
   useEffect(() => {
     if (!q.trim()) { setResults([]); return; }
     setLoading(true);
-    trackSearch(q); // feed search-intent cohorts
-    api.search(STORE_ID, q).then(setResults).catch(() => setResults([])).finally(() => setLoading(false));
+    // Track the search with its result count so analytics can surface unmet
+    // demand (queries that found nothing).
+    api.search(STORE_ID, q)
+      .then((r) => { setResults(r); trackSearch(q, Array.isArray(r) ? r.length : 0); })
+      .catch(() => { setResults([]); trackSearch(q, 0); })
+      .finally(() => setLoading(false));
   }, [q]);
 
   return (

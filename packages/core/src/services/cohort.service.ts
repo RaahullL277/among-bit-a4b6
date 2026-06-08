@@ -26,6 +26,8 @@ export interface TrackEventInput {
   campaign?: string;
   term?: string;
   query?: string;
+  /** For SEARCH events: how many results the query returned (0 = unmet demand). */
+  resultCount?: number;
 }
 
 interface Feat {
@@ -145,6 +147,7 @@ export class CohortService {
         campaign: input.campaign,
         term: input.term,
         query: input.query ? input.query.trim().slice(0, 120) : undefined,
+        resultCount: typeof input.resultCount === 'number' ? Math.max(0, Math.trunc(input.resultCount)) : undefined,
       },
     });
     return { tracked: true, customerId: customerId ?? null };

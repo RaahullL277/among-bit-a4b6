@@ -169,7 +169,7 @@ export class Commerce {
     this.leads = new LeadService(prisma);
     // Deterministic store advisor — aggregates the services above into
     // prioritized, executable "next best actions".
-    this.advisor = new AdvisorService(prisma, this.stock, this.seo, this.pricing, this.reviews, this.returns, this.integrations, this.legal, this.notifications);
+    this.advisor = new AdvisorService(prisma, this.stock, this.seo, this.pricing, this.reviews, this.returns, this.integrations, this.legal, this.analytics, this.notifications);
   }
 }
 

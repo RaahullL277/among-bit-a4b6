@@ -8,6 +8,7 @@ import type { ReturnService } from './return.service.js';
 import type { IntegrationService } from './integration.service.js';
 import type { LegalService } from './legal.service.js';
 import type { NotificationService } from './notification.service.js';
+import type { AnalyticsService } from './analytics.service.js';
 
 /**
  * Store Operations Advisor — a DETERMINISTIC engine that inspects a store's live
@@ -21,7 +22,7 @@ import type { NotificationService } from './notification.service.js';
 export type Severity = 'critical' | 'warning' | 'opportunity';
 export type AdvisorCategory =
   | 'readiness' | 'inventory' | 'fulfillment' | 'catalog'
-  | 'seo' | 'pricing' | 'reviews' | 'returns' | 'engagement';
+  | 'seo' | 'pricing' | 'reviews' | 'returns' | 'engagement' | 'demand';
 
 export interface ExecutableAction {
   label: string;
@@ -71,6 +72,7 @@ export class AdvisorService {
     private readonly returns: ReturnService,
     private readonly integrations: IntegrationService,
     private readonly legal: LegalService,
+    private readonly analytics?: AnalyticsService,
     private readonly notifications?: NotificationService,
   ) {}
 
@@ -94,6 +96,7 @@ export class AdvisorService {
       this.checkReviews(ctx, storeId),
       this.checkReturns(ctx, storeId),
       this.checkEngagement(storeId),
+      this.checkDemand(ctx, storeId),
     ]);
 
     const recommendations = [readinessRecs, ...groups].flat();
@@ -398,6 +401,23 @@ export class AdvisorService {
       });
     }
     return recs;
+  }
+
+  /** Unmet demand: shoppers searched for things the store doesn't stock. */
+  private async checkDemand(ctx: TenantContext, storeId: string): Promise<Recommendation[]> {
+    const insights = await this.analytics?.searchInsights(ctx, { storeId, limit: 5 }).catch(() => null);
+    if (!insights || !insights.unmetDemand.length) return [];
+    const top = insights.unmetDemand;
+    const terms = top.slice(0, 3).map((t) => `“${t.query}”`).join(', ');
+    const totalMissed = top.reduce((n, t) => n + t.searches, 0);
+    return [{
+      code: 'DEMAND_UNMET_SEARCH', category: 'demand', severity: 'opportunity',
+      impact: Math.min(64, 30 + totalMissed),
+      title: `Shoppers are searching for products you don't stock`,
+      detail: `${top.length} search term${top.length === 1 ? '' : 's'} returned no results (e.g. ${terms}). Consider adding these — it's demand you're already attracting but can't fulfil.`,
+      evidence: { unmetDemand: top.map((t) => ({ query: t.query, searches: t.searches })), totalMissedSearches: totalMissed },
+      action: { label: 'Add a product for the top demand', tool: 'create_product', rest: { method: 'POST', path: '/products' }, args: { storeId, title: top[0].query } },
+    }];
   }
 
   // --- Proactive owner notifications (worker) -------------------------------

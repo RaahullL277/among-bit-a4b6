@@ -64,4 +64,16 @@ export class AnalyticsController {
       limit: limit ? Number(limit) : undefined,
     });
   }
+
+  // On-site search demand, including unmet demand (terms that found nothing).
+  @Get('search-insights')
+  searchInsights(
+    @Tenant() t: TenantContext,
+    @Query('storeId') storeId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.commerce.analytics.searchInsights(t, { storeId, from, to, limit: limit ? Number(limit) : undefined });
+  }
 }

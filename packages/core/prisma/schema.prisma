@@ -1940,6 +1940,7 @@ model BehaviorEvent {
   campaign    String?
   term        String?
   query       String? // on-site search query (for SEARCH events)
+  resultCount Int?    // # of results a SEARCH returned (0 = unmet demand)
   createdAt   DateTime          @default(now())
 
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)

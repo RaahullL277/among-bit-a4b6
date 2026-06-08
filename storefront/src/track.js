@@ -46,10 +46,11 @@ export function track(type, productId) {
   send(type, { productId });
 }
 
-// On-site search → feeds search-intent cohort intelligence.
-export function trackSearch(query) {
+// On-site search → feeds search-intent cohorts + unmet-demand analytics.
+// resultCount lets analytics flag queries that returned nothing (demand we miss).
+export function trackSearch(query, resultCount) {
   if (!query || !query.trim()) return;
-  send('SEARCH', { query: query.trim() });
+  send('SEARCH', { query: query.trim(), resultCount: typeof resultCount === 'number' ? resultCount : undefined });
 }
 
 // Identify the visitor by email (stitches prior anonymous events + first-touch).
@@ -58,9 +59,9 @@ export function identify(email, type = 'CLICK') {
   send(type, { email });
 }
 
-function send(type, { productId, email, query } = {}) {
+function send(type, { productId, email, query, resultCount } = {}) {
   const a = attribution() || {};
   api
-    .track(STORE_ID, { type, productId, email, query, anonymousId: anonId(), source: a.source, medium: a.medium, campaign: a.campaign, term: a.term })
+    .track(STORE_ID, { type, productId, email, query, resultCount, anonymousId: anonId(), source: a.source, medium: a.medium, campaign: a.campaign, term: a.term })
     .catch(() => undefined);
 }

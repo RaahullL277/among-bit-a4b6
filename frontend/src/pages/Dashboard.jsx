@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp, AlertTriangle, AlertCircle, Lightbulb, Activity, ArrowRight } from 'lucide-react';
+import { ShoppingCart, IndianRupee, CheckCircle2, Users, TrendingUp, AlertTriangle, AlertCircle, Lightbulb, Activity, ArrowRight, Search as SearchIcon, PackageSearch } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -86,6 +86,52 @@ function AdvisorCard({ storeId }) {
         </ul>
       )}
     </Card>
+  );
+}
+
+// On-site search demand + unmet demand (what shoppers want that you don't stock).
+function SearchDemandCard({ storeId, from }) {
+  const { data } = useAsync(() => api.analytics.searchInsights(storeId, from), [storeId, from]);
+  if (!data || data.totalSearches === 0) return null;
+  const { topSearches = [], unmetDemand = [], totalSearches, noResultShare } = data;
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader title="Top searches" subtitle={`${totalSearches} searches · ${Math.round((noResultShare ?? 0) * 100)}% found nothing`} />
+        {topSearches.length ? (
+          <table className="w-full text-sm">
+            <tbody>
+              {topSearches.slice(0, 8).map((t) => (
+                <tr key={t.query} className="border-b border-slate-50 last:border-0">
+                  <td className="px-5 py-2.5 font-medium text-slate-900">{t.query}</td>
+                  <td className="px-5 py-2.5 text-right text-slate-500">{t.searches}×</td>
+                  <td className="px-5 py-2.5 text-right text-xs text-slate-400">{t.avgResults == null ? '—' : `${t.avgResults} results`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <EmptyState icon={SearchIcon} title="No searches yet" />}
+      </Card>
+
+      <Card>
+        <CardHeader title="Unmet demand" subtitle="Searched for — but you don't stock it" action={
+          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{unmetDemand.length}</span>
+        } />
+        {unmetDemand.length ? (
+          <ul className="divide-y divide-slate-50">
+            {unmetDemand.slice(0, 8).map((t) => (
+              <li key={t.query} className="flex items-center justify-between px-5 py-2.5 text-sm">
+                <span className="font-medium text-slate-900">{t.query}</span>
+                <span className="text-xs text-slate-500">{t.searches} shopper{t.searches === 1 ? '' : 's'} found nothing</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={PackageSearch} title="No unmet demand">Shoppers are finding what they search for. 🎉</EmptyState>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -211,6 +257,8 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      <SearchDemandCard storeId={storeId} from={from} />
     </div>
   );
 }

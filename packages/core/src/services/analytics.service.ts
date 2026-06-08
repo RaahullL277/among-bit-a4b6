@@ -175,6 +175,81 @@ export class AnalyticsService {
       .sort((a, b) => b.revenueMinor - a.revenueMinor)
       .slice(0, input.limit ?? 10);
   }
+
+  /**
+   * On-site search demand. Aggregates SEARCH behaviour events by query to show
+   * what shoppers look for — and, crucially, **unmet demand**: terms that
+   * repeatedly returned no results (products people want but you don't stock).
+   */
+  async searchInsights(ctx: TenantContext, input: AnalyticsRange & { limit?: number; minSearches?: number }) {
+    const { from, to } = this.range(input);
+    const events = await this.prisma.behaviorEvent.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        ...(input.storeId ? { storeId: input.storeId } : {}),
+        type: 'SEARCH',
+        createdAt: { gte: from, lte: to },
+        query: { not: null },
+      },
+      select: { query: true, resultCount: true, customerId: true, anonymousId: true, createdAt: true },
+    });
+
+    type Agg = { query: string; searches: number; searchers: Set<string>; noResults: number; knownResults: number; sumResults: number; lastSearchedAt: Date };
+    const byTerm = new Map<string, Agg>();
+    let totalSearches = 0;
+    let noResultSearches = 0;
+    for (const e of events) {
+      const q = normalizeQuery(e.query);
+      if (!q) continue;
+      totalSearches++;
+      const a = byTerm.get(q) ?? { query: q, searches: 0, searchers: new Set<string>(), noResults: 0, knownResults: 0, sumResults: 0, lastSearchedAt: e.createdAt };
+      a.searches++;
+      const who = e.customerId ?? e.anonymousId;
+      if (who) a.searchers.add(who);
+      if (typeof e.resultCount === 'number') {
+        a.knownResults++;
+        a.sumResults += e.resultCount;
+        if (e.resultCount === 0) { a.noResults++; noResultSearches++; }
+      }
+      if (e.createdAt > a.lastSearchedAt) a.lastSearchedAt = e.createdAt;
+      byTerm.set(q, a);
+    }
+
+    const terms = [...byTerm.values()].map((a) => ({
+      query: a.query,
+      searches: a.searches,
+      searchers: a.searchers.size,
+      noResults: a.noResults,
+      avgResults: a.knownResults > 0 ? round(a.sumResults / a.knownResults) : null,
+      noResultShare: a.knownResults > 0 ? round(a.noResults / a.knownResults) : null,
+      lastSearchedAt: a.lastSearchedAt,
+    }));
+
+    const limit = input.limit ?? 20;
+    const minSearches = input.minSearches ?? 1;
+    const topSearches = [...terms].sort((a, b) => b.searches - a.searches || a.query.localeCompare(b.query)).slice(0, limit);
+    // Unmet demand: terms that mostly came back empty, ranked by how many shoppers hit the wall.
+    const unmetDemand = terms
+      .filter((t) => t.searches >= minSearches && (t.noResultShare ?? 0) >= 0.5 && t.noResults > 0)
+      .sort((a, b) => b.searches - a.searches || b.noResults - a.noResults || a.query.localeCompare(b.query))
+      .slice(0, limit);
+
+    return {
+      from,
+      to,
+      totalSearches,
+      uniqueTerms: byTerm.size,
+      noResultSearches,
+      noResultShare: totalSearches > 0 ? round(noResultSearches / totalSearches) : 0,
+      topSearches,
+      unmetDemand,
+    };
+  }
+}
+
+/** Normalize a search query for grouping: lowercase, trim, collapse whitespace. */
+function normalizeQuery(q: string | null): string {
+  return (q ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 function round(n: number) {

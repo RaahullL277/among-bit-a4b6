@@ -1080,6 +1080,16 @@ export function registerTools(server: McpServer, session: Session) {
   );
 
   server.registerTool(
+    'get_search_insights',
+    {
+      description:
+        'On-site search demand over a date range: top search terms and — crucially — "unmet demand": queries shoppers searched for that returned no results (products people want but the store does not stock). Use this to decide what to add to the catalog.',
+      inputSchema: { ...rangeSchema, limit: z.number().int().positive().optional() },
+    },
+    tool((ctx, a: any) => commerce.analytics.searchInsights(ctx, a)),
+  );
+
+  server.registerTool(
     'get_agent_sales',
     {
       description: 'AI-assistant sales attribution: paid orders and revenue driven by each shopping assistant (Claude, ChatGPT, …) over a date range, and their share of total revenue.',
