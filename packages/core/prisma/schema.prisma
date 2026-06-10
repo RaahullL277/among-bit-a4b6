@@ -940,6 +940,9 @@ model Payment {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  // providerRef is unique per provider (nullable refs are exempt in Postgres),
+  // so webhook routing on (provider, providerRef) is unambiguous.
+  @@unique([provider, providerRef])
   @@index([tenantId])
   @@index([providerRef])
 }

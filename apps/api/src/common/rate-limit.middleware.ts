@@ -41,7 +41,9 @@ function classify(path: string): Rule | null {
   if (/^\/(auth|platform-auth|partner-auth)\//.test(path)) return { label: 'auth', limit: num('RATE_LIMIT_AUTH', 20) };
   if (/^\/webhooks\//.test(path)) return { label: 'webhook', limit: num('RATE_LIMIT_WEBHOOK', 120) };
   if (/^\/agent\/[^/]+\/(checkout|carts)/.test(path)) return { label: 'agent_write', limit: num('RATE_LIMIT_AGENT_WRITE', 15) };
-  if (/^\/storefront\/[^/]+\/(checkout|carts|track|unsubscribe|marketing-consent)/.test(path))
+  // Buyer auth (OTP), support chat (LLM cost) and public lead capture are
+  // abuse-prone → the tighter write budget, not the generous public-read one.
+  if (/^\/leads\b/.test(path) || /^\/storefront\/[^/]+\/(checkout|carts|track|unsubscribe|marketing-consent|account|support)/.test(path))
     return { label: 'store_write', limit: num('RATE_LIMIT_STORE_WRITE', 30) };
   if (path.startsWith('/storefront') || path.startsWith('/agent')) return { label: 'public_read', limit: num('RATE_LIMIT_PUBLIC', 120) };
   return { label: 'api', limit: num('RATE_LIMIT_API', 300) }; // authenticated API

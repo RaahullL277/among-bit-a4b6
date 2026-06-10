@@ -94,9 +94,12 @@ export class LoyaltyService {
   // --- Accounts -------------------------------------------------------------
 
   private async ensureAccount(tenantId: string, storeId: string, customerId: string) {
-    const existing = await this.prisma.loyaltyAccount.findUnique({ where: { customerId } });
-    if (existing) return existing;
-    return this.prisma.loyaltyAccount.create({ data: { tenantId, storeId, customerId } });
+    // Upsert avoids a find-then-create race (LoyaltyAccount.customerId is unique).
+    return this.prisma.loyaltyAccount.upsert({
+      where: { customerId },
+      create: { tenantId, storeId, customerId },
+      update: {},
+    });
   }
 
   /** Apply a signed points delta to a customer, recording a ledger entry. */
@@ -110,21 +113,25 @@ export class LoyaltyService {
   ) {
     const account = await this.ensureAccount(ctx.tenantId, customer.storeId, customer.id);
     const program = await this.program(customer.storeId);
-    const lifetime = account.lifetimePoints + (points > 0 ? points : 0);
-    const balance = account.pointsBalance + points;
-    if (balance < 0) throw new ValidationError('Insufficient points balance.');
-    const tier = this.tierFor(lifetime, (program.tiers as Tier[]) ?? []);
 
-    await this.prisma.$transaction([
-      this.prisma.loyaltyTransaction.create({
-        data: { tenantId: ctx.tenantId, accountId: account.id, type, points, note, orderId },
-      }),
-      this.prisma.loyaltyAccount.update({
-        where: { id: account.id },
-        data: { pointsBalance: balance, lifetimePoints: lifetime, tier },
-      }),
-    ]);
-    return { balance, lifetime, tier };
+    // Atomic, race-free balance change: the conditional updateMany enforces
+    // non-negativity at the row level (a concurrent spend cannot double-spend),
+    // and the ledger entry shares the same transaction as the balance change.
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.loyaltyAccount.updateMany({
+        where: { id: account.id, ...(points < 0 ? { pointsBalance: { gte: -points } } : {}) },
+        data: {
+          pointsBalance: { increment: points },
+          lifetimePoints: points > 0 ? { increment: points } : undefined,
+        },
+      });
+      if (updated.count === 0) throw new ValidationError('Insufficient points balance.');
+      const fresh = await tx.loyaltyAccount.findUniqueOrThrow({ where: { id: account.id }, select: { pointsBalance: true, lifetimePoints: true } });
+      const tier = this.tierFor(fresh.lifetimePoints, (program.tiers as Tier[]) ?? []);
+      await tx.loyaltyAccount.update({ where: { id: account.id }, data: { tier } });
+      await tx.loyaltyTransaction.create({ data: { tenantId: ctx.tenantId, accountId: account.id, type, points, note, orderId } });
+      return { balance: fresh.pointsBalance, lifetime: fresh.lifetimePoints, tier };
+    });
   }
 
   async account(ctx: TenantContext, customerId: string) {

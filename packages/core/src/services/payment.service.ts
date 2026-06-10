@@ -249,8 +249,10 @@ export class PaymentService {
       providerRef = undefined;
     }
 
+    // Match on (provider, providerRef) — providerRef alone is not unique across
+    // providers/stores, so scoping by provider avoids ambiguous/cross-routing.
     const payment = providerRef
-      ? await this.prisma.payment.findFirst({ where: { providerRef }, include: { order: true } })
+      ? await this.prisma.payment.findFirst({ where: { provider, providerRef }, include: { order: true } })
       : null;
 
     let signatureValid = false;
@@ -291,44 +293,46 @@ export class PaymentService {
     await this.prisma.payment.update({ where: { id: paymentId }, data: { status } });
     const orderStatus =
       status === 'CAPTURED' ? 'PAID' : status === 'REFUNDED' ? 'REFUNDED' : status === 'FAILED' ? 'CANCELLED' : undefined;
-    if (orderStatus) {
-      // Capture the prior status so capture side-effects run exactly once.
-      const prior = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
-      const wasPaid = prior?.status === 'PAID' || prior?.status === 'FULFILLED';
-      const order = await this.prisma.order.update({
-        where: { id: orderId },
-        data: { status: orderStatus },
-      });
-      if (orderStatus === 'CANCELLED' && !wasPaid) {
-        // Payment failed on an unpaid order → free its held stock.
-        await this.stock?.releaseReservations(orderId).catch(() => undefined);
-      }
-      if (orderStatus === 'PAID' && !wasPaid) {
-        // The reservation becomes a real sale: release the hold, consume inventory.
-        await this.stock?.consumeReservations(orderId).catch(() => undefined);
-        await this.stock?.applyOrderSale(orderId).catch(() => undefined);
-        // Issue the GST tax invoice for the paid order (idempotent, best-effort).
-        await this.invoices?.generateForOrder(ctx, orderId).catch(() => undefined);
-        // Attribute a paid order back to its cart (recovered if it was abandoned).
-        if (order.cartId) {
-          const cart = await this.prisma.cart.findUnique({
+    if (!orderStatus) return;
+
+    // Run-once transition: a conditional updateMany flips the status atomically, so
+    // only the webhook that actually transitions the order runs the side-effects.
+    // Duplicate/concurrent CAPTURED webhooks can't double-consume stock or points.
+    const guard: any =
+      orderStatus === 'PAID' ? { id: orderId, status: { notIn: ['PAID', 'FULFILLED'] } }
+      : orderStatus === 'CANCELLED' ? { id: orderId, status: { notIn: ['PAID', 'FULFILLED', 'CANCELLED'] } }
+      : { id: orderId, status: { not: 'REFUNDED' } };
+    const res = await this.prisma.order.updateMany({ where: guard, data: { status: orderStatus } });
+    if (res.count !== 1) return; // already in this/a terminal state — nothing to do
+
+    if (orderStatus === 'CANCELLED') {
+      // Payment failed on an unpaid order → free its held stock.
+      await this.stock?.releaseReservations(orderId).catch(() => undefined);
+      return;
+    }
+    if (orderStatus === 'PAID') {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { cartId: true } });
+      // The reservation becomes a real sale: release the hold, consume inventory.
+      await this.stock?.consumeReservations(orderId).catch(() => undefined);
+      await this.stock?.applyOrderSale(orderId).catch(() => undefined);
+      // Issue the GST tax invoice for the paid order (idempotent, best-effort).
+      await this.invoices?.generateForOrder(ctx, orderId).catch(() => undefined);
+      // Attribute a paid order back to its cart (recovered if it was abandoned).
+      if (order?.cartId) {
+        const cart = await this.prisma.cart.findUnique({ where: { id: order.cartId }, select: { status: true } });
+        if (cart && cart.status !== 'CONVERTED' && cart.status !== 'RECOVERED') {
+          await this.prisma.cart.update({
             where: { id: order.cartId },
-            select: { status: true },
+            data: { status: cart.status === 'ABANDONED' ? 'RECOVERED' : 'CONVERTED' },
           });
-          if (cart && cart.status !== 'CONVERTED' && cart.status !== 'RECOVERED') {
-            await this.prisma.cart.update({
-              where: { id: order.cartId },
-              data: { status: cart.status === 'ABANDONED' ? 'RECOVERED' : 'CONVERTED' },
-            });
-          }
         }
-        // Notify the customer their payment succeeded (best-effort).
-        await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
-        // Track the purchase to marketing platforms (best-effort).
-        await this.marketing?.trackOrder(ctx, orderId, 'Placed Order').catch(() => undefined);
-        // Award loyalty points for the purchase (best-effort, idempotent).
-        await this.loyalty?.earnForOrder(ctx, orderId).catch(() => undefined);
       }
+      // Notify the customer their payment succeeded (best-effort).
+      await this.notifications?.notifyOrderEvent(ctx, orderId, 'ORDER_PAID').catch(() => undefined);
+      // Track the purchase to marketing platforms (best-effort).
+      await this.marketing?.trackOrder(ctx, orderId, 'Placed Order').catch(() => undefined);
+      // Award loyalty points for the purchase (best-effort, idempotent).
+      await this.loyalty?.earnForOrder(ctx, orderId).catch(() => undefined);
     }
   }
 }

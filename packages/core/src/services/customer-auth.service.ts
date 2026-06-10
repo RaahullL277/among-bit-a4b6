@@ -4,6 +4,7 @@ import { generateNumericOtp, generateToken, hashToken } from '../crypto.js';
 import type { NotificationService } from './notification.service.js';
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // min gap between code re-sends
 const OTP_MAX_ATTEMPTS = 5;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — buyer sessions are long-lived
 const isProd = process.env.NODE_ENV === 'production';
@@ -64,10 +65,21 @@ export class CustomerAuthService {
   async requestOtp(storeId: string, email: string): Promise<{ sent: true; devCode?: string }> {
     const { ctx, store } = await this.storeCtx(storeId);
     const normalized = this.normalizeEmail(email);
+    const identifier = `${storeId}:${normalized}`;
+    // Resend cooldown (production): don't re-send if an unconsumed code was issued
+    // seconds ago — blunts email/OTP-bomb abuse. Skipped in dev so the devCode
+    // flow stays testable; the idempotent "sent" response hides it either way.
+    if (isProd) {
+      const recent = await this.prisma.otpCode.findFirst({
+        where: { identifier, channel: 'email', consumedAt: null, createdAt: { gt: new Date(Date.now() - OTP_RESEND_COOLDOWN_MS) } },
+        select: { id: true },
+      });
+      if (recent) return { sent: true };
+    }
     const code = generateNumericOtp(6);
     await this.prisma.otpCode.create({
       data: {
-        identifier: `${storeId}:${normalized}`,
+        identifier,
         channel: 'email',
         codeHash: hashToken(code),
         expiresAt: new Date(Date.now() + OTP_TTL_MS),

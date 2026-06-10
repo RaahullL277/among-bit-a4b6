@@ -214,7 +214,9 @@ export class InvoiceService {
     const sgstMinor = invoice.intraState ? taxMinor - cgstMinor : 0;
     const igstMinor = invoice.intraState ? 0 : taxMinor;
     const shippingMinor = Math.round(invoice.shippingMinor * ratio);
-    const taxableMinor = refund - taxMinor - shippingMinor;
+    // Clamp: rounding of the proportional tax/shipping shares must never push the
+    // taxable base negative on a credit note.
+    const taxableMinor = Math.max(0, refund - taxMinor - shippingMinor);
 
     const created = await this.prisma.$transaction(async (tx) => {
       if (opts.returnId) {

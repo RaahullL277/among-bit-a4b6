@@ -26,7 +26,7 @@ describe.skipIf(!hasDb)('return & cancellation policy', () => {
       },
     });
     if (opts.paid) {
-      await prisma.payment.create({ data: { tenantId: ctx.tenantId, orderId: o.id, provider: 'RAZORPAY', providerRef: 'pay_x', status: 'CAPTURED', amountMinor: 50000 } });
+      await prisma.payment.create({ data: { tenantId: ctx.tenantId, orderId: o.id, provider: 'RAZORPAY', providerRef: `pay_${o.id}`, status: 'CAPTURED', amountMinor: 50000 } });
     }
     if (opts.shipped) {
       await prisma.shipment.create({ data: { tenantId: ctx.tenantId, storeId, orderId: o.id, provider: 'DELHIVERY', status: 'IN_TRANSIT', toAddress: { city: 'X' } } });

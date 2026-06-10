@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { generateApiKey, hashApiKey } from '../crypto.js';
 import { AuthError, type TenantContext } from '../context.js';
-import { ALL_PERMISSIONS } from '../authz.js';
+import { ALL_PERMISSIONS, type Permission } from '../authz.js';
 
 export interface CreatedApiKey {
   id: string;
@@ -34,11 +34,17 @@ export class ApiKeyService {
       .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
       .catch(() => undefined);
 
-    // API keys are trusted programmatic/agent access → all permissions.
+    // A key with explicit permission scopes is restricted to them; an unscoped
+    // key, or the "*" wildcard, keeps full programmatic/agent access
+    // (backward-compatible — the default key is created with scopes ['*']).
+    const valid = new Set<string>(ALL_PERMISSIONS);
+    const permissions = key.scopes.length > 0 && !key.scopes.includes('*')
+      ? (key.scopes.filter((s) => valid.has(s)) as Permission[])
+      : ALL_PERMISSIONS;
     return {
       tenantId: key.tenantId,
       scopes: key.scopes,
-      actor: { kind: 'apiKey', permissions: ALL_PERMISSIONS },
+      actor: { kind: 'apiKey', permissions },
     };
   }
 

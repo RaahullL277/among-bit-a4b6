@@ -163,7 +163,7 @@ export class ReturnService {
       const item = byId.get(r.orderItemId);
       if (!item) throw new ValidationError(`Order item ${r.orderItemId} is not part of this order.`);
       const qty = Math.round(Number(r.quantity ?? item.quantity));
-      if (qty <= 0 || qty > item.quantity) {
+      if (!Number.isFinite(qty) || qty <= 0 || qty > item.quantity) {
         throw new ValidationError(`Invalid return quantity for "${item.title}".`);
       }
       return { orderItemId: item.id, quantity: qty, unitPriceMinor: item.unitPriceMinor };

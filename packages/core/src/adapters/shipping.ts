@@ -1,4 +1,11 @@
-import { createHmac, randomInt } from 'node:crypto';
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+
+/** Constant-time hex-string compare (guards the length-mismatch throw). */
+function safeEqualHex(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 import type { ProviderName, ShipmentStatus } from '@prisma/client';
 import type { ProviderCredentials } from './payment.js';
 
@@ -78,7 +85,7 @@ export class DelhiveryAdapter implements ShippingProvider {
   verifyWebhookSignature(rawBody: string, signature: string | undefined): boolean {
     if (!signature) return false;
     const expected = createHmac('sha256', this.webhookSecret).update(rawBody).digest('hex');
-    return signature === expected;
+    return safeEqualHex(signature, expected);
   }
 
   parseWebhook(rawBody: string): ShippingWebhookEvent {

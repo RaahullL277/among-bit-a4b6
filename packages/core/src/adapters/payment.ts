@@ -1,5 +1,12 @@
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { ProviderName } from '@prisma/client';
+
+/** Constant-time hex-string compare (guards the length-mismatch throw). */
+function safeEqualHex(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 /**
  * Provider-agnostic payment interface. Razorpay and GoKwik both implement this;
@@ -102,7 +109,7 @@ abstract class StubPaymentProvider implements PaymentProvider {
   verifyWebhookSignature(rawBody: string, signature: string | undefined): boolean {
     if (!signature) return false;
     const expected = createHmac('sha256', this.webhookSecret).update(rawBody).digest('hex');
-    return signature === expected;
+    return safeEqualHex(signature, expected);
   }
 
   parseWebhook(rawBody: string): PaymentWebhookEvent {

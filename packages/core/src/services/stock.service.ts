@@ -214,11 +214,15 @@ export class StockService {
     actor?: Actor;
   }): Promise<number | null> {
     return this.prisma.$transaction(async (tx) => {
-      const v = await tx.productVariant.findUnique({ where: { id: args.variantId }, select: { inventory: true } });
-      if (!v) return null;
-      let balance = args.setTo != null ? args.setTo : v.inventory + (args.delta ?? 0);
+      // Lock the row for the duration of the transaction so concurrent moves
+      // (sale / adjust / restore) serialize instead of clobbering each other
+      // with a stale read-modify-write.
+      const locked = await tx.$queryRaw<{ inventory: number }[]>`SELECT inventory FROM "ProductVariant" WHERE id = ${args.variantId} FOR UPDATE`;
+      if (!locked.length) return null;
+      const current = Number(locked[0].inventory);
+      let balance = args.setTo != null ? args.setTo : current + (args.delta ?? 0);
       if (!args.allowNegative && balance < 0) balance = 0;
-      const applied = balance - v.inventory;
+      const applied = balance - current;
       if (applied !== 0) {
         await tx.productVariant.update({ where: { id: args.variantId }, data: { inventory: balance } });
       }

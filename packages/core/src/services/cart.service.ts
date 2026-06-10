@@ -68,7 +68,19 @@ export class CartService {
       },
     });
     if (input.items?.length) {
-      for (const item of input.items) await this.addItem(ctx, cart.id, item);
+      // Batch: resolve all variants once and createMany, instead of N round-trips.
+      const qtyByVariant = new Map<string, number>();
+      for (const it of input.items) {
+        if (it.quantity > 0) qtyByVariant.set(it.variantId, Math.min(99, (qtyByVariant.get(it.variantId) ?? 0) + it.quantity));
+      }
+      const variants = await this.prisma.productVariant.findMany({
+        where: { id: { in: [...qtyByVariant.keys()] }, tenantId: ctx.tenantId },
+        select: { id: true, title: true, priceMinor: true },
+      });
+      if (variants.length !== qtyByVariant.size) throw new NotFoundError('ProductVariant', 'one or more cart items');
+      await this.prisma.cartItem.createMany({
+        data: variants.map((v) => ({ tenantId: ctx.tenantId, cartId: cart.id, variantId: v.id, title: v.title, quantity: qtyByVariant.get(v.id)!, unitPriceMinor: v.priceMinor })),
+      });
     }
     return this.getCart(ctx, cart.id);
   }
@@ -115,6 +127,11 @@ export class CartService {
         unitPriceMinor: variant.priceMinor,
       },
       update: { quantity: { increment: input.quantity } },
+    });
+    // Keep the per-line ceiling consistent with setItemQuantity (max 99).
+    await this.prisma.cartItem.updateMany({
+      where: { cartId, variantId: variant.id, quantity: { gt: 99 } },
+      data: { quantity: 99 },
     });
     await this.touch(cart.id);
     return this.getCart(ctx, cartId);
@@ -183,12 +200,14 @@ export class CartService {
     let discountMinor = offer?.discountMinor ?? 0;
 
     // Apply a coupon/discount code (validated against the subtotal).
-    let appliedCode: string | undefined;
     if (opts.discountCode && this.discounts) {
       const v = await this.discounts.validate(cart.storeId, opts.discountCode, subtotalMinor);
       if (!v.valid) throw new ValidationError('That discount code can\'t be applied to this order.');
+      // Atomically claim a redemption slot BEFORE committing the order so a
+      // capped code can never be over-redeemed under concurrent checkouts.
+      const claimed = await this.discounts.redeem(cart.storeId, v.code ?? opts.discountCode);
+      if (!claimed) throw new ValidationError('That discount code is no longer available.');
       discountMinor += v.discountMinor;
-      appliedCode = v.code;
     }
 
     // Redeem loyalty points for a discount, capped at the remaining order value.
@@ -214,7 +233,6 @@ export class CartService {
       where: { id: result.order.id },
       data: { cartId, experimentId: opts.experimentId, experimentVariantId: opts.experimentVariantId },
     });
-    if (appliedCode) await this.discounts?.redeem(cart.storeId, appliedCode);
     // The cart is intentionally NOT marked CONVERTED/RECOVERED here: the order is
     // only PENDING. If the shopper abandons the hosted checkout before paying, the
     // cart must stay ACTIVE/ABANDONED so recovery can still reach them. The cart is

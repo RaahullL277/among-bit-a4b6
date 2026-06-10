@@ -93,9 +93,25 @@ export class DiscountService {
   }
 
   /** Count a redemption after a successful checkout (best-effort, capped). */
-  async redeem(storeId: string, code: string) {
+  /**
+   * Atomically claim one redemption, honoring maxRedemptions under concurrency.
+   * Returns false if the code is inactive or its cap is already reached — the
+   * conditional UPDATE can never push redeemedCount past maxRedemptions.
+   */
+  async redeem(storeId: string, code: string): Promise<boolean> {
     const c = this.norm(code);
-    if (!c) return;
-    await this.prisma.discount.updateMany({ where: { storeId, code: c }, data: { redeemedCount: { increment: 1 } } }).catch(() => undefined);
+    if (!c) return false;
+    const res = await this.prisma.discount
+      .updateMany({
+        where: {
+          storeId,
+          code: c,
+          active: true,
+          OR: [{ maxRedemptions: null }, { redeemedCount: { lt: this.prisma.discount.fields.maxRedemptions } }],
+        },
+        data: { redeemedCount: { increment: 1 } },
+      })
+      .catch(() => ({ count: 0 }));
+    return res.count > 0;
   }
 }
