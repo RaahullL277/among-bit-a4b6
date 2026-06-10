@@ -43,6 +43,9 @@ export class HttpOAuthVerifier implements OAuthVerifier {
     if (!res.ok) throw new Error('Google rejected the id_token.');
     const p: any = await res.json();
     const expectedAud = process.env.GOOGLE_CLIENT_ID;
+    // Fail closed: in production an unset client id is a misconfiguration, not a
+    // licence to accept tokens minted for any other Google app.
+    if (!expectedAud && process.env.NODE_ENV === 'production') throw new Error('Google OAuth is not configured (GOOGLE_CLIENT_ID).');
     if (expectedAud && p.aud !== expectedAud) throw new Error('Google token audience mismatch.');
     if (!p.sub) throw new Error('Google token missing subject.');
     return { providerUserId: String(p.sub), email: p.email, name: p.name };
@@ -67,6 +70,7 @@ export class HttpOAuthVerifier implements OAuthVerifier {
 
     if (payload.iss !== 'https://appleid.apple.com') throw new Error('Apple token issuer mismatch.');
     const expectedAud = process.env.APPLE_CLIENT_ID;
+    if (!expectedAud && process.env.NODE_ENV === 'production') throw new Error('Apple OAuth is not configured (APPLE_CLIENT_ID).');
     if (expectedAud && payload.aud !== expectedAud) throw new Error('Apple token audience mismatch.');
     if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) throw new Error('Apple token has expired.');
     if (!payload.sub) throw new Error('Apple token missing subject.');

@@ -17,11 +17,11 @@ export class OffersController {
   @Get('suggestions')
   @Permissions('products:read')
   suggestions(
-    @Tenant() _t: TenantContext,
+    @Tenant() t: TenantContext,
     @Query('storeId') storeId: string,
     @Query('productId') productId: string,
   ): Promise<any> {
-    return this.commerce.offers.frequentlyBoughtTogether(storeId, productId);
+    return this.commerce.offers.suggestionsForStore(t, storeId, productId);
   }
 
   @Get(':id')

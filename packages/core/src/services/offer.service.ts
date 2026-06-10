@@ -117,6 +117,13 @@ export class OfferService {
    * Products most often purchased in the same paid order as `productId`,
    * ranked by co-occurrence. Pure read over order history — no configuration.
    */
+  /** Tenant-scoped FBT for the merchant admin (verifies store ownership first). */
+  async suggestionsForStore(ctx: TenantContext, storeId: string, productId: string, limit = 3) {
+    const store = await this.prisma.store.findFirst({ where: { id: storeId, tenantId: ctx.tenantId }, select: { id: true } });
+    if (!store) throw new NotFoundError('Store', storeId);
+    return this.frequentlyBoughtTogether(storeId, productId, limit);
+  }
+
   async frequentlyBoughtTogether(storeId: string, productId: string, limit = 3) {
     // Orders that included this product (any variant of it), paid or fulfilled.
     const orders = await this.prisma.order.findMany({

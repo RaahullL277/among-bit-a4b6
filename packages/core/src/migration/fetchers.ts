@@ -38,11 +38,50 @@ function toMinor(value: unknown): number {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
+// --- SSRF guard -------------------------------------------------------------
+
+// Reject hosts that point at the local machine, link-local/metadata, or private
+// networks so a merchant-supplied import URL can't be used to probe internal
+// services. (Residual DNS-rebinding risk is out of scope for this guard.)
+function assertPublicHttpsHost(host: string): void {
+  const h = host.toLowerCase();
+  if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) {
+    throw new Error('Import URL host is not allowed.');
+  }
+  // Literal IPv4/IPv6 in private / loopback / link-local ranges.
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
+    const [a, b] = h.split('.').map(Number);
+    if (a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)) {
+      throw new Error('Import URL host is not allowed.');
+    }
+  }
+  if (h === '::1' || h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') || h.startsWith('[')) {
+    throw new Error('Import URL host is not allowed.');
+  }
+}
+
+/** Validate a merchant-supplied import URL: https only, public host. */
+function safeBaseUrl(raw: string): URL {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error('Import URL is not a valid URL.');
+  }
+  if (u.protocol !== 'https:') throw new Error('Import URL must use https.');
+  assertPublicHttpsHost(u.hostname);
+  return u;
+}
+
 // --- Shopify Admin API ------------------------------------------------------
 
 function shopifyBase(creds: ApiCredentials): string {
   if (!creds.shop || !creds.accessToken) throw new Error('Shopify import needs { shop, accessToken }.');
   const host = creds.shop.includes('.') ? creds.shop : `${creds.shop}.myshopify.com`;
+  // Custom Shopify hosts must be a real myshopify.com store, not an arbitrary host.
+  if (creds.shop.includes('.') && !/^[a-z0-9-]+\.myshopify\.com$/i.test(host)) {
+    throw new Error('Shopify shop must be a *.myshopify.com host.');
+  }
   return `https://${host}/admin/api/${creds.apiVersion ?? '2024-01'}`;
 }
 
@@ -122,7 +161,8 @@ async function shopifyFetch(fetchImpl: FetchImpl, creds: ApiCredentials, kind: I
 
 function wooBase(creds: ApiCredentials): string {
   if (!creds.url || !creds.consumerKey || !creds.consumerSecret) throw new Error('WooCommerce import needs { url, consumerKey, consumerSecret }.');
-  return `${creds.url.replace(/\/$/, '')}/wp-json/wc/v3`;
+  const u = safeBaseUrl(creds.url); // SSRF guard: https + public host only
+  return `${u.origin}${u.pathname.replace(/\/$/, '')}/wp-json/wc/v3`;
 }
 
 async function wooGet(fetchImpl: FetchImpl, creds: ApiCredentials, path: string): Promise<any> {

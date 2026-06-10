@@ -19,11 +19,15 @@ async function bootstrap() {
   app.useGlobalFilters(new CoreExceptionFilter());
 
   // Allow the merchant admin UI (and other first-party clients) to call the API.
-  // CORS_ORIGIN can be a comma-separated allowlist; defaults to all origins in dev.
-  const origins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim());
+  // CORS_ORIGIN is a comma-separated allowlist. Fail closed in production: an
+  // unset allowlist must NOT reflect every origin.
+  const origins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean);
+  if (!origins?.length && process.env.NODE_ENV === 'production') {
+    throw new Error('CORS_ORIGIN must be set in production (refusing wildcard origin).');
+  }
   app.enableCors({
-    origin: origins && origins.length ? origins : true,
-    allowedHeaders: ['content-type', 'x-api-key', 'authorization', 'x-webhook-signature'],
+    origin: origins?.length ? origins : true,
+    allowedHeaders: ['content-type', 'x-api-key', 'authorization', 'x-webhook-signature', 'x-acp-client'],
   });
 
   const port = Number(process.env.API_PORT ?? 3000);

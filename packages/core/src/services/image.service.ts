@@ -69,11 +69,19 @@ export class ImageService {
   }
 
   /** Ordered gallery for a product (primary first, then by position). */
+  /** Public/by-id image list (storefront): caller already trusts the product id. */
   async productImages(productId: string) {
     return this.prisma.imageAsset.findMany({
       where: { productId },
       orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }],
     });
+  }
+
+  /** Tenant-scoped image list for the merchant admin (prevents cross-tenant IDOR). */
+  async listForProduct(ctx: TenantContext, productId: string) {
+    await this.prisma.product.findFirstOrThrow({ where: { id: productId, tenantId: ctx.tenantId } })
+      .catch(() => { throw new NotFoundError('Product', productId); });
+    return this.productImages(productId);
   }
 
   /** Make one image the product's primary (card/hero). */

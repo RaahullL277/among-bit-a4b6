@@ -101,7 +101,7 @@ export class CatalogController {
   @Get('products/:productId/images')
   @Permissions('products:read')
   listImages(@Tenant() t: TenantContext, @Param('productId') productId: string): Promise<unknown> {
-    return this.commerce.images.productImages(productId);
+    return this.commerce.images.listForProduct(t, productId);
   }
 
   @Post('images')

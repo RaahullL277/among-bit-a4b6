@@ -29,7 +29,9 @@ export class CoreExceptionFilter implements ExceptionFilter {
     const err = exception as { name?: string; message?: string };
     const status = (err.name && STATUS_BY_ERROR[err.name]) ?? 500;
     if (status === 500) {
+      // Log the detail server-side, but never leak internal/DB error strings.
       console.error('Unhandled error:', exception);
+      return res.status(500).json({ error: 'Internal server error' });
     }
     res.status(status).json({ error: err.message ?? 'Internal server error' });
   }

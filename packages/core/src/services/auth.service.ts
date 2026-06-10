@@ -18,6 +18,7 @@ import { HttpOAuthVerifier, type OAuthProfile, type OAuthVerifier } from '../aut
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // min gap between code re-sends
 const OTP_MAX_ATTEMPTS = 5;
 const TWO_FA_TTL_MS = 10 * 60 * 1000; // 10 minutes to complete the 2FA step
 const TWO_FA_ISSUER = process.env.TWO_FA_ISSUER ?? 'ACP Commerce';
@@ -178,6 +179,15 @@ export class AuthService {
   /** Send a one-time login code to a phone number (SMS). Dev returns the code. */
   async requestPhoneOtp(phone: string): Promise<{ sent: true; devCode?: string }> {
     const normalized = this.normalizePhone(phone);
+    // Resend cooldown (production): suppress re-issue if an unconsumed code was
+    // just sent — caps SMS-bombing and brute-force amplification via resends.
+    if (isProd) {
+      const recent = await this.prisma.otpCode.findFirst({
+        where: { identifier: normalized, channel: 'sms', consumedAt: null, createdAt: { gt: new Date(Date.now() - OTP_RESEND_COOLDOWN_MS) } },
+        select: { id: true },
+      });
+      if (recent) return { sent: true };
+    }
     const code = generateNumericOtp(6);
     await this.prisma.otpCode.create({
       data: { identifier: normalized, channel: 'sms', codeHash: hashToken(code), expiresAt: new Date(Date.now() + OTP_TTL_MS) },

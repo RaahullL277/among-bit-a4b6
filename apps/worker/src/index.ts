@@ -10,9 +10,14 @@ config();
 
 import { getCommerce } from '@acp/core';
 
-const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 60_000);
+// Positive finite fallback so a malformed env can't make setInterval fire in a hot loop.
+const posInt = (v: string | undefined, fallback: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+const INTERVAL_MS = posInt(process.env.WORKER_INTERVAL_MS, 60_000);
 // The store advisor is a heavier full-store scan; run it on its own slow cadence.
-const ADVISORY_INTERVAL_MS = Number(process.env.ADVISORY_INTERVAL_MS ?? 6 * 60 * 60_000);
+const ADVISORY_INTERVAL_MS = posInt(process.env.ADVISORY_INTERVAL_MS, 6 * 60 * 60_000);
 const commerce = getCommerce();
 let running = false;
 let lastAdvisoryAt = 0;

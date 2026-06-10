@@ -1,8 +1,11 @@
 import type { PrismaClient, Role } from '@prisma/client';
-import { NotFoundError, ValidationError, type TenantContext } from '../context.js';
+import { ForbiddenError, NotFoundError, ValidationError, type TenantContext } from '../context.js';
 import { generateToken } from '../crypto.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Role hierarchy: a caller may never grant or touch a role above their own.
+const RANK: Record<Role, number> = { OWNER: 3, ADMIN: 2, STAFF: 1 };
 
 /**
  * Tenant-scoped team management: members, roles, and invitations. Permission
@@ -36,9 +39,18 @@ export class MemberService {
   }
 
   /** Create an invite; returns the raw token so the caller can email a link. */
+  /** The rank of the actor making the request (API key / partner = OWNER-level). */
+  private callerRank(ctx: TenantContext): number {
+    return ctx.actor?.kind === 'user' ? RANK[ctx.actor.role] : RANK.OWNER;
+  }
+
   async createInvite(ctx: TenantContext, input: { email: string; role: Role }) {
     const email = input.email?.trim().toLowerCase();
     if (!email || !email.includes('@')) throw new ValidationError('A valid email is required.');
+    // Prevent privilege escalation: you cannot invite a role above your own.
+    if (RANK[input.role] > this.callerRank(ctx)) {
+      throw new ForbiddenError('You cannot invite a member with a higher role than your own.');
+    }
 
     // If already a member, this is a no-op error rather than a silent dup.
     const existing = await this.prisma.membership.findFirst({
@@ -70,6 +82,12 @@ export class MemberService {
     });
     if (!membership) throw new NotFoundError('Member', userId);
 
+    // No privilege escalation: you cannot assign a role above your own, nor
+    // modify a member who already outranks you.
+    const rank = this.callerRank(ctx);
+    if (RANK[role] > rank || RANK[membership.role] > rank) {
+      throw new ForbiddenError('You cannot grant or change a role higher than your own.');
+    }
     if (membership.role === 'OWNER' && role !== 'OWNER') {
       await this.assertNotLastOwner(ctx.tenantId, userId);
     }
